@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$ET — Phone Home to Profit</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #39ff14;
+    --green-dim: #39ff1466;
+    --green-dark: #0a3d00;
+    --dark: #030a03;
+    --darker: #010501;
+    --panel: #0a150a;
+    --panel-border: #1a3a1a;
+    --text: #c8f7c0;
+    --text-dim: #5a8a52;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--darker); color: var(--text); font-family: 'Space Mono', monospace; overflow-x: hidden; cursor: crosshair; }
+  .stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  .stars canvas { width: 100%; height: 100%; }
+  .scanlines { position: fixed; inset: 0; z-index: 999; pointer-events: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.015) 2px, rgba(0,255,0,0.015) 4px); }
+  .vignette { position: fixed; inset: 0; z-index: 998; pointer-events: none; background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%); }
+  .page-wrapper { position: relative; z-index: 1; min-height: 100vh; }
+
+  /* PRELOADER */
+  .preloader { position: fixed; inset: 0; z-index: 10000; background: var(--darker); display: flex; justify-content: center; align-items: center; padding: 24px; transition: opacity 0.8s ease, visibility 0.8s ease; }
+  .preloader.done { opacity: 0; visibility: hidden; pointer-events: none; }
+  .preloader-terminal { width: 100%; max-width: 660px; background: #050f05; border: 1px solid var(--panel-border); border-radius: 4px; overflow: hidden; box-shadow: 0 0 60px rgba(57,255,20,0.05); transition: opacity 0.7s ease, transform 0.7s ease; position: relative; z-index: 2; }
+  .preloader-terminal.shrink { opacity: 0; transform: scale(0.92) translateY(-30px); pointer-events: none; }
+  .preloader-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #0a1a0a; border-bottom: 1px solid var(--panel-border); }
+  .preloader-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green-dark); }
+  .preloader-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .preloader-title { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-dim); letter-spacing: 2px; margin-left: 8px; text-transform: uppercase; }
+  .preloader-body { padding: 20px; min-height: 380px; max-height: 440px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .preloader-lines { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .preloader-line { font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.7; color: var(--text-dim); white-space: pre; opacity: 0; transform: translateY(4px); animation: lineIn 0.15s ease forwards; flex-shrink: 0; }
+  .preloader-line.green { color: var(--green); text-shadow: 0 0 8px var(--green-dim); }
+  .preloader-line.dim { color: #2a5a22; }
+  .preloader-line.warn { color: #ffaa00; text-shadow: 0 0 8px rgba(255,170,0,0.3); }
+  .preloader-line.success { color: var(--green); font-weight: 700; text-shadow: 0 0 12px var(--green); }
+  .preloader-line.error { color: #ff3c3c; text-shadow: 0 0 6px rgba(255,60,60,0.3); }
+  @keyframes lineIn { to { opacity: 1; transform: translateY(0); } }
+  .preloader-progress { padding: 12px 20px 16px; display: flex; align-items: center; gap: 12px; }
+  .preloader-bar-track { flex: 1; height: 3px; background: var(--panel-border); border-radius: 2px; overflow: hidden; }
+  .preloader-bar-fill { height: 100%; width: 0%; background: var(--green); box-shadow: 0 0 10px var(--green); border-radius: 2px; transition: width 0.3s ease; }
+  .preloader-percent { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--green); min-width: 36px; text-align: right; }
+  .preloader-radar { position: absolute; bottom: 16px; right: 20px; width: 70px; height: 70px; opacity: 0.2; }
+  .radar-circle { position: absolute; inset: 0; border: 1px solid var(--green); border-radius: 50%; animation: radarPing 2s ease-out infinite; }
+  .radar-circle:nth-child(2) { animation-delay: 0.5s; }
+  .radar-circle:nth-child(3) { animation-delay: 1s; }
+  @keyframes radarPing { 0% { transform: scale(0.1); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+  .radar-dot { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: var(--green); border-radius: 50%; transform: translate(-50%,-50%); box-shadow: 0 0 8px var(--green); }
+
+  /* Galaxy */
+  .galaxy-phase { position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+  .galaxy-phase.active { opacity: 1; }
+  #galaxyCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .galaxy-hud { position: absolute; top: 24px; left: 28px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; z-index: 2; opacity: 0; transition: opacity 0.6s ease; }
+  .galaxy-hud.show { opacity: 1; }
+  .galaxy-hud-line { margin-bottom: 4px; }
+  .galaxy-hud-line span { color: var(--green); text-shadow: 0 0 6px var(--green-dim); }
+  .galaxy-hud-right { position: absolute; top: 24px; right: 28px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; text-align: right; z-index: 2; opacity: 0; transition: opacity 0.6s ease; }
+  .galaxy-hud-right.show { opacity: 1; }
+  .galaxy-final { position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); text-align: center; z-index: 3; opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+  .galaxy-final.show { opacity: 1; }
+  .galaxy-final-title { font-family: 'Silkscreen', cursive; font-size: clamp(36px, 7vw, 64px); color: var(--green); text-shadow: 0 0 30px var(--green), 0 0 80px var(--green-dim), 0 0 160px rgba(57,255,20,0.1); letter-spacing: 8px; line-height: 1; margin-bottom: 12px; }
+  .galaxy-final-sub { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-dim); letter-spacing: 4px; text-transform: uppercase; }
+  .galaxy-final-sub span { color: var(--green); }
+  .galaxy-star-name { position: absolute; z-index: 3; opacity: 0; transition: opacity 0.8s ease; pointer-events: none; font-family: 'Silkscreen', cursive; font-size: clamp(14px, 2.5vw, 22px); color: var(--green); text-shadow: 0 0 16px var(--green), 0 0 40px var(--green-dim); letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; }
+  .galaxy-star-name.show { opacity: 1; }
+  .page-wrapper.hidden { opacity: 0; pointer-events: none; }
+  .page-wrapper { transition: opacity 0.6s ease 0.3s; }
+
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(180deg, var(--darker), transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--panel-border); }
+  .nav-logo { font-family: 'Silkscreen', cursive; font-size: 24px; color: var(--green); text-shadow: 0 0 20px var(--green), 0 0 40px var(--green-dim); letter-spacing: 4px; }
+  .nav-links { display: flex; gap: 8px; }
+  .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; padding: 8px 14px; border: 1px solid transparent; transition: all 0.3s; }
+  .nav-links a:hover { color: var(--green); border-color: var(--green-dim); text-shadow: 0 0 10px var(--green-dim); }
+
+  /* HERO */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 120px 24px 80px; position: relative; }
+  .hero-et-face {
+    width: clamp(280px, 40vw, 440px);
+    height: clamp(340px, 48vw, 520px);
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeIn 1.2s ease 0.3s forwards;
+    position: relative;
+  }
+  #etFaceCanvas {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .hero-ascii-text {
+    font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.6;
+    color: var(--green); text-shadow: 0 0 10px var(--green-dim);
+    margin-bottom: 32px; white-space: pre; text-align: center;
+    opacity: 0; animation: fadeIn 1s ease 0.6s forwards;
+    letter-spacing: 1px;
+  }
+  .hero-title { font-family: 'Silkscreen', cursive; font-size: clamp(60px, 12vw, 140px); color: var(--green); text-shadow: 0 0 20px var(--green), 0 0 60px var(--green-dim), 0 0 120px rgba(57,255,20,0.15); letter-spacing: 12px; line-height: 1; margin-bottom: 16px; opacity: 0; animation: glitchIn 0.8s ease 0.6s forwards; }
+  @keyframes glitchIn { 0% { opacity: 0; transform: translateX(-20px) skewX(-5deg); } 30% { opacity: 1; transform: translateX(10px) skewX(2deg); } 60% { transform: translateX(-5px) skewX(-1deg); } 100% { opacity: 1; transform: translateX(0) skewX(0); } }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .hero-tagline { font-size: 16px; color: var(--text-dim); letter-spacing: 6px; text-transform: uppercase; margin-bottom: 48px; opacity: 0; animation: fadeIn 1s ease 1s forwards; }
+  .hero-tagline span { color: var(--green); text-shadow: 0 0 10px var(--green-dim); }
+  .cta-group { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; opacity: 0; animation: fadeIn 1s ease 1.3s forwards; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; text-decoration: none; text-transform: uppercase; letter-spacing: 2px; border: 1px solid; transition: all 0.3s; position: relative; overflow: hidden; }
+  .btn-primary { background: var(--green); color: var(--dark); border-color: var(--green); box-shadow: 0 0 20px var(--green-dim), inset 0 0 20px rgba(57,255,20,0.1); }
+  .btn-primary:hover { box-shadow: 0 0 40px var(--green), 0 0 80px var(--green-dim); transform: translateY(-2px); }
+  .btn-ghost { background: transparent; color: var(--green); border-color: var(--panel-border); }
+  .btn-ghost:hover { border-color: var(--green); box-shadow: 0 0 20px var(--green-dim); transform: translateY(-2px); }
+  .ca-section { margin-top: 48px; opacity: 0; animation: fadeIn 1s ease 1.6s forwards; }
+  .ca-label { font-size: 10px; text-transform: uppercase; letter-spacing: 4px; color: var(--text-dim); margin-bottom: 12px; }
+  .ca-box { display: inline-flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--panel-border); padding: 12px 20px; font-size: 12px; color: var(--green); cursor: pointer; transition: all 0.3s; max-width: 90vw; overflow: hidden; }
+  .ca-box:hover { border-color: var(--green); box-shadow: 0 0 20px var(--green-dim); }
+  .ca-box .ca-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; }
+  .ca-box .copy-icon { flex-shrink: 0; opacity: 0.5; transition: opacity 0.3s; }
+  .ca-box:hover .copy-icon { opacity: 1; }
+  .copy-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--green); color: var(--dark); padding: 10px 24px; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.3s; box-shadow: 0 0 30px var(--green); }
+  .copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .beam { position: absolute; bottom: -200px; left: 50%; transform: translateX(-50%); width: 300px; height: 400px; background: conic-gradient(from 0deg at 50% 0%, transparent 40%, var(--green-dim) 50%, transparent 60%); opacity: 0.12; filter: blur(30px); pointer-events: none; animation: beamPulse 6s ease-in-out infinite; }
+  @keyframes beamPulse { 0%, 100% { opacity: 0.08; } 50% { opacity: 0.18; } }
+
+  /* SECTIONS */
+  .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 6px; color: var(--text-dim); margin-bottom: 12px; }
+  .section-title { font-family: 'Silkscreen', cursive; font-size: clamp(28px, 5vw, 48px); color: var(--green); text-shadow: 0 0 20px var(--green-dim); margin-bottom: 48px; letter-spacing: 4px; }
+  .trade-section { padding: 80px 24px; text-align: center; }
+  .trade-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 900px; margin: 0 auto; }
+  .trade-card { background: var(--panel); border: 1px solid var(--panel-border); padding: 32px 24px; text-decoration: none; transition: all 0.3s; position: relative; overflow: hidden; }
+  .trade-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--green); transform: scaleX(0); transition: transform 0.3s; }
+  .trade-card:hover::before { transform: scaleX(1); }
+  .trade-card:hover { border-color: var(--green-dim); box-shadow: 0 0 30px rgba(57,255,20,0.08); transform: translateY(-4px); }
+  .trade-card-icon { font-size: 32px; margin-bottom: 16px; }
+  .trade-card-name { font-family: 'Silkscreen', cursive; font-size: 16px; color: var(--green); margin-bottom: 8px; letter-spacing: 2px; }
+  .trade-card-desc { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; line-height: 1.6; }
+  .about-section { padding: 80px 24px; max-width: 800px; margin: 0 auto; text-align: center; }
+  .about-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+  .about-card { background: var(--panel); border: 1px solid var(--panel-border); padding: 32px 20px; }
+  .about-card-number { font-family: 'Silkscreen', cursive; font-size: 36px; color: var(--green); text-shadow: 0 0 20px var(--green-dim); margin-bottom: 8px; }
+  .about-card-label { font-size: 10px; text-transform: uppercase; letter-spacing: 3px; color: var(--text-dim); }
+  .community-section { padding: 80px 24px; text-align: center; }
+  .community-links { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+  .community-btn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 28px; background: var(--panel); border: 1px solid var(--panel-border); color: var(--text); text-decoration: none; font-family: 'Space Mono', monospace; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.3s; }
+  .community-btn:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 20px var(--green-dim); transform: translateY(-3px); }
+  .community-btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .divider { width: 80%; max-width: 400px; height: 1px; background: linear-gradient(90deg, transparent, var(--panel-border), transparent); margin: 0 auto; }
+  footer { padding: 40px 24px; text-align: center; border-top: 1px solid var(--panel-border); }
+  .footer-text { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+  .footer-text span { color: var(--green); }
+  .ticker-wrap { overflow: hidden; white-space: nowrap; background: var(--panel); border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); padding: 12px 0; }
+  .ticker { display: inline-block; animation: ticker 20s linear infinite; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-dim); }
+  .ticker span { color: var(--green); }
+  @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  .hero-title:hover { animation: glitch 0.3s linear; }
+  @keyframes glitch { 0% { text-shadow: 0 0 20px var(--green), 2px 2px 0 #ff003c, -2px -2px 0 #00f7ff; } 50% { text-shadow: 0 0 20px var(--green), -2px 2px 0 #ff003c, 2px -2px 0 #00f7ff; } 100% { text-shadow: 0 0 20px var(--green), 0 0 60px var(--green-dim); } }
+  .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  @media (max-width: 768px) { nav { padding: 12px 16px; } .nav-links { display: none; } .hero { padding: 100px 16px 60px; } .hero-et-face { width: 70vw; height: 75vw; } .hero-ascii-text { font-size: 9px; } .about-grid { grid-template-columns: 1fr; } .trade-grid { grid-template-columns: 1fr; } .ca-box .ca-text { max-width: 200px; } .galaxy-hud, .galaxy-hud-right { font-size: 8px; top: 12px; } .galaxy-hud { left: 12px; } .galaxy-hud-right { right: 12px; } }
+  @media (max-width: 480px) { .trade-grid { grid-template-columns: 1fr; } .cta-group { flex-direction: column; align-items: center; } .btn { width: 100%; max-width: 280px; justify-content: center; } }
+</style>
+</head>
+<body>
+<div class="stars"><canvas id="starfield"></canvas></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div class="copy-toast" id="copyToast">✓ Contract Copied</div>
+
+<!-- PRELOADER -->
+<div class="preloader" id="preloader">
+  <div class="preloader-terminal" id="terminalPhase">
+    <div class="preloader-header">
+      <div class="preloader-dot active"></div><div class="preloader-dot"></div><div class="preloader-dot"></div>
+      <span class="preloader-title">et_signal_relay v4.2.0</span>
+    </div>
+    <div class="preloader-body">
+      <div class="preloader-lines" id="preloaderLines"></div>
+      <div class="preloader-radar"><div class="radar-circle"></div><div class="radar-circle"></div><div class="radar-circle"></div><div class="radar-dot"></div></div>
+    </div>
+    <div class="preloader-progress">
+      <div class="preloader-bar-track"><div class="preloader-bar-fill" id="preloaderBar"></div></div>
+      <span class="preloader-percent" id="preloaderPercent">0%</span>
+    </div>
+  </div>
+  <div class="galaxy-phase" id="galaxyPhase">
+    <canvas id="galaxyCanvas"></canvas>
+    <div class="galaxy-hud" id="galaxyHud">
+      <div class="galaxy-hud-line">system: <span>milky way galactic map</span></div>
+      <div class="galaxy-hud-line">mode: <span>signal triangulation</span></div>
+      <div class="galaxy-hud-line" id="galaxyStatus">status: <span>scanning...</span></div>
+    </div>
+    <div class="galaxy-hud-right" id="galaxyHudRight">
+      <div class="galaxy-hud-line">origin: <span>sol system</span></div>
+      <div class="galaxy-hud-line" id="galaxyDist">distance: <span>calculating...</span></div>
+      <div class="galaxy-hud-line" id="galaxyCoord">sector: <span>—</span></div>
+      <div class="galaxy-hud-line" id="galaxyStar">star: <span>—</span></div>
+    </div>
+    <div class="galaxy-star-name" id="galaxyStarLabel"></div>
+    <div class="galaxy-final" id="galaxyFinal">
+      <div class="galaxy-final-title">$ET</div>
+      <div class="galaxy-final-sub">signal <span>confirmed</span> — og contract — phone home</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN PAGE -->
+<div class="page-wrapper hidden" id="pageWrapper">
+  <nav>
+    <div class="nav-logo">$ET</div>
+    <div class="nav-links"><a href="#trade">Trade</a><a href="#about">About</a><a href="#community">Community</a></div>
+  </nav>
+  <section class="hero">
+    <div class="beam"></div>
+    <div class="hero-et-face" id="etFaceWrap">
+      <canvas id="etFaceCanvas"></canvas>
+    </div>
+    <div class="hero-ascii-text">
+       the most famous alien in history
+         now on solana. OG contract.
+    </div>
+    <h1 class="hero-title">$ET</h1>
+    <p class="hero-tagline">the ticker was <span>born</span> with a dollar sign — the most iconic character ever</p>
+    <div class="cta-group">
+      <a href="https://pump.fun/coin/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF" target="_blank" class="btn btn-primary">◈ Buy on Pump.fun</a>
+      <a href="https://x.com/i/communities/2024687278132769267" target="_blank" class="btn btn-ghost">✦ Join Community</a>
+    </div>
+    <div class="ca-section">
+      <div class="ca-label">— Contract Address —</div>
+      <div class="ca-box" onclick="copyCA()">
+        <span class="ca-text">A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF</span>
+        <span class="copy-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+      </div>
+    </div>
+  </section>
+  <div class="ticker-wrap">
+    <div class="ticker"><span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · <span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · </div>
+  </div>
+  <section class="trade-section" id="trade">
+    <div class="reveal"><div class="section-label">— Beam Up —</div><h2 class="section-title">Trade $ET</h2></div>
+    <div class="trade-grid reveal">
+      <a href="https://trade.padre.gg/trade/solana/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF?rk=lxpamp" target="_blank" class="trade-card"><div class="trade-card-icon">⚡</div><div class="trade-card-name">Padre</div><div class="trade-card-desc">Trade Terminal</div></a>
+      <a href="https://axiom.trade/t/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF/@lxpamp?chain=sol" target="_blank" class="trade-card"><div class="trade-card-icon">🛸</div><div class="trade-card-name">Axiom</div><div class="trade-card-desc">Trading Terminal</div></a>
+      <a href="https://neo.bullx.io/terminal?chainId=1399811149&address=A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF" target="_blank" class="trade-card"><div class="trade-card-icon">🌀</div><div class="trade-card-name">Neo</div><div class="trade-card-desc">BullX Neo Bot</div></a>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="about-section" id="about">
+    <div class="reveal">
+      <div class="section-label">— The Bull Case —</div>
+      <h2 class="section-title">Why $ET?</h2>
+      <p style="font-size: 14px; color: var(--text-dim); line-height: 2; letter-spacing: 1px; max-width: 560px; margin: 0 auto 40px;">E.T. is the most iconic, memeable character in history — and now he's on Solana. The ticker <span style="color:var(--green);">$ET</span> was born with a dollar sign baked right in. No forcing it. No stretching. It just works. Add in one of the most OG contracts on the chain, and you've got the perfect storm. This is the play that was always meant to exist.</p>
+    </div>
+    <div class="about-grid reveal">
+      <div class="about-card"><div class="about-card-number">$ET</div><div class="about-card-label">Built-in $ Ticker</div></div>
+      <div class="about-card"><div class="about-card-number">OG</div><div class="about-card-label">Contract</div></div>
+      <div class="about-card"><div class="about-card-number">#1</div><div class="about-card-label">Most Iconic Character</div></div>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="community-section" id="community">
+    <div class="reveal"><div class="section-label">— Make Contact —</div><h2 class="section-title">Join the Hive</h2></div>
+    <div class="community-links reveal">
+      <a href="https://x.com/i/communities/2024687278132769267" target="_blank" class="community-btn"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X Community</a>
+    </div>
+  </section>
+  <footer><p class="footer-text"><span>$ET</span> — the ticker with a built-in dollar sign — og contract on solana — dyor</p></footer>
+</div>
+
+<!-- CLICK TO START (audio requires user interaction) -->
+<div id="audioGate" style="position:fixed;inset:0;z-index:20000;background:var(--darker);display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;transition:opacity 0.5s ease;">
+  <div style="font-family:'Silkscreen',cursive;font-size:clamp(20px,4vw,36px);color:var(--green);text-shadow:0 0 20px var(--green),0 0 60px rgba(57,255,20,0.3);letter-spacing:6px;margin-bottom:24px;animation:fadeIn 1s ease forwards,float 3s ease-in-out infinite;">$ET</div>
+  <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--text-dim);letter-spacing:4px;text-transform:uppercase;animation:blink 1.5s ease-in-out infinite;">[ click to initiate ]</div>
+  <style>@keyframes blink{0%,100%{opacity:0.4}50%{opacity:1}}</style>
+</div>
+
+<script>
+(function() {
+  const linesEl = document.getElementById('preloaderLines');
+  const barEl = document.getElementById('preloaderBar');
+  const pctEl = document.getElementById('preloaderPercent');
+  const preloader = document.getElementById('preloader');
+  const pageWrapper = document.getElementById('pageWrapper');
+  const terminalPhase = document.getElementById('terminalPhase');
+  const galaxyPhase = document.getElementById('galaxyPhase');
+  const galaxyHud = document.getElementById('galaxyHud');
+  const galaxyHudRight = document.getElementById('galaxyHudRight');
+  const galaxyFinal = document.getElementById('galaxyFinal');
+  const galaxyStatus = document.getElementById('galaxyStatus');
+  const galaxyDist = document.getElementById('galaxyDist');
+  const galaxyCoord = document.getElementById('galaxyCoord');
+  const galaxyStar = document.getElementById('galaxyStar');
+  const galaxyStarLabel = document.getElementById('galaxyStarLabel');
+  const audioGate = document.getElementById('audioGate');
+
+  const setProg = v => { barEl.style.width = v+'%'; pctEl.textContent = Math.round(v)+'%'; };
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  // ======== MINIMAL TERMINAL AUDIO ========
+  let audioCtx = null;
+  let masterGain = null;
+
+  function initAudio() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.15;
+    masterGain.connect(audioCtx.destination);
+  }
+
+  // Tiny soft tick — like a key press
+  function sfxTick() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(800 + Math.random() * 200, t);
+    gain.gain.setValueAtTime(0.04, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.025);
+  }
+
+  // Soft low hum drone — background
+  function sfxDrone() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(60, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.06, t + 3);
+    gain.gain.linearRampToValueAtTime(0.04, t + 20);
+    gain.gain.linearRampToValueAtTime(0, t + 28);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 28);
+  }
+
+  // Warning — two short low tones
+  function sfxWarn() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, t + i * 0.2);
+      gain.gain.setValueAtTime(0.1, t + i * 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.2 + 0.12);
+      osc.connect(gain); gain.connect(masterGain);
+      osc.start(t + i * 0.2); osc.stop(t + i * 0.2 + 0.15);
+    }
+  }
+
+  // Signal found — slow rising tone
+  function sfxSignal() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, t);
+    osc.frequency.exponentialRampToValueAtTime(1200, t + 1.8);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.3);
+    gain.gain.linearRampToValueAtTime(0.06, t + 1.5);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 2.3);
+  }
+
+  // Galaxy — deep space pad
+  function sfxSpace() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    [55, 82.5, 110].forEach((f, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.04 - i * 0.01, t + 1.5);
+      gain.gain.linearRampToValueAtTime(0.03 - i * 0.008, t + 8);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 12);
+      osc.connect(gain); gain.connect(masterGain);
+      osc.start(t); osc.stop(t + 12);
+    });
+  }
+
+  // Locked — single clean confirmation tone
+  function sfxLock() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, t);
+    gain.gain.setValueAtTime(0.1, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.7);
+  }
+
+  // Contact — soft two-note resolution
+  function sfxContact() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    [660, 880].forEach((f, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t + i * 0.3);
+      gain.gain.setValueAtTime(0.08, t + i * 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.3 + 0.8);
+      osc.connect(gain); gain.connect(masterGain);
+      osc.start(t + i * 0.3); osc.stop(t + i * 0.3 + 0.9);
+    });
+  }
+
+  // Blip on every terminal line
+  const addLine = (t, c='', dl=0) => new Promise(r => setTimeout(() => {
+    const el = document.createElement('div');
+    el.className = 'preloader-line'+(c?' '+c:'');
+    el.textContent = t;
+    linesEl.appendChild(el);
+    linesEl.scrollTop = linesEl.scrollHeight;
+    if (t.trim()) sfxTick();
+    r();
+  }, dl));
+
+  // ======== RANDOM SIGNAL GENERATION ========
+  const STAR_NAMES = [
+    'Zephyria Prime', 'Voss-Kethani 7', 'Arcturus-7X', 'Nyx Omega',
+    'Thalassar IV', 'Korvain-9', 'Elysium Beacon', 'Draven Sigma',
+    'Xanthus-12', 'Pyralis Major', 'Oberon-Null', 'Icarus Drift',
+    'Calyx Vertex', 'Meridian-6b', 'Solace Point', 'Ghaal Terminus',
+    'Revenant Star', 'Kael Anterior', 'Luminara-3', 'Onyx Reach'
+  ];
+  const SECTOR_NAMES = [
+    'Outer Perseus', 'Cygnus Deep', 'Norma Arm', 'Scutum-Centaurus',
+    'Sagittarius Spur', 'Carina Edge', 'Orion Fringe', 'Crux Arm',
+    'Vela Corridor', 'Centaurus Rift'
+  ];
+
+  function randomSignal() {
+    // Place signal somewhere in the galaxy arms, away from center and SOL
+    const arm = Math.floor(Math.random() * 4);
+    const dist = 0.18 + Math.random() * 0.22;
+    const baseAngle = (arm / 4) * Math.PI * 2;
+    const angle = baseAngle + dist * 5.5 + (Math.random() - 0.5) * 0.4;
+    const x = 0.5 + Math.cos(angle) * dist;
+    const y = 0.5 + Math.sin(angle) * dist * 0.55;
+    const name = STAR_NAMES[Math.floor(Math.random() * STAR_NAMES.length)];
+    const sector = SECTOR_NAMES[Math.floor(Math.random() * SECTOR_NAMES.length)];
+    const distLy = (8000 + Math.floor(Math.random() * 52000)).toLocaleString();
+    return { x: Math.max(0.08, Math.min(0.92, x)), y: Math.max(0.08, Math.min(0.92, y)), name, sector, distLy };
+  }
+
+  const signal = randomSignal();
+
+  // ======== GALAXY CANVAS ========
+  const gC = document.getElementById('galaxyCanvas');
+  const gX = gC.getContext('2d');
+  let gStars = [];
+  const cam = { x: 0, y: 0, zoom: 1, running: false };
+  const SOL = { x: 0.62, y: 0.48 };
+  const trace = { progress: 0, active: false, pulseTime: 0, pulsing: false };
+
+  function initGalaxy() {
+    gC.width = window.innerWidth; gC.height = window.innerHeight;
+    gStars = [];
+    for (let arm = 0; arm < 4; arm++) {
+      const ba = (arm / 4) * Math.PI * 2;
+      for (let i = 0; i < 500; i++) {
+        const d = (i / 500) * 0.42 + 0.02;
+        const a = ba + d * 5.5 + (Math.random() - 0.5) * 0.6;
+        const sp = (Math.random() - 0.5) * (0.03 + d * 0.12);
+        gStars.push({ x: 0.5+Math.cos(a)*d+Math.cos(a+Math.PI/2)*sp, y: 0.5+Math.sin(a)*d*0.55+Math.sin(a+Math.PI/2)*sp*0.55, b: 0.15+Math.random()*0.55, s: 0.4+Math.random()*1.2, p: Math.random()*Math.PI*2 });
+      }
+    }
+    for (let i = 0; i < 350; i++) {
+      const a = Math.random()*Math.PI*2, d = Math.random()*0.08;
+      gStars.push({ x: 0.5+Math.cos(a)*d, y: 0.5+Math.sin(a)*d*0.55, b: 0.3+Math.random()*0.7, s: 0.3+Math.random()*1.5, p: Math.random()*Math.PI*2 });
+    }
+    for (let i = 0; i < 180; i++) gStars.push({ x: Math.random(), y: Math.random(), b: 0.1+Math.random()*0.2, s: 0.3+Math.random()*0.6, p: Math.random()*Math.PI*2 });
+  }
+
+  function drawGalaxy(time) {
+    if (!cam.running) return;
+    const W = gC.width, H = gC.height, z = cam.zoom;
+    gX.fillStyle = 'rgba(1,5,1,1)'; gX.fillRect(0,0,W,H);
+    const csx = (0.5-cam.x)*z*W+W/2, csy = (0.5-cam.y)*z*H+H/2;
+    const cg = gX.createRadialGradient(csx,csy,0,csx,csy,z*Math.min(W,H)*0.15);
+    cg.addColorStop(0,'rgba(57,255,20,0.08)'); cg.addColorStop(0.4,'rgba(57,255,20,0.03)'); cg.addColorStop(1,'transparent');
+    gX.fillStyle = cg; gX.fillRect(0,0,W,H);
+    for (const st of gStars) {
+      const sx = (st.x-cam.x)*z*W+W/2, sy = (st.y-cam.y)*z*H+H/2;
+      if (sx<-10||sx>W+10||sy<-10||sy>H+10) continue;
+      const tw = 0.6+0.4*Math.sin(time*0.001+st.p), al = st.b*tw, r = st.s*Math.min(z*0.6,3);
+      gX.beginPath(); gX.arc(sx,sy,r,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al})`; gX.fill();
+      if (r>1.2) { gX.beginPath(); gX.arc(sx,sy,r*2.5,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al*0.08})`; gX.fill(); }
+    }
+    gX.strokeStyle='rgba(57,255,20,0.015)'; gX.lineWidth=0.5;
+    const gs=Math.max(40,60*z);
+    for (let i=0;i<W;i+=gs){gX.beginPath();gX.moveTo(i,0);gX.lineTo(i,H);gX.stroke();}
+    for (let i=0;i<H;i+=gs){gX.beginPath();gX.moveTo(0,i);gX.lineTo(W,i);gX.stroke();}
+    const solX=(SOL.x-cam.x)*z*W+W/2, solY=(SOL.y-cam.y)*z*H+H/2;
+    drawMarker(solX,solY,'SOL',time,false);
+    if (trace.active&&trace.progress>0) {
+      const sigX=(signal.x-cam.x)*z*W+W/2, sigY=(signal.y-cam.y)*z*H+H/2;
+      const eX=solX+(sigX-solX)*trace.progress, eY=solY+(sigY-solY)*trace.progress;
+      gX.save(); gX.beginPath(); gX.moveTo(solX,solY); gX.lineTo(eX,eY);
+      gX.strokeStyle='rgba(57,255,20,0.5)'; gX.lineWidth=1.5; gX.setLineDash([6,4]); gX.stroke(); gX.setLineDash([]);
+      gX.beginPath(); gX.moveTo(solX,solY); gX.lineTo(eX,eY);
+      gX.strokeStyle='rgba(57,255,20,0.04)'; gX.lineWidth=16; gX.stroke(); gX.restore();
+      gX.beginPath(); gX.arc(eX,eY,3,0,Math.PI*2); gX.fillStyle='rgba(57,255,20,0.9)'; gX.fill();
+      gX.beginPath(); gX.arc(eX,eY,10,0,Math.PI*2); gX.fillStyle='rgba(57,255,20,0.1)'; gX.fill();
+      if (trace.progress>=1) {
+        drawMarker(sigX,sigY,signal.name.toUpperCase(),time,true);
+        if (trace.pulsing) {
+          const el=(time-trace.pulseTime)/1000;
+          for (let ring=0;ring<4;ring++) {
+            const age=el-ring*0.3; if(age<0) continue;
+            const rr=8+age*50, al=Math.max(0,0.5-age*0.25);
+            gX.beginPath(); gX.arc(sigX,sigY,rr,0,Math.PI*2);
+            gX.strokeStyle=`rgba(57,255,20,${al})`; gX.lineWidth=1.5; gX.stroke();
+          }
+        }
+        // Position the HTML star label near the signal on screen
+        galaxyStarLabel.style.left = (sigX + 20) + 'px';
+        galaxyStarLabel.style.top = (sigY - 40) + 'px';
+      }
+    }
+    requestAnimationFrame(drawGalaxy);
+  }
+
+  function drawMarker(x,y,label,time,isSig) {
+    const pulse=0.5+0.5*Math.sin(time*0.003), al=isSig?0.9:0.7, sz=isSig?14:10;
+    gX.strokeStyle=`rgba(57,255,20,${al})`; gX.lineWidth=1;
+    gX.beginPath();
+    gX.moveTo(x-sz,y); gX.lineTo(x-4,y); gX.moveTo(x+4,y); gX.lineTo(x+sz,y);
+    gX.moveTo(x,y-sz); gX.lineTo(x,y-4); gX.moveTo(x,y+4); gX.lineTo(x,y+sz);
+    gX.stroke();
+    gX.beginPath(); gX.arc(x,y,isSig?3:2,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al})`; gX.fill();
+    gX.beginPath(); gX.arc(x,y,(isSig?20:12)*pulse,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${isSig?0.06:0.04})`; gX.fill();
+    gX.save(); gX.font=isSig?'bold 10px "Space Mono",monospace':'9px "Space Mono",monospace';
+    gX.fillStyle=`rgba(57,255,20,${al})`; gX.textAlign='left';
+    gX.shadowColor='rgba(57,255,20,0.5)'; gX.shadowBlur=isSig?12:6;
+    gX.fillText(label,x+sz+6,y+4); gX.restore();
+  }
+
+  function animateTo(obj,props,dur) {
+    return new Promise(res => {
+      const start={}, t0=performance.now();
+      for (const k in props) start[k]=obj[k];
+      (function tick(now) {
+        let t=Math.min((now-t0)/dur,1);
+        t=t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+        for (const k in props) obj[k]=start[k]+(props[k]-start[k])*t;
+        if (t<1) requestAnimationFrame(tick); else res();
+      })(performance.now());
+    });
+  }
+
+  // ======== MAIN SEQUENCE ========
+  async function runSequence() {
+    const d = 110;
+    sfxDrone();
+
+    // ---- BOOT PHASE ----
+    await addLine('$ et_signal_relay v4.2.0', 'green');
+    await addLine('$ copyright (c) 2025 ET Protocol Labs', 'dim', d);
+    await addLine('', '', d*0.3);
+    setProg(2);
+
+    await addLine('[boot] loading kernel modules...', 'dim', d);
+    await wait(200);
+    await addLine('[boot]   mod_antenna_array.ko        loaded', 'dim', d*0.6);
+    await addLine('[boot]   mod_quantum_decoder.ko      loaded', 'dim', d*0.6);
+    await addLine('[boot]   mod_signal_processor.ko     loaded', 'dim', d*0.6);
+    await addLine('[boot]   mod_solana_bridge.ko        loaded', 'dim', d*0.6);
+    setProg(7);
+
+    await addLine('[boot] mounting /dev/solana...', 'dim', d);
+    await wait(300);
+    await addLine('[boot]   rpc endpoint: mainnet-beta    OK', 'dim', d*0.5);
+    await addLine('[boot]   block height: 298,441,207     OK', 'dim', d*0.5);
+    setProg(11);
+
+    await addLine('[boot] initializing cryptographic engines...', 'dim', d);
+    await addLine('[boot]   ed25519 signature engine      OK', 'dim', d*0.5);
+    await addLine('[boot]   sha256 hash pipeline          OK', 'dim', d*0.5);
+    await addLine('[boot]   aes-256-gcm cipher suite      OK', 'dim', d*0.5);
+    setProg(15);
+
+    await addLine('', '', d*0.3);
+    await addLine('[sys]  allocating deep-space antenna array', '', d);
+    await wait(250);
+    await addLine('[sys]    dish 01 .... online   ✓', 'green', d*0.6);
+    await addLine('[sys]    dish 02 .... online   ✓', 'green', d*0.6);
+    await addLine('[sys]    dish 03 .... online   ✓', 'green', d*0.6);
+    await addLine('[sys]    dish 04 .... online   ✓', 'green', d*0.6);
+    await addLine('[sys]    dish 05 .... standby  ○', 'dim', d*0.6);
+    setProg(21);
+
+    await addLine('[sys]  frequency locked: 1420.405 MHz (hydrogen line)', '', d);
+    await addLine('[sys]  secondary: 4462.336 MHz (deuterium)', 'dim', d*0.6);
+    await addLine('[sys]  bandwidth: ████████████████ MAXIMUM', 'green', d);
+    await addLine('[sys]  sensitivity: -260 dBm', 'dim', d*0.5);
+    setProg(26);
+
+    // ---- SELF-TEST ----
+    await addLine('', '', d*0.3);
+    await addLine('$ running pre-flight diagnostics...', 'green', d);
+    await wait(200);
+    await addLine('[diag] antenna alignment .............. PASS', 'dim', d*0.7);
+    await addLine('[diag] signal-to-noise ratio .......... PASS', 'dim', d*0.7);
+    await addLine('[diag] temporal sync (UTC) ............ PASS', 'dim', d*0.7);
+    await addLine('[diag] quantum decoherence check ...... PASS', 'dim', d*0.7);
+    await addLine('[diag] solana RPC heartbeat ........... PASS', 'dim', d*0.7);
+    await addLine('[diag] all systems nominal', 'success', d*0.5);
+    setProg(34);
+
+    // ---- SCANNING ----
+    await addLine('', '', d*0.3);
+    await addLine('$ initiating deep-space scan...', 'green', d);
+    await addLine('[scan] search radius: 100,000 light-years', '', d);
+    await addLine('[scan] sweep pattern: logarithmic spiral', 'dim', d*0.5);
+    await wait(200);
+
+    const sectors = [
+      ['Proxima Centauri b','4.24 ly','no signal'],
+      ['Barnard\'s Star c','5.96 ly','no signal'],
+      ['Kepler-442b','1,206 ly','no signal'],
+      ['TRAPPIST-1e','39.6 ly','no signal'],
+      ['Gliese 667 Cc','23.6 ly','no signal'],
+      ['TOI-700 d','101.4 ly','no signal'],
+      ['Ross 128 b','11.0 ly','no signal'],
+      ['HD 40307 g','42.0 ly','no signal'],
+    ];
+    for (let i = 0; i < sectors.length; i++) {
+      const [nm,ds,st] = sectors[i];
+      await addLine(`[scan] ${nm.padEnd(22)} ${ds.padStart(10)} → ${st}`, 'dim', d*0.55);
+      setProg(34 + (i+1)*2.5);
+    }
+    await addLine(`[scan] ${sectors.length}/${sectors.length} known exoplanets scanned`, 'green', d*0.5);
+    setProg(55);
+
+    // ---- TRANSMITTING ----
+    await addLine('', '', d*0.3);
+    await addLine('$ encoding outbound transmission...', 'green', d);
+    await addLine('[tx]   payload: "ET PHONE HOME"', '', d*0.8);
+    await addLine('[tx]   packet size: 42,069 bytes', 'dim', d*0.5);
+    await addLine('[tx]   encryption: solana-ed25519', 'dim', d*0.5);
+    await addLine('[tx]   error correction: reed-solomon', 'dim', d*0.5);
+    setProg(59);
+    await addLine('[tx]   broadcasting on all frequencies...', 'green', d);
+    await wait(300);
+
+    // ---- PINGING ----
+    await addLine('', '', d*0.3);
+    await addLine('$ pinging relay stations...', 'green', d);
+    const pings = [
+      ['Alpha Centauri Hub','4.37 ly','timeout'],
+      ['Vega Relay','25.0 ly','no response'],
+      ['Sirius Gateway','8.6 ly','no response'],
+      ['Andromeda Relay','2.537M ly','no response'],
+      ['Orion Arm Node','1,344 ly','no response'],
+      ['Sagittarius Gate','26,000 ly','no response'],
+    ];
+    for (let i = 0; i < pings.length; i++) {
+      const [t,ds,s] = pings[i];
+      await addLine(`[ping] ${t.padEnd(22)} ${ds.padStart(10)} → ${s}`, 'dim', d*0.8);
+      setProg(60 + (i+1)*2);
+    }
+    setProg(73);
+
+    // ---- SIGNAL DETECTED ----
+    await addLine('', '', d*0.3);
+    await wait(400);
+    await addLine('[rx]   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░', 'dim', d);
+    await wait(300);
+    sfxWarn();
+    await addLine('[rx]   ██ ANOMALOUS SIGNAL DETECTED ██', 'warn', d);
+    await wait(200);
+    await addLine('[rx]   ██ ANOMALOUS SIGNAL DETECTED ██', 'warn', d*0.3);
+    sfxSignal();
+    setProg(76);
+    await addLine('[rx]   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░', 'dim', d*0.5);
+    await wait(300);
+
+    await addLine('[rx]   analyzing waveform pattern...', '', d);
+    await wait(350);
+    await addLine('[rx]   spectral class: non-terrestrial', 'warn', d*0.8);
+    await addLine('[rx]   modulation: unknown protocol', 'warn', d*0.6);
+    await addLine(`[rx]   estimated origin: ${signal.sector}`, 'warn', d*0.6);
+    setProg(80);
+
+    await addLine('', '', d*0.3);
+    await addLine('[rx]   attempting decode...', 'green', d);
+    await wait(500);
+    await addLine('[rx]   ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░ 50%', 'dim', d*0.5);
+    await wait(300);
+    await addLine('[rx]   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░ 75%', 'dim', d*0.4);
+    await wait(200);
+    await addLine('[rx]   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ 100%', 'green', d*0.3);
+    setProg(84);
+
+    await addLine('[rx]   decode successful.', 'success', d*0.8);
+    await addLine(`[rx]   source star: ${signal.name}`, 'success', d*0.5);
+    await addLine(`[rx]   distance: ${signal.distLy} light-years`, 'green', d*0.5);
+    setProg(87);
+
+    await addLine('', '', d*0.3);
+    await addLine('[sys]  triangulating coordinates...', 'green', d);
+    await wait(400);
+    await addLine('[sys]  lock confirmed. opening galactic map...', 'success', d);
+    setProg(90);
+
+    await wait(600);
+
+    // ======== GALAXY PHASE ========
+    sfxSpace();
+    initGalaxy();
+    cam.running = true;
+    cam.x = SOL.x; cam.y = SOL.y; cam.zoom = 2.8;
+    terminalPhase.classList.add('shrink');
+    await wait(400);
+    galaxyPhase.classList.add('active');
+    requestAnimationFrame(drawGalaxy);
+    await wait(600);
+    galaxyHud.classList.add('show');
+    galaxyHudRight.classList.add('show');
+
+    // Zoom out to full galaxy
+    await animateTo(cam, { x: 0.5, y: 0.5, zoom: 1.05 }, 2800);
+    await wait(500);
+
+    // Trace signal
+    trace.active = true;
+    galaxyStatus.innerHTML = 'status: <span style="color:#ffaa00">TRACING SIGNAL...</span>';
+    await animateTo(trace, { progress: 1 }, 2400);
+
+    // Signal found!
+    sfxLock();
+    trace.pulsing = true;
+    trace.pulseTime = performance.now();
+    galaxyStatus.innerHTML = 'status: <span style="color:#ffaa00">⚠ SIGNAL LOCKED</span>';
+    galaxyDist.innerHTML = `distance: <span>${signal.distLy} ly</span>`;
+    galaxyCoord.innerHTML = `sector: <span>${signal.sector}</span>`;
+    galaxyStar.innerHTML = `star: <span>${signal.name}</span>`;
+    await wait(800);
+
+    // Zoom into signal
+    await animateTo(cam, { x: signal.x, y: signal.y, zoom: 5 }, 3000);
+    await wait(300);
+
+    // Show star name label on canvas
+    galaxyStarLabel.textContent = '★ ' + signal.name;
+    galaxyStarLabel.classList.add('show');
+
+    galaxyStatus.innerHTML = 'status: <span style="color:var(--green);font-weight:700">✓ CONTACT ESTABLISHED</span>';
+    sfxContact();
+    galaxyFinal.classList.add('show');
+    await wait(3000);
+
+    preloader.classList.add('done');
+    pageWrapper.classList.remove('hidden');
+  }
+
+  function startEverything() {
+    initAudio();
+    audioGate.style.opacity = '0';
+    setTimeout(() => { audioGate.style.display = 'none'; }, 500);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => setTimeout(runSequence, 250));
+    } else { setTimeout(runSequence, 500); }
+  }
+
+  audioGate.addEventListener('click', startEverything, { once: true });
+  audioGate.addEventListener('touchstart', startEverything, { once: true });
+})();
+</script>
+
+<script>
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  function initStars() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight; stars = [];
+    const count = Math.floor((canvas.width*canvas.height)/3000);
+    for (let i = 0; i < count; i++) stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.5+0.3, speed: Math.random()*0.005+0.002, phase: Math.random()*Math.PI*2 });
+  }
+  function drawStars(time) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      const a = 0.3 + 0.7*Math.abs(Math.sin(time*s.speed+s.phase));
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fillStyle = `rgba(57,255,20,${a*0.5})`; ctx.fill();
+      if (s.r > 1) { ctx.beginPath(); ctx.arc(s.x, s.y, s.r*3, 0, Math.PI*2); ctx.fillStyle = `rgba(57,255,20,${a*0.05})`; ctx.fill(); }
+    });
+    requestAnimationFrame(drawStars);
+  }
+  initStars(); requestAnimationFrame(drawStars); window.addEventListener('resize', initStars);
+  function copyCA() {
+    navigator.clipboard.writeText('A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF').then(() => {
+      const t = document.getElementById('copyToast'); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000);
+    });
+  }
+  const revealEls = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver(entries => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold: 0.15 });
+  revealEls.forEach(el => observer.observe(el));
+
+  // ============ 3D VOXEL PARTICLE E.T. FACE ============
+  (function() {
+    const wrap = document.getElementById('etFaceWrap');
+    const canvas = document.getElementById('etFaceCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, cubes = [];
+
+    function resize() {
+      const rect = wrap.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.width = rect.width * dpr;
+      H = canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+    }
+
+    // Paint ET's face onto a hidden canvas as a grayscale depth map, then sample it
+    function createDepthMap() {
+      const dC = document.createElement('canvas');
+      const size = 512;
+      dC.width = size; dC.height = size;
+      const d = dC.getContext('2d');
+      d.fillStyle = '#000';
+      d.fillRect(0, 0, size, size);
+
+      const cx = size * 0.50;
+      const cy = size * 0.38;
+
+      function ellipse(x, y, rx, ry, color) {
+        d.beginPath(); d.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        d.fillStyle = color; d.fill();
+      }
+      function grad(x, y, r1, r2, c1, c2) {
+        const g = d.createRadialGradient(x, y, r1, x, y, r2);
+        g.addColorStop(0, c1); g.addColorStop(1, c2); return g;
+      }
+
+      // ---- HEAD SHAPE: Very wide bulbous cranium ----
+      // ET's head is VERY wide at the temples, egg-shaped, narrow at chin
+      d.beginPath();
+      d.moveTo(cx, cy - 165); // top of head
+      // Right side of cranium — very wide bulge
+      d.bezierCurveTo(cx + 80, cy - 175, cx + 175, cy - 140, cx + 185, cy - 60);
+      // Right temple/cheek — wide then narrowing
+      d.bezierCurveTo(cx + 190, cy + 10, cx + 160, cy + 60, cx + 110, cy + 90);
+      // Right jaw — narrowing quickly
+      d.bezierCurveTo(cx + 75, cy + 115, cx + 45, cy + 130, cx + 25, cy + 140);
+      // Chin
+      d.bezierCurveTo(cx + 10, cy + 148, cx - 10, cy + 148, cx - 25, cy + 140);
+      // Left jaw
+      d.bezierCurveTo(cx - 45, cy + 130, cx - 75, cy + 115, cx - 110, cy + 90);
+      // Left temple
+      d.bezierCurveTo(cx - 160, cy + 60, cx - 190, cy + 10, cx - 185, cy - 60);
+      // Left cranium
+      d.bezierCurveTo(cx - 175, cy - 140, cx - 80, cy - 175, cx, cy - 165);
+      d.closePath();
+      // 3D shading gradient — light from upper-left
+      d.fillStyle = grad(cx - 30, cy - 70, 10, 200, '#808080', '#1a1a1a');
+      d.fill();
+
+      // Cranium dome highlight
+      d.beginPath();
+      d.ellipse(cx - 15, cy - 110, 100, 55, 0, 0, Math.PI * 2);
+      d.fillStyle = grad(cx - 15, cy - 115, 0, 80, '#a0a0a0', 'transparent');
+      d.fill();
+
+      // Side highlight (3D volume)
+      d.beginPath();
+      d.ellipse(cx - 60, cy - 30, 60, 120, 0.1, 0, Math.PI * 2);
+      d.fillStyle = grad(cx - 70, cy - 30, 0, 80, 'rgba(150,150,150,0.25)', 'transparent');
+      d.fill();
+
+      // ---- HEAVY WRINKLES across entire face ----
+      d.save();
+      d.globalCompositeOperation = 'overlay';
+      // Forehead wrinkles — many deep horizontal lines
+      for (let i = 0; i < 10; i++) {
+        const yy = cy - 155 + i * 14;
+        const width = 80 + i * 10;
+        d.beginPath();
+        d.moveTo(cx - width, yy);
+        for (let wx = -width; wx <= width; wx += 20) {
+          d.lineTo(cx + wx, yy + Math.sin(wx * 0.04 + i) * 3);
+        }
+        d.strokeStyle = `rgba(${i % 2 === 0 ? '50,50,50' : '120,120,120'},${0.3 + i * 0.02})`;
+        d.lineWidth = 1.5 + Math.sin(i * 0.7) * 0.8;
+        d.stroke();
+      }
+
+      // Under-eye and cheek wrinkles — concentric curves around eyes
+      for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 7; i++) {
+          d.beginPath();
+          const ox = side * 60;
+          const startY = cy + 25 + i * 11;
+          d.moveTo(cx + ox + side * 30, startY - 10);
+          d.bezierCurveTo(
+            cx + ox + side * 50, startY,
+            cx + ox + side * 60, startY + 15,
+            cx + ox + side * 55, startY + 30
+          );
+          d.strokeStyle = `rgba(60,60,60,${0.2 + i * 0.03})`;
+          d.lineWidth = 1.2;
+          d.stroke();
+        }
+      }
+
+      // Nasolabial folds (deep creases from nose to mouth)
+      for (let side = -1; side <= 1; side += 2) {
+        d.beginPath();
+        d.moveTo(cx + side * 18, cy + 45);
+        d.bezierCurveTo(cx + side * 30, cy + 65, cx + side * 50, cy + 85, cx + side * 65, cy + 100);
+        d.strokeStyle = 'rgba(40,40,40,0.4)';
+        d.lineWidth = 2.5;
+        d.stroke();
+        // Lighter adjacent crease
+        d.beginPath();
+        d.moveTo(cx + side * 22, cy + 45);
+        d.bezierCurveTo(cx + side * 35, cy + 65, cx + side * 55, cy + 85, cx + side * 70, cy + 100);
+        d.strokeStyle = 'rgba(100,100,100,0.25)';
+        d.lineWidth = 1.5;
+        d.stroke();
+      }
+      d.restore();
+
+      // ---- DEEP BROW RIDGE ----
+      d.beginPath();
+      d.moveTo(cx - 130, cy - 25);
+      d.bezierCurveTo(cx - 100, cy - 50, cx - 40, cy - 55, cx, cy - 48);
+      d.bezierCurveTo(cx + 40, cy - 55, cx + 100, cy - 50, cx + 130, cy - 25);
+      d.bezierCurveTo(cx + 100, cy - 38, cx + 40, cy - 42, cx, cy - 36);
+      d.bezierCurveTo(cx - 40, cy - 42, cx - 100, cy - 38, cx - 130, cy - 25);
+      d.closePath();
+      d.fillStyle = '#707070';
+      d.fill();
+
+      // Bridge between eyes — deeper ridge
+      d.beginPath();
+      d.ellipse(cx, cy - 30, 20, 18, 0, 0, Math.PI * 2);
+      d.fillStyle = 'rgba(90,90,90,0.5)';
+      d.fill();
+
+      // ---- EYE SOCKETS (very deep, dark) ----
+      ellipse(cx - 62, cy - 5, 48, 40, '#080808');
+      ellipse(cx - 62, cy - 3, 44, 36, '#040404');
+      ellipse(cx + 62, cy - 5, 48, 40, '#080808');
+      ellipse(cx + 62, cy - 3, 44, 36, '#040404');
+
+      // ---- LARGE BLUE EYEBALLS ----
+      // Left eye
+      ellipse(cx - 60, cy - 2, 36, 30, '#707070');
+      d.beginPath(); d.ellipse(cx - 59, cy - 2, 33, 28, 0, 0, Math.PI * 2);
+      d.fillStyle = grad(cx - 62, cy - 6, 2, 30, '#aaddff', '#1a5588');
+      d.fill();
+      // Left iris detail ring
+      d.beginPath(); d.ellipse(cx - 59, cy - 2, 25, 23, 0, 0, Math.PI * 2);
+      d.fillStyle = grad(cx - 59, cy - 4, 0, 25, '#88ccee', '#2266aa');
+      d.fill();
+      // Left pupil
+      ellipse(cx - 58, cy - 1, 14, 14, '#030303');
+      // Left eye highlights
+      ellipse(cx - 70, cy - 12, 8, 6, 'rgba(255,255,255,0.9)');
+      ellipse(cx - 50, cy + 6, 4, 3, 'rgba(255,255,255,0.35)');
+      // Eye rim highlight
+      d.beginPath(); d.ellipse(cx - 60, cy - 2, 36, 30, 0, 0, Math.PI * 2);
+      d.strokeStyle = 'rgba(140,140,140,0.3)'; d.lineWidth = 1.5; d.stroke();
+
+      // Right eye
+      ellipse(cx + 60, cy - 2, 36, 30, '#707070');
+      d.beginPath(); d.ellipse(cx + 61, cy - 2, 33, 28, 0, 0, Math.PI * 2);
+      d.fillStyle = grad(cx + 58, cy - 6, 2, 30, '#aaddff', '#1a5588');
+      d.fill();
+      d.beginPath(); d.ellipse(cx + 61, cy - 2, 25, 23, 0, 0, Math.PI * 2);
+      d.fillStyle = grad(cx + 61, cy - 4, 0, 25, '#88ccee', '#2266aa');
+      d.fill();
+      ellipse(cx + 62, cy - 1, 14, 14, '#030303');
+      ellipse(cx + 50, cy - 12, 8, 6, 'rgba(255,255,255,0.9)');
+      ellipse(cx + 70, cy + 6, 4, 3, 'rgba(255,255,255,0.35)');
+      d.beginPath(); d.ellipse(cx + 60, cy - 2, 36, 30, 0, 0, Math.PI * 2);
+      d.strokeStyle = 'rgba(140,140,140,0.3)'; d.lineWidth = 1.5; d.stroke();
+
+      // ---- UNDER-EYE POUCHES ----
+      d.beginPath();
+      d.ellipse(cx - 60, cy + 32, 42, 14, 0.05, 0, Math.PI);
+      d.fillStyle = '#4a4a4a'; d.fill();
+      d.beginPath();
+      d.ellipse(cx + 60, cy + 32, 42, 14, -0.05, 0, Math.PI);
+      d.fillStyle = '#4a4a4a'; d.fill();
+
+      // ---- NOSE ----
+      d.beginPath();
+      d.moveTo(cx - 3, cy + 10);
+      d.bezierCurveTo(cx - 8, cy + 35, cx - 14, cy + 55, cx - 10, cy + 68);
+      d.bezierCurveTo(cx - 5, cy + 78, cx + 5, cy + 78, cx + 10, cy + 68);
+      d.bezierCurveTo(cx + 14, cy + 55, cx + 8, cy + 35, cx + 3, cy + 10);
+      d.closePath();
+      d.fillStyle = '#6a6a6a'; d.fill();
+      ellipse(cx, cy + 70, 16, 11, '#787878');
+      // Nose highlight
+      d.beginPath();
+      d.moveTo(cx - 1, cy + 20);
+      d.bezierCurveTo(cx + 1, cy + 40, cx + 2, cy + 55, cx + 1, cy + 65);
+      d.strokeStyle = 'rgba(170,170,170,0.25)'; d.lineWidth = 3; d.stroke();
+      // Nostrils
+      ellipse(cx - 9, cy + 73, 6, 4.5, '#0e0e0e');
+      ellipse(cx + 9, cy + 73, 6, 4.5, '#0e0e0e');
+
+      // ---- MOUTH ----
+      d.beginPath();
+      d.moveTo(cx - 55, cy + 95);
+      d.bezierCurveTo(cx - 30, cy + 108, cx + 30, cy + 108, cx + 55, cy + 95);
+      d.bezierCurveTo(cx + 30, cy + 103, cx - 30, cy + 103, cx - 55, cy + 95);
+      d.closePath();
+      d.fillStyle = '#151515'; d.fill();
+      // Upper lip line
+      d.beginPath();
+      d.moveTo(cx - 52, cy + 94);
+      d.bezierCurveTo(cx - 25, cy + 88, cx + 25, cy + 88, cx + 52, cy + 94);
+      d.strokeStyle = '#555'; d.lineWidth = 2; d.stroke();
+      // Lower lip
+      d.beginPath();
+      d.ellipse(cx, cy + 108, 35, 9, 0, 0, Math.PI);
+      d.fillStyle = '#4a4a4a'; d.fill();
+
+      // ---- CHIN ----
+      d.beginPath();
+      d.ellipse(cx, cy + 130, 35, 12, 0, 0, Math.PI);
+      d.fillStyle = 'rgba(80,80,80,0.3)'; d.fill();
+
+      // ---- CHEEK VOLUMES ----
+      d.beginPath();
+      d.ellipse(cx - 95, cy + 30, 40, 45, 0.15, 0, Math.PI * 2);
+      d.fillStyle = 'rgba(70,70,70,0.35)'; d.fill();
+      d.beginPath();
+      d.ellipse(cx + 95, cy + 30, 40, 45, -0.15, 0, Math.PI * 2);
+      d.fillStyle = 'rgba(75,75,75,0.35)'; d.fill();
+
+      // ---- NECK (thin, long, wrinkled) ----
+      d.beginPath();
+      d.moveTo(cx - 28, cy + 140);
+      d.bezierCurveTo(cx - 32, cy + 180, cx - 28, cy + 240, cx - 22, cy + 300);
+      d.lineTo(cx + 22, cy + 300);
+      d.bezierCurveTo(cx + 28, cy + 240, cx + 32, cy + 180, cx + 28, cy + 140);
+      d.closePath();
+      d.fillStyle = grad(cx, cy + 200, 0, 35, '#555', '#1a1a1a');
+      d.fill();
+      // Neck wrinkles
+      d.strokeStyle = 'rgba(80,80,80,0.4)'; d.lineWidth = 1.5;
+      for (let i = 0; i < 6; i++) {
+        const yy = cy + 155 + i * 18;
+        d.beginPath();
+        d.moveTo(cx - 26, yy);
+        d.bezierCurveTo(cx - 8, yy - 3, cx + 12, yy - 3, cx + 26, yy);
+        d.stroke();
+      }
+
+      // ---- FINAL 3D SHADING PASSES ----
+      // Rim darkening on right
+      d.globalCompositeOperation = 'multiply';
+      const rimR = d.createLinearGradient(cx + 50, 0, cx + 190, 0);
+      rimR.addColorStop(0, 'rgba(255,255,255,1)');
+      rimR.addColorStop(1, 'rgba(120,120,120,1)');
+      d.fillStyle = rimR; d.fillRect(0, 0, size, size);
+
+      // Bottom darkening
+      const botS = d.createLinearGradient(0, cy + 60, 0, cy + 160);
+      botS.addColorStop(0, 'rgba(255,255,255,1)');
+      botS.addColorStop(1, 'rgba(150,150,150,1)');
+      d.fillStyle = botS; d.fillRect(0, 0, size, size);
+      d.globalCompositeOperation = 'source-over';
+
+      // Top light bloom
+      d.globalCompositeOperation = 'screen';
+      const topL = d.createRadialGradient(cx - 30, cy - 100, 0, cx, cy - 40, 130);
+      topL.addColorStop(0, 'rgba(50,50,50,0.4)');
+      topL.addColorStop(1, 'rgba(0,0,0,0)');
+      d.fillStyle = topL; d.fillRect(0, 0, size, size);
+      d.globalCompositeOperation = 'source-over';
+
+      return dC;
+    }
+
+    function buildFace() {
+      cubes = [];
+      const depthCanvas = createDepthMap();
+      const depthCtx = depthCanvas.getContext('2d');
+      const depthData = depthCtx.getImageData(0, 0, 512, 512);
+      const dd = depthData.data;
+
+      const step = Math.max(3, Math.floor(Math.min(W, H) / 110));
+      const scaleX = W / 512;
+      const scaleY = H / 512;
+
+      // Center of face in canvas coords
+      const faceCX = W * 0.50;
+      const faceCY = H * 0.38;
+
+      for (let my = 0; my < 512; my += step / scaleY) {
+        for (let mx = 0; mx < 512; mx += step / scaleX) {
+          const imx = Math.floor(mx);
+          const imy = Math.floor(my);
+          if (imx >= 512 || imy >= 512) continue;
+          const idx = (imy * 512 + imx) * 4;
+          const rr = dd[idx], gg = dd[idx + 1], bb = dd[idx + 2];
+          const brightness = (rr + gg + bb) / 3;
+          if (brightness < 8) continue;
+
+          const depth = brightness / 255;
+          const px = mx * scaleX;
+          const py = my * scaleY;
+
+          // Distance from center for dispersal
+          const dnx = (mx - 256) / 256;
+          const dny = (my - 195) / 256;
+          const distFromCenter = Math.sqrt(dnx * dnx + dny * dny);
+
+          // Edge dispersal — skip more particles further from center
+          const edgeFactor = distFromCenter / 1.0;
+          if (edgeFactor > 0.55) {
+            const skipChance = (edgeFactor - 0.55) * 2.2;
+            if (Math.random() < skipChance * 0.5) continue;
+          }
+
+          // Floating dispersal particles
+          let fx = 0, fy = 0, isFloater = false;
+          let floatAlphaMult = 1;
+          if (edgeFactor > 0.5) {
+            const disperseChance = (edgeFactor - 0.5) * 2.0;
+            if (Math.random() < disperseChance * 0.6) {
+              isFloater = true;
+              const angle = Math.atan2(dny, dnx) + (Math.random() - 0.5) * 1.8;
+              const dist = (edgeFactor - 0.5) * (40 + Math.random() * 120) * scaleX;
+              fx = Math.cos(angle) * dist;
+              fy = Math.sin(angle) * dist;
+              floatAlphaMult = Math.max(0.05, 1 - dist / (150 * scaleX));
+            }
+          }
+
+          // Map original colors to green scheme
+          const isBlueEye = bb > rr * 1.3 && bb > 80;
+          const isDarkPupil = brightness < 15;
+          const isHighlight = rr > 200 && gg > 200 && bb > 200;
+
+          let cr, cg, cb, alpha;
+          if (isHighlight) {
+            cr = 200; cg = 255; cb = 200;
+            alpha = 0.9;
+          } else if (isBlueEye) {
+            cr = 40; cg = 180; cb = 255;
+            alpha = 0.85;
+          } else if (isDarkPupil) {
+            cr = 5; cg = 15; cb = 5;
+            alpha = 0.9;
+          } else {
+            // Green mapped from brightness
+            cr = Math.floor(10 + depth * 50);
+            cg = Math.floor(40 + depth * 215);
+            cb = Math.floor(5 + depth * 20);
+            alpha = 0.2 + depth * 0.7;
+          }
+
+          alpha *= floatAlphaMult;
+
+          // 3D isometric offset
+          const isoX = depth * step * 1.2;
+          const isoY = -depth * step * 1.2;
+
+          const sizeMultiplier = isFloater
+            ? (0.3 + Math.random() * 0.9)
+            : (0.65 + depth * 0.45 + Math.random() * 0.15);
+
+          cubes.push({
+            x: px + isoX + fx,
+            y: py + isoY + fy,
+            homeX: px + isoX,
+            homeY: py + isoY,
+            size: step * sizeMultiplier,
+            depth,
+            r: cr, g: cg, b: cb,
+            alpha: Math.min(1, alpha),
+            isFloater,
+            phase: Math.random() * Math.PI * 2,
+            driftSpeed: 0.2 + Math.random() * 0.6
+          });
+        }
+      }
+
+      // Sort back-to-front
+      cubes.sort((a, b) => a.depth - b.depth);
+    }
+
+    function drawCube(c, time) {
+      const s = c.size;
+      const shimmer = 0.9 + 0.1 * Math.sin(time * 0.002 + c.phase);
+      const a = c.alpha * shimmer;
+      if (a < 0.01 || s < 0.4) return;
+
+      const x = c.x, y = c.y;
+      const light = 0.35 + c.depth * 0.65;
+      const isoH = s * 0.35 * c.depth;
+      const skewX = s * 0.28;
+
+      // Right face
+      ctx.fillStyle = `rgba(${Math.floor(c.r*light*0.35)},${Math.floor(c.g*light*0.35)},${Math.floor(c.b*light*0.35)},${a*0.7})`;
+      ctx.beginPath();
+      ctx.moveTo(x+s, y); ctx.lineTo(x+s+skewX, y-isoH);
+      ctx.lineTo(x+s+skewX, y-isoH+s); ctx.lineTo(x+s, y+s);
+      ctx.closePath(); ctx.fill();
+
+      // Top face
+      ctx.fillStyle = `rgba(${Math.floor(c.r*light*0.65)},${Math.floor(c.g*light*0.65)},${Math.floor(c.b*light*0.65)},${a*0.5})`;
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x+skewX, y-isoH);
+      ctx.lineTo(x+s+skewX, y-isoH); ctx.lineTo(x+s, y);
+      ctx.closePath(); ctx.fill();
+
+      // Front face
+      ctx.fillStyle = `rgba(${Math.floor(c.r*light)},${Math.floor(c.g*light)},${Math.floor(c.b*light)},${a})`;
+      ctx.fillRect(x, y, s, s);
+
+      // Wireframe edges
+      ctx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${a*0.18})`;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, y, s, s);
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x+skewX, y-isoH);
+      ctx.moveTo(x+s, y); ctx.lineTo(x+s+skewX, y-isoH);
+      ctx.stroke();
+    }
+
+    function render(time) {
+      ctx.clearRect(0, 0, W, H);
+      const breathe = Math.sin(time * 0.0008) * 1.5;
+
+      for (const c of cubes) {
+        if (c.isFloater) {
+          c.x += Math.sin(time * 0.0004 + c.phase) * 0.08 * c.driftSpeed;
+          c.y += Math.cos(time * 0.0003 + c.phase) * 0.06 * c.driftSpeed;
+        } else {
+          c.y = c.homeY + breathe * (1 - c.depth * 0.4);
+        }
+        drawCube(c, time);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    function init() { resize(); buildFace(); requestAnimationFrame(render); }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => setTimeout(init, 100));
+    } else { setTimeout(init, 300); }
+    window.addEventListener('resize', () => { resize(); buildFace(); });
+  })();
+</script>
+</body>
+</html>
