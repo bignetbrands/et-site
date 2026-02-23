@@ -190,6 +190,7 @@
     <div class="galaxy-hud" id="galaxyHud">
       <div class="galaxy-hud-line">system: <span>milky way galactic map</span></div>
       <div class="galaxy-hud-line">mode: <span>signal triangulation</span></div>
+      <div class="galaxy-hud-line">data: <span>nasa exoplanet archive + hyg catalog</span></div>
       <div class="galaxy-hud-line" id="galaxyStatus">status: <span>scanning...</span></div>
     </div>
     <div class="galaxy-hud-right" id="galaxyHudRight">
@@ -343,35 +344,129 @@
     r();
   }, dl));
 
-  // ======== RANDOM SIGNAL GENERATION ========
-  const STAR_NAMES = [
-    'Zephyria Prime', 'Voss-Kethani 7', 'Arcturus-7X', 'Nyx Omega',
-    'Thalassar IV', 'Korvain-9', 'Elysium Beacon', 'Draven Sigma',
-    'Xanthus-12', 'Pyralis Major', 'Oberon-Null', 'Icarus Drift',
-    'Calyx Vertex', 'Meridian-6b', 'Solace Point', 'Ghaal Terminus',
-    'Revenant Star', 'Kael Anterior', 'Luminara-3', 'Onyx Reach'
-  ];
-  const SECTOR_NAMES = [
-    'Outer Perseus', 'Cygnus Deep', 'Norma Arm', 'Scutum-Centaurus',
-    'Sagittarius Spur', 'Carina Edge', 'Orion Fringe', 'Crux Arm',
-    'Vela Corridor', 'Centaurus Rift'
+  // ======== REAL STAR & EXOPLANET DATA ========
+
+  // Real notable stars with galactic positions (normalized 0-1 map, center=0.5,0.5)
+  // Sol is at ~26,000 ly from galactic center in the Orion Arm
+  // Positions approximate galactic coordinates mapped to top-down view
+  const REAL_STARS = [
+    // Nearby stars (cluster around Sol on galactic scale)
+    { name:'Proxima Centauri', dist:4.24, gx:0.6200, gy:0.4800, type:'M5.5V' },
+    { name:'Alpha Centauri', dist:4.37, gx:0.6201, gy:0.4800, type:'G2V' },
+    { name:'Barnard\'s Star', dist:5.96, gx:0.6201, gy:0.4801, type:'M4V' },
+    { name:'Sirius', dist:8.6, gx:0.6202, gy:0.4799, type:'A1V' },
+    { name:'Vega', dist:25.0, gx:0.6204, gy:0.4795, type:'A0V' },
+    { name:'Arcturus', dist:36.7, gx:0.6206, gy:0.4805, type:'K1.5III' },
+    { name:'Betelgeuse', dist:700, gx:0.623, gy:0.477, type:'M1Ia' },
+    { name:'Rigel', dist:863, gx:0.624, gy:0.483, type:'B8Ia' },
+    { name:'Deneb', dist:2615, gx:0.632, gy:0.470, type:'A2Ia' },
+    { name:'Polaris', dist:433, gx:0.622, gy:0.476, type:'F7Ib' },
+    // Orion Arm (local arm, Sol's neighborhood)
+    { name:'Crab Nebula', dist:6523, gx:0.643, gy:0.462, type:'SNR' },
+    { name:'Orion Nebula', dist:1344, gx:0.626, gy:0.478, type:'HII' },
+    { name:'Eagle Nebula', dist:7000, gx:0.585, gy:0.505, type:'HII' },
+    // Perseus Arm (next arm outward)
+    { name:'NGC 884 (Double Cluster)', dist:7600, gx:0.665, gy:0.440, type:'OC' },
+    { name:'IC 1805 (Heart Nebula)', dist:7500, gx:0.670, gy:0.435, type:'HII' },
+    { name:'Cassiopeia A', dist:11000, gx:0.680, gy:0.425, type:'SNR' },
+    { name:'W51 Complex', dist:17400, gx:0.700, gy:0.415, type:'HII' },
+    // Sagittarius Arm (next arm inward toward center)
+    { name:'Lagoon Nebula (M8)', dist:5200, gx:0.575, gy:0.495, type:'HII' },
+    { name:'Omega Nebula (M17)', dist:5500, gx:0.570, gy:0.498, type:'HII' },
+    { name:'Sagittarius A*', dist:26000, gx:0.500, gy:0.500, type:'SMBH' },
+    // Scutum-Centaurus Arm (major inner arm)
+    { name:'Scutum Star Cloud', dist:18000, gx:0.535, gy:0.510, type:'SC' },
+    { name:'NGC 3603', dist:20000, gx:0.520, gy:0.520, type:'HII' },
+    // Norma / Outer arms
+    { name:'Eta Carinae', dist:7500, gx:0.580, gy:0.515, type:'LBV' },
+    { name:'Westerlund 2', dist:20000, gx:0.530, gy:0.530, type:'OC' },
+    // Far side of galaxy (distant objects)
+    { name:'NGC 7538', dist:9100, gx:0.690, gy:0.430, type:'HII' },
+    { name:'IRAS 20126+4104', dist:5400, gx:0.645, gy:0.455, type:'YSO' },
+    { name:'G31.41+0.31', dist:24000, gx:0.510, gy:0.490, type:'HMC' },
   ];
 
-  function randomSignal() {
-    // Place signal somewhere in the galaxy arms, away from center and SOL
-    const arm = Math.floor(Math.random() * 4);
-    const dist = 0.18 + Math.random() * 0.22;
-    const baseAngle = (arm / 4) * Math.PI * 2;
-    const angle = baseAngle + dist * 5.5 + (Math.random() - 0.5) * 0.4;
-    const x = 0.5 + Math.cos(angle) * dist;
-    const y = 0.5 + Math.sin(angle) * dist * 0.55;
-    const name = STAR_NAMES[Math.floor(Math.random() * STAR_NAMES.length)];
-    const sector = SECTOR_NAMES[Math.floor(Math.random() * SECTOR_NAMES.length)];
-    const distLy = (8000 + Math.floor(Math.random() * 52000)).toLocaleString();
-    return { x: Math.max(0.08, Math.min(0.92, x)), y: Math.max(0.08, Math.min(0.92, y)), name, sector, distLy };
+  // Stars that can be signal sources — distant, in spiral arms, with interesting names
+  const SIGNAL_CANDIDATES = [
+    { name:'Tabby\'s Star (KIC 8462852)', gx:0.645, gy:0.458, sector:'Cygnus Arm', distLy:'1,470', desc:'anomalous dimming pattern' },
+    { name:'TRAPPIST-1', gx:0.6210, gy:0.4808, sector:'Orion Spur', distLy:'40.7', desc:'7-planet system in habitable zone' },
+    { name:'Kepler-442', gx:0.650, gy:0.450, sector:'Perseus Arm', distLy:'1,206', desc:'super-Earth in habitable zone' },
+    { name:'TOI-700', gx:0.622, gy:0.481, sector:'Orion Spur', distLy:'101.4', desc:'Earth-sized planet in HZ' },
+    { name:'Kepler-62', gx:0.655, gy:0.445, sector:'Perseus Arm', distLy:'1,200', desc:'two planets in habitable zone' },
+    { name:'K2-18', gx:0.623, gy:0.479, sector:'Orion Spur', distLy:'124', desc:'possible atmospheric biosignature' },
+    { name:'PSR B1919+21', gx:0.648, gy:0.453, sector:'Cygnus Arm', distLy:'2,283', desc:'first pulsar ever detected' },
+    { name:'HD 164922', gx:0.618, gy:0.484, sector:'Sagittarius Spur', distLy:'72', desc:'multi-planet system' },
+    { name:'GJ 667 C', gx:0.6205, gy:0.4803, sector:'Orion Spur', distLy:'23.6', desc:'triple star, habitable planet' },
+    { name:'LHS 1140', gx:0.621, gy:0.481, sector:'Orion Spur', distLy:'49', desc:'rocky super-Earth in HZ' },
+    { name:'Ross 128', gx:0.6203, gy:0.4802, sector:'Orion Spur', distLy:'11', desc:'quiet red dwarf, temperate planet' },
+    { name:'Wolf 1061', gx:0.6204, gy:0.4804, sector:'Orion Spur', distLy:'14.1', desc:'rocky planet near habitable zone' },
+    { name:'Luyten\'s Star', gx:0.6203, gy:0.4801, sector:'Orion Spur', distLy:'12.2', desc:'super-Earth candidate in HZ' },
+    { name:'Kepler-1649c', gx:0.660, gy:0.442, sector:'Perseus Arm', distLy:'301', desc:'most Earth-like exoplanet known' },
+    { name:'Proxima Centauri', gx:0.6200, gy:0.4800, sector:'Orion Spur', distLy:'4.24', desc:'nearest star, confirmed rocky planet' },
+  ];
+
+  const signalPick = SIGNAL_CANDIDATES[Math.floor(Math.random() * SIGNAL_CANDIDATES.length)];
+  const signal = { x: signalPick.gx, y: signalPick.gy, name: signalPick.name, sector: signalPick.sector, distLy: signalPick.distLy, desc: signalPick.desc };
+
+  // ======== NASA EXOPLANET ARCHIVE API ========
+  let nasaPlanets = null;
+  let nasaFetching = true;
+
+  // Fallback exoplanets (real data, hardcoded)
+  const FALLBACK_PLANETS = [
+    { name:'Proxima Centauri b', dist:4.24, temp:234, radius:1.08, mass:1.27, year:2016, facility:'ESO La Silla' },
+    { name:'TRAPPIST-1e', dist:40.7, temp:251, radius:0.92, mass:0.69, year:2017, facility:'Spitzer' },
+    { name:'TRAPPIST-1f', dist:40.7, temp:219, radius:1.04, mass:1.04, year:2017, facility:'Spitzer' },
+    { name:'TRAPPIST-1g', dist:40.7, temp:199, radius:1.13, mass:1.32, year:2017, facility:'Spitzer' },
+    { name:'Kepler-442b', dist:1206, temp:233, radius:1.34, mass:2.36, year:2015, facility:'Kepler' },
+    { name:'Kepler-1649c', dist:301, temp:234, radius:1.06, mass:1.2, year:2020, facility:'Kepler' },
+    { name:'TOI-700 d', dist:101.4, temp:269, radius:1.07, mass:1.72, year:2020, facility:'TESS' },
+    { name:'K2-18 b', dist:124, temp:265, radius:2.61, mass:8.63, year:2015, facility:'K2' },
+    { name:'LHS 1140 b', dist:49, temp:235, radius:1.73, mass:6.98, year:2017, facility:'MEarth' },
+    { name:'GJ 667 Cc', dist:23.6, temp:277, radius:1.54, mass:3.81, year:2011, facility:'HARPS' },
+    { name:'Ross 128 b', dist:11.0, temp:280, radius:1.10, mass:1.40, year:2017, facility:'HARPS' },
+    { name:'Wolf 1061 c', dist:14.1, temp:223, radius:1.66, mass:3.41, year:2015, facility:'HARPS' },
+    { name:'Teegarden\'s Star b', dist:12.5, temp:264, radius:1.05, mass:1.05, year:2019, facility:'CARMENES' },
+    { name:'GJ 1002 b', dist:15.8, temp:280, radius:1.03, mass:1.08, year:2022, facility:'ESPRESSO' },
+    { name:'GJ 1002 c', dist:15.8, temp:226, radius:1.07, mass:1.36, year:2022, facility:'ESPRESSO' },
+    { name:'Kepler-62f', dist:1200, temp:208, radius:1.41, mass:2.80, year:2013, facility:'Kepler' },
+    { name:'HD 40307 g', dist:42.0, temp:225, radius:2.40, mass:7.09, year:2012, facility:'HARPS' },
+    { name:'Kepler-186f', dist:582, temp:188, radius:1.17, mass:1.71, year:2014, facility:'Kepler' },
+    { name:'TOI-715 b', dist:137, temp:234, radius:1.55, mass:3.02, year:2023, facility:'TESS' },
+    { name:'LP 890-9 c', dist:105, temp:272, radius:1.37, mass:2.50, year:2022, facility:'SPECULOOS' },
+  ];
+
+  // Fetch real exoplanets from NASA
+  (function fetchNASA() {
+    const query = encodeURIComponent(
+      'SELECT pl_name,sy_dist,pl_eqt,pl_rade,pl_bmasse,disc_year,disc_facility ' +
+      'FROM ps ' +
+      'WHERE pl_rade BETWEEN 0.5 AND 2.5 AND pl_eqt BETWEEN 170 AND 320 AND sy_dist IS NOT NULL AND default_flag=1 ' +
+      'ORDER BY sy_dist ASC'
+    );
+    const url = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${query}&format=json`;
+    fetch(url, { signal: AbortSignal.timeout(6000) })
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 5) {
+          nasaPlanets = data.slice(0, 25).map(p => ({
+            name: p.pl_name || 'Unknown',
+            dist: p.sy_dist ? +(p.sy_dist * 3.262).toFixed(1) : null,
+            temp: p.pl_eqt ? Math.round(p.pl_eqt) : null,
+            radius: p.pl_rade ? +p.pl_rade.toFixed(2) : null,
+            mass: p.pl_bmasse ? +p.pl_bmasse.toFixed(2) : null,
+            year: p.disc_year || null,
+            facility: p.disc_facility || null,
+          }));
+        }
+        nasaFetching = false;
+      })
+      .catch(() => { nasaFetching = false; });
+  })();
+
+  function getExoplanets() {
+    return nasaPlanets || FALLBACK_PLANETS;
   }
-
-  const signal = randomSignal();
 
   // ======== GALAXY CANVAS ========
   const gC = document.getElementById('galaxyCanvas');
@@ -384,20 +479,28 @@
   function initGalaxy() {
     gC.width = window.innerWidth; gC.height = window.innerHeight;
     gStars = [];
+    // Procedural spiral arms (galaxy structure)
     for (let arm = 0; arm < 4; arm++) {
       const ba = (arm / 4) * Math.PI * 2;
       for (let i = 0; i < 500; i++) {
         const d = (i / 500) * 0.42 + 0.02;
         const a = ba + d * 5.5 + (Math.random() - 0.5) * 0.6;
         const sp = (Math.random() - 0.5) * (0.03 + d * 0.12);
-        gStars.push({ x: 0.5+Math.cos(a)*d+Math.cos(a+Math.PI/2)*sp, y: 0.5+Math.sin(a)*d*0.55+Math.sin(a+Math.PI/2)*sp*0.55, b: 0.15+Math.random()*0.55, s: 0.4+Math.random()*1.2, p: Math.random()*Math.PI*2 });
+        gStars.push({ x: 0.5+Math.cos(a)*d+Math.cos(a+Math.PI/2)*sp, y: 0.5+Math.sin(a)*d*0.55+Math.sin(a+Math.PI/2)*sp*0.55, b: 0.15+Math.random()*0.55, s: 0.4+Math.random()*1.2, p: Math.random()*Math.PI*2, real: false });
       }
     }
+    // Core glow
     for (let i = 0; i < 350; i++) {
       const a = Math.random()*Math.PI*2, d = Math.random()*0.08;
-      gStars.push({ x: 0.5+Math.cos(a)*d, y: 0.5+Math.sin(a)*d*0.55, b: 0.3+Math.random()*0.7, s: 0.3+Math.random()*1.5, p: Math.random()*Math.PI*2 });
+      gStars.push({ x: 0.5+Math.cos(a)*d, y: 0.5+Math.sin(a)*d*0.55, b: 0.3+Math.random()*0.7, s: 0.3+Math.random()*1.5, p: Math.random()*Math.PI*2, real: false });
     }
-    for (let i = 0; i < 180; i++) gStars.push({ x: Math.random(), y: Math.random(), b: 0.1+Math.random()*0.2, s: 0.3+Math.random()*0.6, p: Math.random()*Math.PI*2 });
+    // Scattered field
+    for (let i = 0; i < 180; i++) gStars.push({ x: Math.random(), y: Math.random(), b: 0.1+Math.random()*0.2, s: 0.3+Math.random()*0.6, p: Math.random()*Math.PI*2, real: false });
+
+    // Inject real cataloged stars
+    for (const rs of REAL_STARS) {
+      gStars.push({ x: rs.gx, y: rs.gy, b: 0.6+Math.random()*0.4, s: 1.0+Math.random()*0.8, p: Math.random()*Math.PI*2, real: true, label: rs.name, starType: rs.type, dist: rs.dist });
+    }
   }
 
   function drawGalaxy(time) {
@@ -412,8 +515,25 @@
       const sx = (st.x-cam.x)*z*W+W/2, sy = (st.y-cam.y)*z*H+H/2;
       if (sx<-10||sx>W+10||sy<-10||sy>H+10) continue;
       const tw = 0.6+0.4*Math.sin(time*0.001+st.p), al = st.b*tw, r = st.s*Math.min(z*0.6,3);
-      gX.beginPath(); gX.arc(sx,sy,r,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al})`; gX.fill();
-      if (r>1.2) { gX.beginPath(); gX.arc(sx,sy,r*2.5,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al*0.08})`; gX.fill(); }
+      // Real stars glow brighter
+      if (st.real) {
+        const rr = r * 1.3;
+        gX.beginPath(); gX.arc(sx,sy,rr,0,Math.PI*2);
+        gX.fillStyle=`rgba(57,255,20,${Math.min(1,al*1.3)})`; gX.fill();
+        gX.beginPath(); gX.arc(sx,sy,rr*3,0,Math.PI*2);
+        gX.fillStyle=`rgba(57,255,20,${al*0.12})`; gX.fill();
+        // Show label when zoomed in enough
+        if (z > 2.5) {
+          gX.save(); gX.font='8px "Space Mono",monospace';
+          gX.fillStyle=`rgba(57,255,20,${Math.min(0.6, (z-2.5)*0.3)})`;
+          gX.textAlign='left';
+          gX.fillText(st.label, sx+rr+4, sy+3);
+          gX.restore();
+        }
+      } else {
+        gX.beginPath(); gX.arc(sx,sy,r,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al})`; gX.fill();
+        if (r>1.2) { gX.beginPath(); gX.arc(sx,sy,r*2.5,0,Math.PI*2); gX.fillStyle=`rgba(57,255,20,${al*0.08})`; gX.fill(); }
+      }
     }
     gX.strokeStyle='rgba(57,255,20,0.015)'; gX.lineWidth=0.5;
     const gs=Math.max(40,60*z);
@@ -535,29 +655,27 @@
     await addLine('[diag] all systems nominal', 'success', d*0.5);
     setProg(34);
 
-    // ---- SCANNING ----
+    // ---- SCANNING (real exoplanet data) ----
     await addLine('', '', d*0.3);
     await addLine('$ initiating deep-space scan...', 'green', d);
-    await addLine('[scan] search radius: 100,000 light-years', '', d);
-    await addLine('[scan] sweep pattern: logarithmic spiral', 'dim', d*0.5);
+    const planets = getExoplanets();
+    const isLive = nasaPlanets !== null;
+    await addLine(`[scan] source: ${isLive ? 'NASA Exoplanet Archive (live)' : 'local exoplanet catalog'}`, isLive ? 'green' : 'dim', d);
+    await addLine(`[scan] filter: habitable zone, 0.5-2.5 R⊕, 170-320K`, 'dim', d*0.5);
+    await addLine(`[scan] results: ${planets.length} candidates`, '', d*0.5);
     await wait(200);
 
-    const sectors = [
-      ['Proxima Centauri b','4.24 ly','no signal'],
-      ['Barnard\'s Star c','5.96 ly','no signal'],
-      ['Kepler-442b','1,206 ly','no signal'],
-      ['TRAPPIST-1e','39.6 ly','no signal'],
-      ['Gliese 667 Cc','23.6 ly','no signal'],
-      ['TOI-700 d','101.4 ly','no signal'],
-      ['Ross 128 b','11.0 ly','no signal'],
-      ['HD 40307 g','42.0 ly','no signal'],
-    ];
-    for (let i = 0; i < sectors.length; i++) {
-      const [nm,ds,st] = sectors[i];
-      await addLine(`[scan] ${nm.padEnd(22)} ${ds.padStart(10)} → ${st}`, 'dim', d*0.55);
-      setProg(34 + (i+1)*2.5);
+    const showCount = Math.min(planets.length, 12);
+    for (let i = 0; i < showCount; i++) {
+      const p = planets[i];
+      const nm = (p.name || 'Unknown').substring(0, 20).padEnd(20);
+      const ds = p.dist ? `${p.dist} ly`.padStart(11) : '     — ly';
+      const tp = p.temp ? `${p.temp}K`.padStart(5) : '   —K';
+      const rd = p.radius ? `${p.radius}R⊕`.padStart(7) : '     —R⊕';
+      await addLine(`[scan] ${nm} ${ds} ${tp} ${rd} → no signal`, 'dim', d*0.45);
+      setProg(34 + (i+1) * (21 / showCount));
     }
-    await addLine(`[scan] ${sectors.length}/${sectors.length} known exoplanets scanned`, 'green', d*0.5);
+    await addLine(`[scan] ${planets.length}/${planets.length} habitable zone exoplanets scanned`, 'green', d*0.5);
     setProg(55);
 
     // ---- TRANSMITTING ----
@@ -607,6 +725,7 @@
     await addLine('[rx]   spectral class: non-terrestrial', 'warn', d*0.8);
     await addLine('[rx]   modulation: unknown protocol', 'warn', d*0.6);
     await addLine(`[rx]   estimated origin: ${signal.sector}`, 'warn', d*0.6);
+    await addLine(`[rx]   note: ${signal.desc}`, 'warn', d*0.6);
     setProg(80);
 
     await addLine('', '', d*0.3);
