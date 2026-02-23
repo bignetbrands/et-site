@@ -74,10 +74,11 @@
   .page-wrapper.hidden { opacity: 0; pointer-events: none; }
   .page-wrapper { transition: opacity 0.6s ease 0.3s; }
 
-  /* INTERACTIVE GALAXY SECTION */
-  .galaxy-section { position: relative; width: 100%; height: 100vh; min-height: 600px; overflow: hidden; border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); background: var(--darker); }
-  .galaxy-section canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
-  .galaxy-section canvas:active { cursor: grabbing; }
+  /* BACKROOM OVERLAY — fullscreen takeover */
+  .backroom-overlay { position: fixed; inset: 0; z-index: 9000; background: var(--darker); opacity: 0; visibility: hidden; transition: opacity 0.5s ease, visibility 0.5s ease; }
+  .backroom-overlay.open { opacity: 1; visibility: visible; }
+  .backroom-overlay canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  .backroom-overlay canvas:active { cursor: grabbing; }
   .galaxy-section-hud { position: absolute; top: 16px; left: 20px; font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; z-index: 2; pointer-events: none; }
   .galaxy-section-hud span { color: var(--green); text-shadow: 0 0 6px var(--green-dim); }
   .galaxy-section-hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; z-index: 2; pointer-events: none; opacity: 0.6; transition: opacity 0.5s; }
@@ -85,7 +86,9 @@
   .galaxy-section-zoom { position: absolute; bottom: 16px; right: 20px; display: flex; gap: 6px; z-index: 3; }
   .galaxy-section-zoom button { width: 32px; height: 32px; background: rgba(10,21,10,0.8); border: 1px solid var(--panel-border); color: var(--green); font-family: 'Space Mono', monospace; font-size: 16px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
   .galaxy-section-zoom button:hover { border-color: var(--green); box-shadow: 0 0 10px var(--green-dim); }
-  .star-info { position: absolute; top: 16px; right: 20px; width: 260px; background: rgba(5,15,5,0.92); border: 1px solid var(--panel-border); padding: 16px; font-family: 'Space Mono', monospace; z-index: 4; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: translateY(-8px); backdrop-filter: blur(8px); }
+  .backroom-back { position: absolute; top: 16px; right: 20px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(10,21,10,0.85); border: 1px solid var(--panel-border); color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(4px); }
+  .backroom-back:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--green-dim); }
+  .star-info { position: absolute; top: 60px; right: 20px; width: 260px; background: rgba(5,15,5,0.92); border: 1px solid var(--panel-border); padding: 16px; font-family: 'Space Mono', monospace; z-index: 4; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: translateY(-8px); backdrop-filter: blur(8px); }
   .star-info.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
   .star-info-close { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-dim); font-size: 14px; cursor: pointer; font-family: 'Space Mono', monospace; }
   .star-info-close:hover { color: var(--green); }
@@ -93,7 +96,8 @@
   .star-info-row { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; line-height: 1.6; }
   .star-info-row span { color: var(--text); }
   .star-info-desc { font-size: 10px; color: var(--text); line-height: 1.7; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--panel-border); letter-spacing: 0.5px; text-transform: none; }
-  @media (max-width: 768px) { .galaxy-section { height: 60vh; min-height: 400px; } .star-info { width: 200px; padding: 12px; } .star-info-name { font-size: 11px; } }
+  body.backroom-active { overflow: hidden; }
+  @media (max-width: 768px) { .star-info { width: 200px; padding: 12px; top: 50px; } .star-info-name { font-size: 11px; } .backroom-back { top: 12px; right: 12px; font-size: 9px; padding: 6px 12px; } }
 
   /* NAV */
   nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(180deg, var(--darker), transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--panel-border); }
@@ -180,7 +184,7 @@
   @keyframes glitch { 0% { text-shadow: 0 0 20px var(--green), 2px 2px 0 #ff003c, -2px -2px 0 #00f7ff; } 50% { text-shadow: 0 0 20px var(--green), -2px 2px 0 #ff003c, 2px -2px 0 #00f7ff; } 100% { text-shadow: 0 0 20px var(--green), 0 0 60px var(--green-dim); } }
   .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
   .reveal.visible { opacity: 1; transform: translateY(0); }
-  @media (max-width: 768px) { nav { padding: 12px 16px; } .nav-links { display: none; } .hero { padding: 100px 16px 60px; } .hero-et-face { width: 65vw; height: 70vw; } .about-grid { grid-template-columns: 1fr; } .trade-grid { grid-template-columns: 1fr; } .ca-box .ca-text { max-width: 200px; } .galaxy-hud, .galaxy-hud-right { font-size: 8px; top: 12px; } .galaxy-hud { left: 12px; } .galaxy-hud-right { right: 12px; } .galaxy-section { height: 100vh; min-height: 500px; } }
+  @media (max-width: 768px) { nav { padding: 12px 16px; } .nav-links { display: none; } .hero { padding: 100px 16px 60px; } .hero-et-face { width: 65vw; height: 70vw; } .about-grid { grid-template-columns: 1fr; } .trade-grid { grid-template-columns: 1fr; } .ca-box .ca-text { max-width: 200px; } .galaxy-hud, .galaxy-hud-right { font-size: 8px; top: 12px; } .galaxy-hud { left: 12px; } .galaxy-hud-right { right: 12px; } }
   @media (max-width: 480px) { .trade-grid { grid-template-columns: 1fr; } .cta-group { flex-direction: column; align-items: center; } .btn { width: 100%; max-width: 280px; justify-content: center; } }
 </style>
 </head>
@@ -228,6 +232,32 @@
   </div>
 </div>
 
+<!-- BACKROOM OVERLAY — fullscreen galaxy -->
+<div class="backroom-overlay" id="backroomOverlay">
+  <canvas id="galaxySectionCanvas"></canvas>
+  <button class="backroom-back" id="backroomBack">← Exit Backroom</button>
+  <div class="galaxy-section-hud" id="galaxySectionHud">
+    <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:10px;text-shadow:0 0 10px var(--green-dim);">THE BACKROOM</div>
+    <div>milky way — <span>interactive galactic map</span></div>
+    <div>data: <span>nasa exoplanet archive + real star catalog</span></div>
+    <div id="galaxySectionStatus">zoom: <span>1.0x</span></div>
+  </div>
+  <div class="galaxy-section-hint" id="galaxyHint">drag to pan · scroll to zoom · click stars for data</div>
+  <div class="galaxy-section-zoom">
+    <button id="zoomIn" title="Zoom in">+</button>
+    <button id="zoomOut" title="Zoom out">−</button>
+    <button id="zoomReset" title="Reset view" style="font-size:10px;">⌂</button>
+  </div>
+  <div class="star-info" id="starInfo">
+    <button class="star-info-close" id="starInfoClose">✕</button>
+    <div class="star-info-name" id="starInfoName"></div>
+    <div class="star-info-row" id="starInfoType"></div>
+    <div class="star-info-row" id="starInfoDist"></div>
+    <div class="star-info-row" id="starInfoExtra"></div>
+    <div class="star-info-desc" id="starInfoDesc"></div>
+  </div>
+</div>
+
 <!-- MAIN PAGE -->
 <div class="page-wrapper hidden" id="pageWrapper">
   <nav>
@@ -239,40 +269,13 @@
     <div class="hero-et-face" id="etFaceWrap">
       <canvas id="etFaceCanvas"></canvas>
     </div>
-    <h1 class="hero-title">$ET</h1>
     <p class="hero-tagline">the search for <span>extraterrestrial</span> life</p>
     <div class="cta-group">
-      <a href="#backroom" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
-    </div>
-    <div class="hero-scroll-hint" style="position:absolute;bottom:32px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;opacity:0;animation:fadeIn 1s ease 2s forwards;">↓ scroll ↓</div>
-  </section>
-
-  <!-- BACKROOM — INTERACTIVE GALAXY MAP -->
-  <section class="galaxy-section" id="backroom">
-    <canvas id="galaxySectionCanvas"></canvas>
-    <div class="galaxy-section-hud" id="galaxySectionHud">
-      <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:10px;text-shadow:0 0 10px var(--green-dim);">THE BACKROOM</div>
-      <div>milky way — <span>interactive galactic map</span></div>
-      <div>data: <span>nasa exoplanet archive + real star catalog</span></div>
-      <div id="galaxySectionStatus">zoom: <span>1.0x</span></div>
-    </div>
-    <div class="galaxy-section-hint" id="galaxyHint">drag to pan · scroll to zoom · click stars for data</div>
-    <div class="galaxy-section-zoom">
-      <button id="zoomIn" title="Zoom in">+</button>
-      <button id="zoomOut" title="Zoom out">−</button>
-      <button id="zoomReset" title="Reset view" style="font-size:10px;">⌂</button>
-    </div>
-    <div class="star-info" id="starInfo">
-      <button class="star-info-close" id="starInfoClose">✕</button>
-      <div class="star-info-name" id="starInfoName"></div>
-      <div class="star-info-row" id="starInfoType"></div>
-      <div class="star-info-row" id="starInfoDist"></div>
-      <div class="star-info-row" id="starInfoExtra"></div>
-      <div class="star-info-desc" id="starInfoDesc"></div>
+      <a href="javascript:void(0)" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
     </div>
   </section>
 
-  <!-- POST-BACKROOM CONTENT -->
+  <!-- POST CONTENT -->
   <div class="ticker-wrap">
     <div class="ticker"><span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · <span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · </div>
   </div>
@@ -830,20 +833,35 @@
     galaxyFinal.classList.add('show');
     await wait(3000);
 
-    // Transition: stop preloader galaxy, start interactive section galaxy
+    // Transition: stop preloader galaxy, show main page
     cam.running = false;
     preloader.classList.add('done');
     pageWrapper.classList.remove('hidden');
-
-    // Initialize interactive galaxy section after page is visible
-    setTimeout(() => { initInteractiveGalaxy(); }, 800);
   }
 
-  // ======== INTERACTIVE GALAXY SECTION ========
+  // ======== INTERACTIVE GALAXY (BACKROOM OVERLAY) ========
+  let backroomInitialized = false;
+
+  function openBackroom() {
+    const overlay = document.getElementById('backroomOverlay');
+    overlay.classList.add('open');
+    document.body.classList.add('backroom-active');
+    if (!backroomInitialized) {
+      backroomInitialized = true;
+      initInteractiveGalaxy();
+    }
+  }
+
+  function closeBackroom() {
+    const overlay = document.getElementById('backroomOverlay');
+    overlay.classList.remove('open');
+    document.body.classList.remove('backroom-active');
+  }
+
   function initInteractiveGalaxy() {
     const sC = document.getElementById('galaxySectionCanvas');
     const sX = sC.getContext('2d');
-    const section = document.getElementById('backroom');
+    const section = document.getElementById('backroomOverlay');
     const statusEl = document.getElementById('galaxySectionStatus');
     const hintEl = document.getElementById('galaxyHint');
     const infoPanel = document.getElementById('starInfo');
@@ -861,9 +879,8 @@
     let isVisible = false;
 
     function resizeSection() {
-      const rect = section.getBoundingClientRect();
-      sC.width = rect.width;
-      sC.height = rect.height;
+      sC.width = window.innerWidth;
+      sC.height = window.innerHeight;
     }
     resizeSection();
 
@@ -1130,11 +1147,12 @@
       infoPanel.classList.remove('show');
     });
 
-    // Intersection observer — only render when visible
-    const visObs = new IntersectionObserver(entries => {
-      isVisible = entries[0].isIntersecting;
-    }, { threshold: 0.05 });
-    visObs.observe(section);
+    // Visibility based on overlay open state
+    function checkVisible() {
+      isVisible = section.classList.contains('open');
+    }
+    const mo = new MutationObserver(checkVisible);
+    mo.observe(section, { attributes: true, attributeFilter: ['class'] });
 
     window.addEventListener('resize', resizeSection);
     isVisible = true;
@@ -1178,13 +1196,23 @@
   }
   initStars(); requestAnimationFrame(drawStars); window.addEventListener('resize', initStars);
 
-  // Smooth scroll for internal links
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      const target = document.querySelector(a.getAttribute('href'));
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  // Backroom open/close
+  document.getElementById('enterBackroom').addEventListener('click', e => {
+    e.preventDefault();
+    openBackroom();
+  });
+  document.getElementById('backroomBack').addEventListener('click', () => {
+    closeBackroom();
+  });
+  // ESC key closes backroom
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('backroomOverlay').classList.contains('open')) {
+      closeBackroom();
+    }
+  });
+  // Nav backroom link
+  document.querySelectorAll('a[href="#backroom"]').forEach(a => {
+    a.addEventListener('click', e => { e.preventDefault(); openBackroom(); });
   });
 
   function copyCA() {
@@ -1406,25 +1434,6 @@
       d.beginPath();
       d.ellipse(cx + 95, cy + 30, 40, 45, -0.15, 0, Math.PI * 2);
       d.fillStyle = 'rgba(75,75,75,0.35)'; d.fill();
-
-      // ---- NECK (thin, long, wrinkled) ----
-      d.beginPath();
-      d.moveTo(cx - 28, cy + 140);
-      d.bezierCurveTo(cx - 32, cy + 180, cx - 28, cy + 240, cx - 22, cy + 300);
-      d.lineTo(cx + 22, cy + 300);
-      d.bezierCurveTo(cx + 28, cy + 240, cx + 32, cy + 180, cx + 28, cy + 140);
-      d.closePath();
-      d.fillStyle = grad(cx, cy + 200, 0, 35, '#555', '#1a1a1a');
-      d.fill();
-      // Neck wrinkles
-      d.strokeStyle = 'rgba(80,80,80,0.4)'; d.lineWidth = 1.5;
-      for (let i = 0; i < 6; i++) {
-        const yy = cy + 155 + i * 18;
-        d.beginPath();
-        d.moveTo(cx - 26, yy);
-        d.bezierCurveTo(cx - 8, yy - 3, cx + 12, yy - 3, cx + 26, yy);
-        d.stroke();
-      }
 
       // ---- FINAL 3D SHADING PASSES ----
       // Rim darkening on right
