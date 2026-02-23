@@ -842,7 +842,7 @@
   // ======== INTERACTIVE GALAXY (BACKROOM OVERLAY) ========
   let backroomInitialized = false;
 
-  function openBackroom() {
+  window.openBackroom = function() {
     const overlay = document.getElementById('backroomOverlay');
     overlay.classList.add('open');
     document.body.classList.add('backroom-active');
@@ -850,13 +850,13 @@
       backroomInitialized = true;
       initInteractiveGalaxy();
     }
-  }
+  };
 
-  function closeBackroom() {
+  window.closeBackroom = function() {
     const overlay = document.getElementById('backroomOverlay');
     overlay.classList.remove('open');
     document.body.classList.remove('backroom-active');
-  }
+  };
 
   function initInteractiveGalaxy() {
     const sC = document.getElementById('galaxySectionCanvas');
