@@ -265,7 +265,7 @@
   .hero-et-face {
     width: clamp(300px, 42vw, 480px);
     height: clamp(360px, 50vw, 560px);
-    margin-bottom: 24px;
+    margin-bottom: 8px;
     opacity: 0;
     animation: fadeIn 1.2s ease 0.3s forwards;
     position: relative;
@@ -284,7 +284,7 @@
   .hero-title { font-family: 'Silkscreen', cursive; font-size: clamp(60px, 12vw, 140px); color: var(--green); text-shadow: 0 0 20px var(--green), 0 0 60px var(--green-dim), 0 0 120px rgba(57,255,20,0.15); letter-spacing: 12px; line-height: 1; margin-bottom: 16px; opacity: 0; animation: glitchIn 0.8s ease 0.6s forwards; }
   @keyframes glitchIn { 0% { opacity: 0; transform: translateX(-20px) skewX(-5deg); } 30% { opacity: 1; transform: translateX(10px) skewX(2deg); } 60% { transform: translateX(-5px) skewX(-1deg); } 100% { opacity: 1; transform: translateX(0) skewX(0); } }
   @keyframes fadeIn { to { opacity: 1; } }
-  .hero-tagline { font-size: 16px; color: var(--text-dim); letter-spacing: 6px; text-transform: uppercase; margin-bottom: 48px; opacity: 0; animation: fadeIn 1s ease 1s forwards; }
+  .hero-tagline { font-size: 16px; color: var(--text-dim); letter-spacing: 6px; text-transform: uppercase; margin-bottom: 24px; opacity: 0; animation: fadeIn 1s ease 1s forwards; }
   .hero-tagline span { color: var(--green); text-shadow: 0 0 10px var(--green-dim); }
   .cta-group { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; opacity: 0; animation: fadeIn 1s ease 1.3s forwards; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; text-decoration: none; text-transform: uppercase; letter-spacing: 2px; border: 1px solid; transition: all 0.3s; position: relative; overflow: hidden; }
