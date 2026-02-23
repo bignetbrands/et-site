@@ -172,6 +172,73 @@
   .onboard-cta:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 20px var(--green-dim); }
   @media (max-width: 768px) { .onboard-box { padding: 32px 20px; } .onboard-title { font-size: 16px; } .onboard-step { flex-direction: column; gap: 8px; } .onboard-step-num { width: auto; } }
 
+  /* REWARDS OVERLAY */
+  body.rewards-active { overflow: hidden; }
+  .rewards-overlay { position: fixed; inset: 0; z-index: 9500; background: rgba(2,8,2,0.96); opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  .rewards-overlay.open { opacity: 1; visibility: visible; }
+  .rewards-box { width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; padding: 40px 36px; scrollbar-width: thin; scrollbar-color: var(--green-dark) transparent; }
+  .rewards-box::-webkit-scrollbar { width: 4px; }
+  .rewards-box::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 2px; }
+  .rewards-close { position: absolute; top: 20px; right: 24px; background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; font-family: 'Space Mono', monospace; z-index: 2; }
+  .rewards-close:hover { color: var(--green); }
+  .rewards-title { font-family: 'Silkscreen', cursive; font-size: 20px; color: var(--green); text-shadow: 0 0 20px var(--green-dim); letter-spacing: 4px; text-align: center; margin-bottom: 8px; }
+  .rewards-sub { font-size: 11px; color: var(--text-dim); text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 28px; line-height: 1.8; }
+  .rewards-sub span { color: var(--green); }
+
+  /* How it works flow */
+  .rewards-flow { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 28px; padding: 16px; background: rgba(10,21,10,0.5); border: 1px solid var(--panel-border); flex-wrap: wrap; }
+  .rewards-flow-node { font-size: 9px; color: var(--green); letter-spacing: 1px; text-align: center; padding: 8px 12px; border: 1px solid var(--green-dark); background: rgba(57,255,20,0.04); }
+  .rewards-flow-arrow { color: var(--green-dim); font-size: 14px; }
+  .rewards-flow-node.highlight { border-color: var(--green); background: rgba(57,255,20,0.1); text-shadow: 0 0 6px var(--green-dim); }
+
+  /* Registration form */
+  .rewards-form { margin-bottom: 28px; padding: 20px; background: rgba(10,21,10,0.5); border: 1px solid var(--panel-border); }
+  .rewards-form-title { font-size: 12px; color: var(--text); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+  .rewards-form-desc { font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px; margin-bottom: 16px; line-height: 1.7; }
+  .rewards-input-group { margin-bottom: 12px; }
+  .rewards-label { display: block; font-size: 9px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .rewards-input { width: 100%; padding: 10px 12px; background: rgba(2,8,2,0.8); border: 1px solid var(--panel-border); color: var(--green); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.5px; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+  .rewards-input::placeholder { color: rgba(57,255,20,0.25); }
+  .rewards-input:focus { border-color: var(--green-dim); box-shadow: 0 0 8px rgba(57,255,20,0.1); }
+  .rewards-submit { display: block; width: 100%; padding: 12px; margin-top: 16px; background: rgba(57,255,20,0.08); border: 1px solid var(--green); color: var(--green); font-family: 'Silkscreen', cursive; font-size: 11px; letter-spacing: 3px; cursor: pointer; transition: all 0.3s; }
+  .rewards-submit:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 15px var(--green-dim); }
+  .rewards-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+  .rewards-status { font-size: 9px; text-align: center; margin-top: 10px; letter-spacing: 1px; min-height: 14px; }
+
+  /* Leaderboard */
+  .rewards-leaderboard { margin-bottom: 20px; }
+  .rewards-lb-title { font-size: 12px; color: var(--text); font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; }
+  .rewards-lb-header, .rewards-lb-row { display: grid; grid-template-columns: 32px 1fr 90px 80px; gap: 8px; padding: 8px 10px; font-size: 9px; letter-spacing: 0.5px; align-items: center; }
+  .rewards-lb-header { color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid var(--panel-border); }
+  .rewards-lb-row { color: var(--text-dim); border-bottom: 1px solid rgba(57,255,20,0.05); transition: background 0.2s; }
+  .rewards-lb-row:hover { background: rgba(57,255,20,0.04); }
+  .rewards-lb-rank { color: var(--green); font-family: 'Silkscreen', cursive; font-size: 12px; }
+  .rewards-lb-user { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rewards-lb-credits { color: var(--text); text-align: right; }
+  .rewards-lb-share { color: var(--green); text-align: right; font-family: 'Silkscreen', cursive; }
+  .rewards-lb-row.you { background: rgba(57,255,20,0.06); border-color: var(--green-dark); }
+  .rewards-lb-row.you .rewards-lb-user { color: var(--green); }
+  .rewards-lb-empty { text-align: center; padding: 24px; color: var(--text-dim); font-size: 10px; letter-spacing: 1px; line-height: 1.8; border: 1px dashed var(--panel-border); }
+
+  /* Pool stats */
+  .rewards-pool { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .rewards-pool-card { padding: 14px; background: rgba(10,21,10,0.5); border: 1px solid var(--panel-border); text-align: center; }
+  .rewards-pool-value { font-family: 'Silkscreen', cursive; font-size: 16px; color: var(--green); text-shadow: 0 0 10px var(--green-dim); margin-bottom: 4px; }
+  .rewards-pool-label { font-size: 8px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+
+  /* Claim section */
+  .rewards-claim { text-align: center; padding: 20px; border: 1px solid var(--panel-border); background: rgba(10,21,10,0.3); }
+  .rewards-claim-amount { font-family: 'Silkscreen', cursive; font-size: 22px; color: var(--green); text-shadow: 0 0 15px var(--green-dim); margin-bottom: 4px; }
+  .rewards-claim-label { font-size: 9px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px; }
+  .rewards-claim-btn { display: inline-block; padding: 12px 40px; background: rgba(57,255,20,0.08); border: 1px solid var(--green); color: var(--green); font-family: 'Silkscreen', cursive; font-size: 12px; letter-spacing: 3px; cursor: pointer; transition: all 0.3s; }
+  .rewards-claim-btn:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 20px var(--green-dim); }
+  .rewards-claim-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .rewards-note { font-size: 8px; color: var(--text-dim); text-align: center; letter-spacing: 1px; margin-top: 20px; line-height: 1.8; }
+  .rewards-note span { color: var(--green); }
+
+  @media (max-width: 768px) { .rewards-box { padding: 32px 20px; } .rewards-title { font-size: 16px; } .rewards-pool { grid-template-columns: 1fr; } .rewards-lb-header, .rewards-lb-row { grid-template-columns: 28px 1fr 70px 60px; font-size: 8px; } }
+
   @media (max-width: 768px) {
     .br-sidebar { width: 260px; padding: 16px; }
     .br-star-name { font-size: 12px; }
@@ -403,6 +470,10 @@
     <div class="br-bar-item" style="cursor:pointer;" onclick="openOnboarding()">
       <span class="br-bar-value" style="font-size:9px;letter-spacing:2px;">◈ JOIN SEARCH</span>
     </div>
+    <div class="br-bar-divider"></div>
+    <div class="br-bar-item" style="cursor:pointer;" onclick="openRewards()">
+      <span class="br-bar-value" style="font-size:9px;letter-spacing:2px;">⚡ REWARDS</span>
+    </div>
   </div>
 </div>
 
@@ -476,11 +547,92 @@
   </div>
 </div>
 
+<!-- REWARDS OVERLAY -->
+<div class="rewards-overlay" id="rewardsOverlay">
+  <button class="rewards-close" id="rewardsClose">✕</button>
+  <div class="rewards-box">
+    <div class="rewards-title">COMPUTE REWARDS</div>
+    <div class="rewards-sub">crunch data for science. <span>earn SOL</span> from $ET trading fees.<br>rewards distributed proportionally by <span>BOINC computing credits</span></div>
+
+    <!-- How it works flow -->
+    <div class="rewards-flow">
+      <div class="rewards-flow-node">$ET TRADES<br><span style="font-size:7px;color:var(--text-dim);">on pump.fun</span></div>
+      <div class="rewards-flow-arrow">→</div>
+      <div class="rewards-flow-node">CREATOR FEES<br><span style="font-size:7px;color:var(--text-dim);">0.05–0.95% SOL</span></div>
+      <div class="rewards-flow-arrow">→</div>
+      <div class="rewards-flow-node highlight">REWARD POOL<br><span style="font-size:7px;color:var(--text-dim);">accumulated SOL</span></div>
+      <div class="rewards-flow-arrow">→</div>
+      <div class="rewards-flow-node">YOUR WALLET<br><span style="font-size:7px;color:var(--text-dim);">proportional share</span></div>
+    </div>
+
+    <!-- Pool stats -->
+    <div class="rewards-pool">
+      <div class="rewards-pool-card">
+        <div class="rewards-pool-value" id="rewardsPoolTotal">—</div>
+        <div class="rewards-pool-label">Pool (SOL)</div>
+      </div>
+      <div class="rewards-pool-card">
+        <div class="rewards-pool-value" id="rewardsPoolMembers">0</div>
+        <div class="rewards-pool-label">Contributors</div>
+      </div>
+      <div class="rewards-pool-card">
+        <div class="rewards-pool-value" id="rewardsPoolCredits">0</div>
+        <div class="rewards-pool-label">Total Credits</div>
+      </div>
+    </div>
+
+    <!-- Registration -->
+    <div class="rewards-form" id="rewardsForm">
+      <div class="rewards-form-title">Register for Rewards</div>
+      <div class="rewards-form-desc">Link your Solana wallet to your Einstein@home account. Your share of the reward pool is calculated from your BOINC computing credits relative to the team total.</div>
+      <div class="rewards-input-group">
+        <label class="rewards-label">Solana Wallet Address</label>
+        <input type="text" class="rewards-input" id="rewardsWallet" placeholder="e.g. 7xKX...3mFv" maxlength="44" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="rewards-input-group">
+        <label class="rewards-label">Einstein@home Username</label>
+        <input type="text" class="rewards-input" id="rewardsBoinc" placeholder="Your Einstein@home display name" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="rewards-submit" id="rewardsRegister">REGISTER</button>
+      <div class="rewards-status" id="rewardsStatus"></div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="rewards-leaderboard">
+      <div class="rewards-lb-title">◈ Leaderboard — Team $ET</div>
+      <div class="rewards-lb-header">
+        <span>#</span>
+        <span>User</span>
+        <span style="text-align:right">Credits</span>
+        <span style="text-align:right">Share</span>
+      </div>
+      <div id="rewardsLeaderboard">
+        <div class="rewards-lb-empty">
+          No contributors yet.<br>Be the first to register and start earning.
+        </div>
+      </div>
+    </div>
+
+    <!-- Claim -->
+    <div class="rewards-claim" id="rewardsClaim">
+      <div class="rewards-claim-amount" id="rewardsClaimAmount">0.000 SOL</div>
+      <div class="rewards-claim-label">Your Unclaimed Rewards</div>
+      <button class="rewards-claim-btn" id="rewardsClaimBtn" disabled>CLAIM REWARDS</button>
+    </div>
+
+    <div class="rewards-note">
+      rewards are calculated each epoch based on your <span>BOINC credits</span> vs team total<br>
+      creator fees from every <span>$ET</span> trade on pump.fun flow directly to this pool<br>
+      the more you compute, the more you earn — <span>science pays</span>
+    </div>
+  </div>
+</div>
+
 <!-- MAIN PAGE -->
 <div class="page-wrapper hidden" id="pageWrapper">
   <nav>
     <div class="nav-logo">$ET</div>
-    <div class="nav-links"><a href="#backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
+    <div class="nav-links"><a href="#backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search</a><a href="javascript:void(0)" onclick="openRewards()">Rewards</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
   </nav>
   <section class="hero">
     <div class="beam"></div>
@@ -491,6 +643,7 @@
     <div class="cta-group">
       <a href="javascript:void(0)" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
       <a href="javascript:void(0)" class="btn btn-ghost" onclick="openOnboarding()">✦ Join the Search</a>
+      <a href="javascript:void(0)" class="btn btn-ghost" onclick="openRewards()">⚡ Earn Rewards</a>
     </div>
   </section>
 
@@ -1569,10 +1722,12 @@
   document.getElementById('backroomBack').addEventListener('click', () => {
     closeBackroom();
   });
-  // ESC key closes backroom or onboarding
+  // ESC key closes backroom, onboarding, or rewards
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (document.getElementById('onboardOverlay').classList.contains('open')) {
+      if (document.getElementById('rewardsOverlay').classList.contains('open')) {
+        closeRewards();
+      } else if (document.getElementById('onboardOverlay').classList.contains('open')) {
         closeOnboarding();
       } else if (document.getElementById('backroomOverlay').classList.contains('open')) {
         closeBackroom();
@@ -1594,6 +1749,83 @@
     document.body.classList.remove('onboard-active');
   };
   document.getElementById('onboardClose').addEventListener('click', closeOnboarding);
+
+  // Rewards open/close
+  window.openRewards = function() {
+    document.getElementById('rewardsOverlay').classList.add('open');
+    document.body.classList.add('rewards-active');
+  };
+  window.closeRewards = function() {
+    document.getElementById('rewardsOverlay').classList.remove('open');
+    document.body.classList.remove('rewards-active');
+  };
+  document.getElementById('rewardsClose').addEventListener('click', closeRewards);
+
+  // Rewards registration (localStorage for now — backend later)
+  const REWARDS_KEY = 'et_rewards_registrations';
+  function getRegistrations() {
+    try { return JSON.parse(localStorage.getItem(REWARDS_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveRegistration(wallet, boinc) {
+    const regs = getRegistrations();
+    const existing = regs.findIndex(r => r.wallet === wallet);
+    if (existing >= 0) { regs[existing].boinc = boinc; }
+    else { regs.push({ wallet, boinc, credits: 0, registered: Date.now() }); }
+    localStorage.setItem(REWARDS_KEY, JSON.stringify(regs));
+    return regs;
+  }
+
+  // Registration handler
+  document.getElementById('rewardsRegister').addEventListener('click', function() {
+    const wallet = document.getElementById('rewardsWallet').value.trim();
+    const boinc = document.getElementById('rewardsBoinc').value.trim();
+    const status = document.getElementById('rewardsStatus');
+    if (!wallet || wallet.length < 32 || wallet.length > 44) {
+      status.style.color = '#ff4444';
+      status.textContent = 'Enter a valid Solana wallet address (32–44 chars)';
+      return;
+    }
+    if (!boinc || boinc.length < 2) {
+      status.style.color = '#ff4444';
+      status.textContent = 'Enter your Einstein@home username';
+      return;
+    }
+    saveRegistration(wallet, boinc);
+    status.style.color = 'var(--green)';
+    status.textContent = '✓ Registered! Your rewards will accrue as you earn BOINC credits.';
+    renderLeaderboard();
+    document.getElementById('rewardsWallet').value = '';
+    document.getElementById('rewardsBoinc').value = '';
+  });
+
+  // Render leaderboard from localStorage
+  function renderLeaderboard() {
+    const regs = getRegistrations();
+    const container = document.getElementById('rewardsLeaderboard');
+    const membersEl = document.getElementById('rewardsPoolMembers');
+    membersEl.textContent = regs.length;
+    if (regs.length === 0) {
+      container.innerHTML = '<div class="rewards-lb-empty">No contributors yet.<br>Be the first to register and start earning.</div>';
+      return;
+    }
+    // Sort by credits (all 0 for now — backend will populate)
+    const sorted = [...regs].sort((a,b) => (b.credits||0) - (a.credits||0));
+    const totalCredits = sorted.reduce((sum,r) => sum + (r.credits||0), 0);
+    document.getElementById('rewardsPoolCredits').textContent = totalCredits.toLocaleString();
+    container.innerHTML = sorted.map((r, i) => {
+      const share = totalCredits > 0 ? ((r.credits||0) / totalCredits * 100).toFixed(1) + '%' : '—';
+      const shortWallet = r.wallet.slice(0,4) + '...' + r.wallet.slice(-4);
+      return `<div class="rewards-lb-row">
+        <span class="rewards-lb-rank">${i+1}</span>
+        <span class="rewards-lb-user" title="${r.boinc} — ${r.wallet}">${r.boinc} <span style="color:var(--text-dim);font-size:8px;">(${shortWallet})</span></span>
+        <span class="rewards-lb-credits">${(r.credits||0).toLocaleString()}</span>
+        <span class="rewards-lb-share">${share}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Update ESC handler to also close rewards
+  renderLeaderboard();
 
   function copyCA() {
     navigator.clipboard.writeText('A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF').then(() => {
