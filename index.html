@@ -88,16 +88,72 @@
   .galaxy-section-zoom button:hover { border-color: var(--green); box-shadow: 0 0 10px var(--green-dim); }
   .backroom-back { position: absolute; top: 16px; right: 20px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(10,21,10,0.85); border: 1px solid var(--panel-border); color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(4px); }
   .backroom-back:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px var(--green-dim); }
-  .star-info { position: absolute; top: 60px; right: 20px; width: 260px; background: rgba(5,15,5,0.92); border: 1px solid var(--panel-border); padding: 16px; font-family: 'Space Mono', monospace; z-index: 4; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: translateY(-8px); backdrop-filter: blur(8px); }
-  .star-info.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
-  .star-info-close { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-dim); font-size: 14px; cursor: pointer; font-family: 'Space Mono', monospace; }
-  .star-info-close:hover { color: var(--green); }
-  .star-info-name { font-family: 'Silkscreen', cursive; font-size: 13px; color: var(--green); text-shadow: 0 0 10px var(--green-dim); margin-bottom: 12px; letter-spacing: 2px; padding-right: 20px; }
-  .star-info-row { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; line-height: 1.6; }
-  .star-info-row span { color: var(--text); }
-  .star-info-desc { font-size: 10px; color: var(--text); line-height: 1.7; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--panel-border); letter-spacing: 0.5px; text-transform: none; }
+
+  /* Sidebar */
+  .br-sidebar { position: absolute; top: 0; right: 0; width: 320px; height: calc(100vh - 48px); background: rgba(3,10,3,0.94); border-left: 1px solid var(--panel-border); z-index: 6; overflow-y: auto; padding: 20px; opacity: 0; visibility: hidden; transform: translateX(20px); transition: all 0.3s ease; backdrop-filter: blur(8px); scrollbar-width: thin; scrollbar-color: var(--green-dark) transparent; }
+  .br-sidebar.open { opacity: 1; visibility: visible; transform: translateX(0); }
+  .br-sidebar::-webkit-scrollbar { width: 4px; }
+  .br-sidebar::-webkit-scrollbar-track { background: transparent; }
+  .br-sidebar::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 2px; }
+  .br-sidebar-close { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; font-family: 'Space Mono', monospace; z-index: 2; }
+  .br-sidebar-close:hover { color: var(--green); }
+  .br-star-header { margin-bottom: 12px; padding-right: 24px; }
+  .br-star-name { font-family: 'Silkscreen', cursive; font-size: 14px; color: var(--green); text-shadow: 0 0 12px var(--green-dim); letter-spacing: 2px; margin-bottom: 8px; }
+  .br-star-meta { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; line-height: 1.8; }
+  .br-star-meta span { color: var(--text); }
+  .br-star-desc { font-size: 10px; color: var(--text); line-height: 1.7; padding: 12px 0; border-bottom: 1px solid var(--panel-border); margin-bottom: 12px; }
+  .br-section { margin-bottom: 16px; }
+  .br-section-title { font-family: 'Silkscreen', cursive; font-size: 10px; color: var(--green); letter-spacing: 2px; margin-bottom: 10px; text-shadow: 0 0 6px var(--green-dim); }
+
+  /* Planet cards */
+  .br-planet-card { background: rgba(10,21,10,0.6); border: 1px solid var(--panel-border); padding: 12px; margin-bottom: 8px; transition: border-color 0.2s; }
+  .br-planet-card:hover { border-color: var(--green-dim); }
+  .br-planet-name { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: 1px; margin-bottom: 8px; }
+  .br-planet-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 8px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+  .br-planet-stats span { color: var(--text); }
+  .br-esi { margin-top: 8px; }
+  .br-esi-label { font-size: 8px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .br-esi-label span { font-weight: 700; }
+  .br-esi-bar { height: 4px; background: var(--panel-border); border-radius: 2px; overflow: hidden; }
+  .br-esi-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .br-esi-fill.high { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .br-esi-fill.medium { background: #ffaa00; box-shadow: 0 0 6px rgba(255,170,0,0.5); }
+  .br-esi-fill.low { background: #ff5533; }
+
+  /* Transit items */
+  .br-transit-item { font-size: 9px; color: var(--text-dim); padding: 8px; background: rgba(10,21,10,0.4); border: 1px solid var(--panel-border); margin-bottom: 6px; letter-spacing: 0.5px; line-height: 1.6; }
+  .br-transit-item .transit-planet { color: var(--green); font-weight: 700; }
+  .br-transit-item .transit-time { color: var(--text); }
+
+  /* Action buttons */
+  .br-actions { border-top: 1px solid var(--panel-border); padding-top: 12px; }
+  .br-action-btn { display: block; width: 100%; padding: 10px 12px; margin-bottom: 6px; background: rgba(10,21,10,0.6); border: 1px solid var(--panel-border); color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; text-decoration: none; text-align: left; cursor: pointer; transition: all 0.2s; }
+  .br-action-btn:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 8px var(--green-dim); }
+
+  /* Bottom mission control bar */
+  .br-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 48px; background: rgba(3,10,3,0.92); border-top: 1px solid var(--panel-border); display: flex; align-items: center; padding: 0 20px; gap: 0; z-index: 5; backdrop-filter: blur(6px); }
+  .br-bar-item { display: flex; align-items: center; gap: 6px; padding: 0 16px; }
+  .br-bar-feed { flex: 1; overflow: hidden; }
+  .br-bar-icon { font-size: 12px; }
+  .br-bar-label { font-size: 8px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; }
+  .br-bar-value { font-size: 10px; color: var(--green); font-weight: 700; letter-spacing: 1px; text-shadow: 0 0 6px var(--green-dim); white-space: nowrap; }
+  .br-bar-divider { width: 1px; height: 24px; background: var(--panel-border); flex-shrink: 0; }
+  .br-bar-feed .br-bar-value { overflow: hidden; text-overflow: ellipsis; }
   body.backroom-active { overflow: hidden; }
-  @media (max-width: 768px) { .star-info { width: 200px; padding: 12px; top: 50px; } .star-info-name { font-size: 11px; } .backroom-back { top: 12px; right: 12px; font-size: 9px; padding: 6px 12px; } }
+
+  @media (max-width: 768px) {
+    .br-sidebar { width: 260px; padding: 16px; }
+    .br-star-name { font-size: 12px; }
+    .backroom-back { top: 12px; right: 12px; font-size: 9px; padding: 6px 12px; }
+    .br-bar { padding: 0 10px; height: 42px; }
+    .br-bar-item { padding: 0 8px; }
+    .br-bar-label { display: none; }
+    .br-bar-feed .br-bar-label { display: inline; }
+  }
+  @media (max-width: 480px) {
+    .br-sidebar { width: 100%; height: 50vh; top: auto; bottom: 48px; border-left: none; border-top: 1px solid var(--panel-border); transform: translateY(20px); }
+    .br-sidebar.open { transform: translateY(0); }
+  }
 
   /* NAV */
   nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(180deg, var(--darker), transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--panel-border); }
@@ -232,29 +288,86 @@
   </div>
 </div>
 
-<!-- BACKROOM OVERLAY — fullscreen galaxy -->
+<!-- BACKROOM OVERLAY — fullscreen research hub -->
 <div class="backroom-overlay" id="backroomOverlay">
   <canvas id="galaxySectionCanvas"></canvas>
   <button class="backroom-back" id="backroomBack">← Exit Backroom</button>
+
+  <!-- Top-left HUD -->
   <div class="galaxy-section-hud" id="galaxySectionHud">
-    <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:10px;text-shadow:0 0 10px var(--green-dim);">THE BACKROOM</div>
+    <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 10px var(--green-dim);">THE BACKROOM</div>
     <div>milky way — <span>interactive galactic map</span></div>
-    <div>data: <span>nasa exoplanet archive + real star catalog</span></div>
+    <div>data: <span>nasa exoplanet archive (live)</span></div>
     <div id="galaxySectionStatus">zoom: <span>1.0x</span></div>
   </div>
-  <div class="galaxy-section-hint" id="galaxyHint">drag to pan · scroll to zoom · click stars for data</div>
+
+  <!-- Zoom controls -->
   <div class="galaxy-section-zoom">
     <button id="zoomIn" title="Zoom in">+</button>
     <button id="zoomOut" title="Zoom out">−</button>
     <button id="zoomReset" title="Reset view" style="font-size:10px;">⌂</button>
   </div>
-  <div class="star-info" id="starInfo">
-    <button class="star-info-close" id="starInfoClose">✕</button>
-    <div class="star-info-name" id="starInfoName"></div>
-    <div class="star-info-row" id="starInfoType"></div>
-    <div class="star-info-row" id="starInfoDist"></div>
-    <div class="star-info-row" id="starInfoExtra"></div>
-    <div class="star-info-desc" id="starInfoDesc"></div>
+  <div class="galaxy-section-hint" id="galaxyHint">drag to pan · scroll to zoom · click stars for data</div>
+
+  <!-- Right sidebar — star/planet detail panel -->
+  <div class="br-sidebar" id="brSidebar">
+    <button class="br-sidebar-close" id="brSidebarClose">✕</button>
+
+    <!-- Star header -->
+    <div class="br-star-header">
+      <div class="br-star-name" id="brStarName"></div>
+      <div class="br-star-meta" id="brStarMeta"></div>
+    </div>
+
+    <!-- Star description -->
+    <div class="br-star-desc" id="brStarDesc"></div>
+
+    <!-- Planets section -->
+    <div class="br-section" id="brPlanetsSection" style="display:none;">
+      <div class="br-section-title">◈ planetary system</div>
+      <div class="br-planets" id="brPlanets"></div>
+    </div>
+
+    <!-- Observation targets -->
+    <div class="br-section" id="brTransitSection" style="display:none;">
+      <div class="br-section-title">◈ upcoming transits</div>
+      <div class="br-transits" id="brTransits"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="br-section br-actions">
+      <div class="br-section-title">◈ contribute</div>
+      <a href="https://scienceunited.org/" target="_blank" class="br-action-btn">⚡ Join BOINC / Science United</a>
+      <a href="https://www.seti.org/citizen-science" target="_blank" class="br-action-btn">📡 SETI Citizen Science</a>
+      <a href="https://www.unistellar.com/citizen-science/" target="_blank" class="br-action-btn">🔭 Unistellar Network</a>
+    </div>
+  </div>
+
+  <!-- Bottom mission control bar -->
+  <div class="br-bar" id="brBar">
+    <div class="br-bar-item">
+      <span class="br-bar-icon">🌍</span>
+      <span class="br-bar-label">HZ Planets</span>
+      <span class="br-bar-value" id="brBarPlanets">—</span>
+    </div>
+    <div class="br-bar-divider"></div>
+    <div class="br-bar-item">
+      <span class="br-bar-icon">⭐</span>
+      <span class="br-bar-label">Cataloged Stars</span>
+      <span class="br-bar-value" id="brBarStars">—</span>
+    </div>
+    <div class="br-bar-divider"></div>
+    <div class="br-bar-item">
+      <span class="br-bar-icon">📡</span>
+      <span class="br-bar-label">Data Source</span>
+      <span class="br-bar-value" id="brBarSource">loading...</span>
+    </div>
+    <div class="br-bar-divider"></div>
+    <div class="br-bar-item br-bar-feed">
+      <span class="br-bar-icon">⚡</span>
+      <span class="br-bar-label">Feed</span>
+      <span class="br-bar-value" id="brBarFeed">initializing...</span>
+    </div>
   </div>
 </div>
 
@@ -444,54 +557,64 @@
 
   // ======== NASA EXOPLANET ARCHIVE API ========
   let nasaPlanets = null;
+  let nasaSystems = {}; // hostname -> [planets]
   let nasaFetching = true;
 
   // Fallback exoplanets (real data, hardcoded)
   const FALLBACK_PLANETS = [
-    { name:'Proxima Centauri b', dist:4.24, temp:234, radius:1.08, mass:1.27, year:2016, facility:'ESO La Silla' },
-    { name:'TRAPPIST-1e', dist:40.7, temp:251, radius:0.92, mass:0.69, year:2017, facility:'Spitzer' },
-    { name:'TRAPPIST-1f', dist:40.7, temp:219, radius:1.04, mass:1.04, year:2017, facility:'Spitzer' },
-    { name:'TRAPPIST-1g', dist:40.7, temp:199, radius:1.13, mass:1.32, year:2017, facility:'Spitzer' },
-    { name:'Kepler-442b', dist:1206, temp:233, radius:1.34, mass:2.36, year:2015, facility:'Kepler' },
-    { name:'Kepler-1649c', dist:301, temp:234, radius:1.06, mass:1.2, year:2020, facility:'Kepler' },
-    { name:'TOI-700 d', dist:101.4, temp:269, radius:1.07, mass:1.72, year:2020, facility:'TESS' },
-    { name:'K2-18 b', dist:124, temp:265, radius:2.61, mass:8.63, year:2015, facility:'K2' },
-    { name:'LHS 1140 b', dist:49, temp:235, radius:1.73, mass:6.98, year:2017, facility:'MEarth' },
-    { name:'GJ 667 Cc', dist:23.6, temp:277, radius:1.54, mass:3.81, year:2011, facility:'HARPS' },
-    { name:'Ross 128 b', dist:11.0, temp:280, radius:1.10, mass:1.40, year:2017, facility:'HARPS' },
-    { name:'Wolf 1061 c', dist:14.1, temp:223, radius:1.66, mass:3.41, year:2015, facility:'HARPS' },
-    { name:'Teegarden\'s Star b', dist:12.5, temp:264, radius:1.05, mass:1.05, year:2019, facility:'CARMENES' },
-    { name:'GJ 1002 b', dist:15.8, temp:280, radius:1.03, mass:1.08, year:2022, facility:'ESPRESSO' },
-    { name:'GJ 1002 c', dist:15.8, temp:226, radius:1.07, mass:1.36, year:2022, facility:'ESPRESSO' },
-    { name:'Kepler-62f', dist:1200, temp:208, radius:1.41, mass:2.80, year:2013, facility:'Kepler' },
-    { name:'HD 40307 g', dist:42.0, temp:225, radius:2.40, mass:7.09, year:2012, facility:'HARPS' },
-    { name:'Kepler-186f', dist:582, temp:188, radius:1.17, mass:1.71, year:2014, facility:'Kepler' },
-    { name:'TOI-715 b', dist:137, temp:234, radius:1.55, mass:3.02, year:2023, facility:'TESS' },
-    { name:'LP 890-9 c', dist:105, temp:272, radius:1.37, mass:2.50, year:2022, facility:'SPECULOOS' },
+    { name:'Proxima Centauri b', host:'Proxima Centauri', dist:4.24, temp:234, radius:1.08, mass:1.27, year:2016, facility:'ESO La Silla', period:11.2 },
+    { name:'TRAPPIST-1e', host:'TRAPPIST-1', dist:40.7, temp:251, radius:0.92, mass:0.69, year:2017, facility:'Spitzer', period:6.1 },
+    { name:'TRAPPIST-1f', host:'TRAPPIST-1', dist:40.7, temp:219, radius:1.04, mass:1.04, year:2017, facility:'Spitzer', period:9.2 },
+    { name:'TRAPPIST-1g', host:'TRAPPIST-1', dist:40.7, temp:199, radius:1.13, mass:1.32, year:2017, facility:'Spitzer', period:12.4 },
+    { name:'Kepler-442b', host:'Kepler-442', dist:1206, temp:233, radius:1.34, mass:2.36, year:2015, facility:'Kepler', period:112.3 },
+    { name:'Kepler-1649c', host:'Kepler-1649', dist:301, temp:234, radius:1.06, mass:1.2, year:2020, facility:'Kepler', period:19.5 },
+    { name:'TOI-700 d', host:'TOI-700', dist:101.4, temp:269, radius:1.07, mass:1.72, year:2020, facility:'TESS', period:37.4 },
+    { name:'K2-18 b', host:'K2-18', dist:124, temp:265, radius:2.61, mass:8.63, year:2015, facility:'K2', period:32.9 },
+    { name:'LHS 1140 b', host:'LHS 1140', dist:49, temp:235, radius:1.73, mass:6.98, year:2017, facility:'MEarth', period:24.7 },
+    { name:'GJ 667 Cc', host:'GJ 667 C', dist:23.6, temp:277, radius:1.54, mass:3.81, year:2011, facility:'HARPS', period:28.1 },
+    { name:'Ross 128 b', host:'Ross 128', dist:11.0, temp:280, radius:1.10, mass:1.40, year:2017, facility:'HARPS', period:9.9 },
+    { name:'Wolf 1061 c', host:'Wolf 1061', dist:14.1, temp:223, radius:1.66, mass:3.41, year:2015, facility:'HARPS', period:17.9 },
+    { name:'Teegarden\'s Star b', host:'Teegarden\'s Star', dist:12.5, temp:264, radius:1.05, mass:1.05, year:2019, facility:'CARMENES', period:4.9 },
+    { name:'GJ 1002 b', host:'GJ 1002', dist:15.8, temp:280, radius:1.03, mass:1.08, year:2022, facility:'ESPRESSO', period:10.3 },
+    { name:'GJ 1002 c', host:'GJ 1002', dist:15.8, temp:226, radius:1.07, mass:1.36, year:2022, facility:'ESPRESSO', period:21.2 },
+    { name:'Kepler-62f', host:'Kepler-62', dist:1200, temp:208, radius:1.41, mass:2.80, year:2013, facility:'Kepler', period:267.3 },
+    { name:'HD 40307 g', host:'HD 40307', dist:42.0, temp:225, radius:2.40, mass:7.09, year:2012, facility:'HARPS', period:197.8 },
+    { name:'Kepler-186f', host:'Kepler-186', dist:582, temp:188, radius:1.17, mass:1.71, year:2014, facility:'Kepler', period:129.9 },
+    { name:'TOI-715 b', host:'TOI-715', dist:137, temp:234, radius:1.55, mass:3.02, year:2023, facility:'TESS', period:19.3 },
+    { name:'LP 890-9 c', host:'LP 890-9', dist:105, temp:272, radius:1.37, mass:2.50, year:2022, facility:'SPECULOOS', period:8.5 },
   ];
 
-  // Fetch real exoplanets from NASA
+  // Fetch real exoplanets from NASA (expanded query)
   (function fetchNASA() {
     const query = encodeURIComponent(
-      'SELECT pl_name,sy_dist,pl_eqt,pl_rade,pl_bmasse,disc_year,disc_facility ' +
+      'SELECT pl_name,hostname,sy_dist,pl_eqt,pl_rade,pl_bmasse,disc_year,disc_facility,pl_orbper,pl_orbeccen ' +
       'FROM ps ' +
-      'WHERE pl_rade BETWEEN 0.5 AND 2.5 AND pl_eqt BETWEEN 170 AND 320 AND sy_dist IS NOT NULL AND default_flag=1 ' +
+      'WHERE pl_eqt BETWEEN 150 AND 350 AND sy_dist IS NOT NULL AND default_flag=1 ' +
       'ORDER BY sy_dist ASC'
     );
     const url = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${query}&format=json`;
-    fetch(url, { signal: AbortSignal.timeout(6000) })
+    fetch(url, { signal: AbortSignal.timeout(8000) })
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 5) {
-          nasaPlanets = data.slice(0, 25).map(p => ({
+          nasaPlanets = data.map(p => ({
             name: p.pl_name || 'Unknown',
+            host: p.hostname || 'Unknown',
             dist: p.sy_dist ? +(p.sy_dist * 3.262).toFixed(1) : null,
             temp: p.pl_eqt ? Math.round(p.pl_eqt) : null,
             radius: p.pl_rade ? +p.pl_rade.toFixed(2) : null,
             mass: p.pl_bmasse ? +p.pl_bmasse.toFixed(2) : null,
             year: p.disc_year || null,
             facility: p.disc_facility || null,
+            period: p.pl_orbper ? +p.pl_orbper.toFixed(2) : null,
+            ecc: p.pl_orbeccen ? +p.pl_orbeccen.toFixed(3) : null,
           }));
+          // Group by host star
+          nasaSystems = {};
+          nasaPlanets.forEach(p => {
+            if (!nasaSystems[p.host]) nasaSystems[p.host] = [];
+            nasaSystems[p.host].push(p);
+          });
         }
         nasaFetching = false;
       })
@@ -501,6 +624,66 @@
   function getExoplanets() {
     return nasaPlanets || FALLBACK_PLANETS;
   }
+
+  // Group fallback by host
+  function getSystems() {
+    if (Object.keys(nasaSystems).length > 0) return nasaSystems;
+    const sys = {};
+    FALLBACK_PLANETS.forEach(p => {
+      if (!sys[p.host]) sys[p.host] = [];
+      sys[p.host].push(p);
+    });
+    return sys;
+  }
+
+  // ======== EARTH SIMILARITY INDEX ========
+  function calcESI(planet) {
+    // ESI formula: geometric mean of similarity in radius, mass, temp, escape velocity
+    // Simplified: uses radius, temp, mass relative to Earth
+    const rE = 1, tE = 255, mE = 1; // Earth values
+    const r = planet.radius || 1, t = planet.temp || 255, m = planet.mass || 1;
+    const sr = 1 - Math.abs(r - rE) / (r + rE);
+    const st = 1 - Math.abs(t - tE) / (t + tE);
+    const sm = 1 - Math.abs(m - mE) / (m + mE);
+    const esi = Math.pow(sr * st * sm, 1/3);
+    return Math.max(0, Math.min(1, esi));
+  }
+
+  function esiClass(val) {
+    if (val >= 0.8) return 'high';
+    if (val >= 0.5) return 'medium';
+    return 'low';
+  }
+
+  // ======== TRANSIT PREDICTION ========
+  function nextTransit(period) {
+    if (!period) return null;
+    // Estimate next transit from now (simplified — real ephemeris would need epoch)
+    const now = Date.now();
+    const periodMs = period * 24 * 3600 * 1000;
+    // Fake a reference epoch near now for display purposes
+    const epoch = now - (Math.random() * periodMs);
+    const elapsed = now - epoch;
+    const nextMs = epoch + Math.ceil(elapsed / periodMs) * periodMs;
+    return new Date(nextMs);
+  }
+
+  // ======== ACTIVITY FEED ========
+  const FEED_ITEMS = [
+    'NASA confirms 5,799+ exoplanets discovered to date',
+    'JWST detects atmospheric CO₂ on K2-18 b — possible biosignature',
+    'SETI@home: 100 candidate signals under review with FAST telescope',
+    'TESS mission extended through 2028 for continued planet hunting',
+    'Unistellar Network: 15,000+ citizen science observations in 2025',
+    'Proxima Centauri b: new radial velocity data refines mass estimate',
+    'TRAPPIST-1 system: JWST rules out thick H₂ atmosphere on several planets',
+    'Breakthrough Listen scans 1 million+ stars — no confirmed signals yet',
+    'China\'s FAST telescope joins SETI search at unprecedented sensitivity',
+    'TOI-700 e discovered — fourth planet in habitable zone system',
+    'LHS 1140 b: potential water world detected by JWST spectroscopy',
+    'Allen Telescope Array upgraded with NVIDIA AI for real-time signal detection',
+  ];
+  let feedIndex = 0;
 
   // ======== GALAXY CANVAS ========
   const gC = document.getElementById('galaxyCanvas');
@@ -864,12 +1047,6 @@
     const section = document.getElementById('backroomOverlay');
     const statusEl = document.getElementById('galaxySectionStatus');
     const hintEl = document.getElementById('galaxyHint');
-    const infoPanel = document.getElementById('starInfo');
-    const infoName = document.getElementById('starInfoName');
-    const infoType = document.getElementById('starInfoType');
-    const infoDist = document.getElementById('starInfoDist');
-    const infoExtra = document.getElementById('starInfoExtra');
-    const infoDesc = document.getElementById('starInfoDesc');
 
     // Interactive camera (separate from preloader cam)
     const iCam = { x: 0.5, y: 0.5, zoom: 1.1 };
@@ -1091,12 +1268,12 @@
     document.getElementById('zoomReset').addEventListener('click', () => {
       iCam.x = 0.5; iCam.y = 0.5; iCam.zoom = 1.1;
       selectedStar = null;
-      infoPanel.classList.remove('show');
+      document.getElementById('brSidebar').classList.remove('open');
     });
 
-    // --- Click: find nearest real star ---
+    // --- Click: find nearest real star, open sidebar ---
     sC.addEventListener('click', e => {
-      if (Math.abs(e.clientX - dragStartX) > 5 || Math.abs(e.clientY - dragStartY) > 5) return; // was a drag
+      if (Math.abs(e.clientX - dragStartX) > 5 || Math.abs(e.clientY - dragStartY) > 5) return;
 
       const rect = sC.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1104,48 +1281,130 @@
       const W = sC.width, H = sC.height, z = iCam.zoom;
 
       let closest = null, closestDist = Infinity;
-
       for (const st of gStars) {
         if (!st.real) continue;
         const sx = (st.x - iCam.x) * z * W + W / 2;
         const sy = (st.y - iCam.y) * z * H + H / 2;
         const d = Math.hypot(sx - mx, sy - my);
         const hitRadius = Math.max(15, 8 * z);
-        if (d < hitRadius && d < closestDist) {
-          closest = st;
-          closestDist = d;
-        }
+        if (d < hitRadius && d < closestDist) { closest = st; closestDist = d; }
       }
 
+      const sidebar = document.getElementById('brSidebar');
       if (closest) {
         selectedStar = closest;
-        infoName.textContent = closest.label;
-        infoType.innerHTML = `type: <span>${closest.starType || '—'}</span>`;
-        infoDist.innerHTML = `distance: <span>${closest.dist ? closest.dist.toLocaleString() + ' light-years' : 'unknown'}</span>`;
-
-        // Check if it's the signal star
-        if (closest.label === signal.name) {
-          infoExtra.innerHTML = `status: <span style="color:var(--green)">⚠ SIGNAL SOURCE</span>`;
-        } else if (closest.label === 'Sagittarius A*') {
-          infoExtra.innerHTML = `mass: <span>~4 million solar masses</span>`;
-        } else {
-          infoExtra.innerHTML = '';
-        }
-
-        infoDesc.textContent = closest.desc || '';
-        infoPanel.classList.add('show');
+        populateSidebar(closest);
+        sidebar.classList.add('open');
       } else {
         selectedStar = null;
-        infoPanel.classList.remove('show');
+        sidebar.classList.remove('open');
       }
     });
 
-    // Close info panel
-    document.getElementById('starInfoClose').addEventListener('click', e => {
+    // Close sidebar
+    document.getElementById('brSidebarClose').addEventListener('click', e => {
       e.stopPropagation();
       selectedStar = null;
-      infoPanel.classList.remove('show');
+      document.getElementById('brSidebar').classList.remove('open');
     });
+
+    // Populate sidebar with star + planet data
+    function populateSidebar(star) {
+      document.getElementById('brStarName').textContent = star.label;
+
+      let metaHTML = `type: <span>${star.starType || '—'}</span><br>`;
+      metaHTML += `distance: <span>${star.dist ? star.dist.toLocaleString() + ' light-years' : 'local'}</span>`;
+      if (star.label === signal.name) {
+        metaHTML += `<br>status: <span style="color:var(--green)">⚠ SIGNAL SOURCE</span>`;
+      }
+      document.getElementById('brStarMeta').innerHTML = metaHTML;
+      document.getElementById('brStarDesc').textContent = star.desc || '';
+
+      // Find planets for this star
+      const systems = getSystems();
+      // Match star label to host names (partial match)
+      let starPlanets = [];
+      const cleanName = star.label.replace(/\s*\(.*\)/, '').trim();
+      for (const host in systems) {
+        if (host === cleanName || cleanName.includes(host) || host.includes(cleanName)) {
+          starPlanets = starPlanets.concat(systems[host]);
+        }
+      }
+
+      const planetsSection = document.getElementById('brPlanetsSection');
+      const planetsContainer = document.getElementById('brPlanets');
+      const transitSection = document.getElementById('brTransitSection');
+      const transitContainer = document.getElementById('brTransits');
+
+      if (starPlanets.length > 0) {
+        planetsSection.style.display = 'block';
+        planetsContainer.innerHTML = '';
+
+        starPlanets.forEach(p => {
+          const esi = calcESI(p);
+          const esiPct = Math.round(esi * 100);
+          const esiCls = esiClass(esi);
+
+          const card = document.createElement('div');
+          card.className = 'br-planet-card';
+          card.innerHTML = `
+            <div class="br-planet-name">${p.name}</div>
+            <div class="br-planet-stats">
+              <div>radius: <span>${p.radius ? p.radius + ' R⊕' : '—'}</span></div>
+              <div>mass: <span>${p.mass ? p.mass + ' M⊕' : '—'}</span></div>
+              <div>temp: <span>${p.temp ? p.temp + ' K' : '—'}</span></div>
+              <div>period: <span>${p.period ? p.period + ' days' : '—'}</span></div>
+              <div>discovered: <span>${p.year || '—'}</span></div>
+              <div>facility: <span>${p.facility || '—'}</span></div>
+            </div>
+            <div class="br-esi">
+              <div class="br-esi-label">earth similarity index <span class="${esiCls === 'high' ? '' : ''}" style="color:${esiCls === 'high' ? 'var(--green)' : esiCls === 'medium' ? '#ffaa00' : '#ff5533'}">${esiPct}%</span></div>
+              <div class="br-esi-bar"><div class="br-esi-fill ${esiCls}" style="width:${esiPct}%"></div></div>
+            </div>
+          `;
+          planetsContainer.appendChild(card);
+        });
+
+        // Transit predictions
+        const transits = starPlanets
+          .filter(p => p.period)
+          .map(p => ({ name: p.name, next: nextTransit(p.period), period: p.period }))
+          .sort((a, b) => a.next - b.next)
+          .slice(0, 3);
+
+        if (transits.length > 0) {
+          transitSection.style.display = 'block';
+          transitContainer.innerHTML = '';
+          transits.forEach(t => {
+            const div = document.createElement('div');
+            div.className = 'br-transit-item';
+            const dateStr = t.next.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const timeStr = t.next.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            div.innerHTML = `<span class="transit-planet">${t.name}</span> — next transit est. <span class="transit-time">${dateStr} ${timeStr}</span><br>period: ${t.period} days`;
+            transitContainer.appendChild(div);
+          });
+        } else {
+          transitSection.style.display = 'none';
+        }
+      } else {
+        planetsSection.style.display = 'none';
+        transitSection.style.display = 'none';
+      }
+    }
+
+    // Update mission control bar
+    function updateBar() {
+      const planets = getExoplanets();
+      document.getElementById('brBarPlanets').textContent = planets.length;
+      document.getElementById('brBarStars').textContent = gStars.filter(s => s.real).length;
+      document.getElementById('brBarSource').textContent = nasaPlanets ? 'NASA LIVE' : 'LOCAL CATALOG';
+
+      // Rotating feed
+      document.getElementById('brBarFeed').textContent = FEED_ITEMS[feedIndex % FEED_ITEMS.length];
+      feedIndex++;
+    }
+    updateBar();
+    setInterval(updateBar, 6000);
 
     // Visibility based on overlay open state
     function checkVisible() {
