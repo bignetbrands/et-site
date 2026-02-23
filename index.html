@@ -75,7 +75,7 @@
   .page-wrapper { transition: opacity 0.6s ease 0.3s; }
 
   /* INTERACTIVE GALAXY SECTION */
-  .galaxy-section { position: relative; width: 100%; height: 80vh; min-height: 500px; overflow: hidden; border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); background: var(--darker); }
+  .galaxy-section { position: relative; width: 100%; height: 100vh; min-height: 600px; overflow: hidden; border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); background: var(--darker); }
   .galaxy-section canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
   .galaxy-section canvas:active { cursor: grabbing; }
   .galaxy-section-hud { position: absolute; top: 16px; left: 20px; font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; z-index: 2; pointer-events: none; }
@@ -105,9 +105,9 @@
   /* HERO */
   .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 120px 24px 80px; position: relative; }
   .hero-et-face {
-    width: clamp(280px, 40vw, 440px);
-    height: clamp(340px, 48vw, 520px);
-    margin-bottom: 20px;
+    width: clamp(300px, 42vw, 480px);
+    height: clamp(360px, 50vw, 560px);
+    margin-bottom: 24px;
     opacity: 0;
     animation: fadeIn 1.2s ease 0.3s forwards;
     position: relative;
@@ -180,7 +180,7 @@
   @keyframes glitch { 0% { text-shadow: 0 0 20px var(--green), 2px 2px 0 #ff003c, -2px -2px 0 #00f7ff; } 50% { text-shadow: 0 0 20px var(--green), -2px 2px 0 #ff003c, 2px -2px 0 #00f7ff; } 100% { text-shadow: 0 0 20px var(--green), 0 0 60px var(--green-dim); } }
   .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
   .reveal.visible { opacity: 1; transform: translateY(0); }
-  @media (max-width: 768px) { nav { padding: 12px 16px; } .nav-links { display: none; } .hero { padding: 100px 16px 60px; } .hero-et-face { width: 70vw; height: 75vw; } .hero-ascii-text { font-size: 9px; } .about-grid { grid-template-columns: 1fr; } .trade-grid { grid-template-columns: 1fr; } .ca-box .ca-text { max-width: 200px; } .galaxy-hud, .galaxy-hud-right { font-size: 8px; top: 12px; } .galaxy-hud { left: 12px; } .galaxy-hud-right { right: 12px; } }
+  @media (max-width: 768px) { nav { padding: 12px 16px; } .nav-links { display: none; } .hero { padding: 100px 16px 60px; } .hero-et-face { width: 65vw; height: 70vw; } .about-grid { grid-template-columns: 1fr; } .trade-grid { grid-template-columns: 1fr; } .ca-box .ca-text { max-width: 200px; } .galaxy-hud, .galaxy-hud-right { font-size: 8px; top: 12px; } .galaxy-hud { left: 12px; } .galaxy-hud-right { right: 12px; } .galaxy-section { height: 100vh; min-height: 500px; } }
   @media (max-width: 480px) { .trade-grid { grid-template-columns: 1fr; } .cta-group { flex-direction: column; align-items: center; } .btn { width: 100%; max-width: 280px; justify-content: center; } }
 </style>
 </head>
@@ -215,7 +215,7 @@
       <div class="galaxy-hud-line" id="galaxyStatus">status: <span>scanning...</span></div>
     </div>
     <div class="galaxy-hud-right" id="galaxyHudRight">
-      <div class="galaxy-hud-line">origin: <span>sol system</span></div>
+      <div class="galaxy-hud-line">origin: <span>earth</span></div>
       <div class="galaxy-hud-line" id="galaxyDist">distance: <span>calculating...</span></div>
       <div class="galaxy-hud-line" id="galaxyCoord">sector: <span>—</span></div>
       <div class="galaxy-hud-line" id="galaxyStar">star: <span>—</span></div>
@@ -232,36 +232,26 @@
 <div class="page-wrapper hidden" id="pageWrapper">
   <nav>
     <div class="nav-logo">$ET</div>
-    <div class="nav-links"><a href="#trade">Trade</a><a href="#about">About</a><a href="#community">Community</a></div>
+    <div class="nav-links"><a href="#backroom">Backroom</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
   </nav>
   <section class="hero">
     <div class="beam"></div>
     <div class="hero-et-face" id="etFaceWrap">
       <canvas id="etFaceCanvas"></canvas>
     </div>
-    <div class="hero-ascii-text">
-       the most famous alien in history
-         now on solana. OG contract.
-    </div>
     <h1 class="hero-title">$ET</h1>
-    <p class="hero-tagline">the ticker was <span>born</span> with a dollar sign — the most iconic character ever</p>
+    <p class="hero-tagline">the search for <span>extraterrestrial</span> life</p>
     <div class="cta-group">
-      <a href="https://pump.fun/coin/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF" target="_blank" class="btn btn-primary">◈ Buy on Pump.fun</a>
-      <a href="https://x.com/i/communities/2024687278132769267" target="_blank" class="btn btn-ghost">✦ Join Community</a>
+      <a href="#backroom" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
     </div>
-    <div class="ca-section">
-      <div class="ca-label">— Contract Address —</div>
-      <div class="ca-box" onclick="copyCA()">
-        <span class="ca-text">A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF</span>
-        <span class="copy-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
-      </div>
-    </div>
+    <div class="hero-scroll-hint" style="position:absolute;bottom:32px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;opacity:0;animation:fadeIn 1s ease 2s forwards;">↓ scroll ↓</div>
   </section>
 
-  <!-- INTERACTIVE GALAXY MAP -->
-  <section class="galaxy-section" id="galaxySection">
+  <!-- BACKROOM — INTERACTIVE GALAXY MAP -->
+  <section class="galaxy-section" id="backroom">
     <canvas id="galaxySectionCanvas"></canvas>
     <div class="galaxy-section-hud" id="galaxySectionHud">
+      <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:10px;text-shadow:0 0 10px var(--green-dim);">THE BACKROOM</div>
       <div>milky way — <span>interactive galactic map</span></div>
       <div>data: <span>nasa exoplanet archive + real star catalog</span></div>
       <div id="galaxySectionStatus">zoom: <span>1.0x</span></div>
@@ -282,6 +272,7 @@
     </div>
   </section>
 
+  <!-- POST-BACKROOM CONTENT -->
   <div class="ticker-wrap">
     <div class="ticker"><span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · <span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · </div>
   </div>
@@ -296,14 +287,21 @@
   <div class="divider"></div>
   <section class="about-section" id="about">
     <div class="reveal">
-      <div class="section-label">— The Bull Case —</div>
+      <div class="section-label">— The Mission —</div>
       <h2 class="section-title">Why $ET?</h2>
-      <p style="font-size: 14px; color: var(--text-dim); line-height: 2; letter-spacing: 1px; max-width: 560px; margin: 0 auto 40px;">E.T. is the most iconic, memeable character in history — and now he's on Solana. The ticker <span style="color:var(--green);">$ET</span> was born with a dollar sign baked right in. No forcing it. No stretching. It just works. Add in one of the most OG contracts on the chain, and you've got the perfect storm. This is the play that was always meant to exist.</p>
+      <p style="font-size: 14px; color: var(--text-dim); line-height: 2; letter-spacing: 1px; max-width: 560px; margin: 0 auto 40px;">The search for extraterrestrial intelligence is humanity's most profound question. <span style="color:var(--green);">$ET</span> is built around real NASA exoplanet data, real star catalogs, and the genuine scientific pursuit of finding life beyond Earth. The ticker was born with a dollar sign. The most iconic alien ever made. OG contract on Solana.</p>
     </div>
     <div class="about-grid reveal">
       <div class="about-card"><div class="about-card-number">$ET</div><div class="about-card-label">Built-in $ Ticker</div></div>
       <div class="about-card"><div class="about-card-number">OG</div><div class="about-card-label">Contract</div></div>
-      <div class="about-card"><div class="about-card-number">#1</div><div class="about-card-label">Most Iconic Character</div></div>
+      <div class="about-card"><div class="about-card-number">NASA</div><div class="about-card-label">Real Exoplanet Data</div></div>
+    </div>
+    <div class="ca-section reveal" style="margin-top:48px;">
+      <div class="ca-label">— Contract Address —</div>
+      <div class="ca-box" onclick="copyCA()">
+        <span class="ca-text">A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF</span>
+        <span class="copy-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+      </div>
     </div>
   </section>
   <div class="divider"></div>
@@ -416,7 +414,7 @@
     { name:'Sagittarius A*', dist:26000, gx:0.500, gy:0.500, type:'Supermassive Black Hole', desc:'The 4-million-solar-mass black hole at the center of our galaxy. First imaged by the Event Horizon Telescope in 2022.' },
     { name:'Eta Carinae', dist:7500, gx:0.580, gy:0.515, type:'Luminous Blue Variable', desc:'One of the most massive and luminous stars known. ~5 million times brighter than the Sun. Could go hypernova.' },
     { name:'Westerlund 2', dist:20000, gx:0.530, gy:0.530, type:'Young Star Cluster', desc:'One of the most massive young star clusters in the Milky Way. Contains some of the hottest and most luminous stars known.' },
-    { name:'Sol (Earth\'s Sun)', dist:0, gx:0.620, gy:0.480, type:'G2V Main Sequence', desc:'Our home star. 4.6 billion years old. Located in the Orion Arm, ~26,000 light-years from the galactic center. Home to 8 planets and the only confirmed life in the universe — so far.' },
+    { name:'Earth (Sol)', dist:0, gx:0.620, gy:0.480, type:'G2V Main Sequence', desc:'Our home star system. Sol is 4.6 billion years old, located in the Orion Arm, ~26,000 light-years from the galactic center. Home to 8 planets and the only confirmed life in the universe — so far.' },
   ];
 
   // Stars that can be signal sources — distant, in spiral arms, with interesting names
@@ -506,7 +504,7 @@
   const gX = gC.getContext('2d');
   let gStars = [];
   const cam = { x: 0, y: 0, zoom: 1, running: false };
-  const SOL = { x: 0.62, y: 0.48 };
+  const EARTH = { x: 0.62, y: 0.48 };
   const trace = { progress: 0, active: false, pulseTime: 0, pulsing: false };
 
   function initGalaxy() {
@@ -578,8 +576,8 @@
     const gs=Math.max(40,60*z);
     for (let i=0;i<W;i+=gs){gX.beginPath();gX.moveTo(i,0);gX.lineTo(i,H);gX.stroke();}
     for (let i=0;i<H;i+=gs){gX.beginPath();gX.moveTo(0,i);gX.lineTo(W,i);gX.stroke();}
-    const solX=(SOL.x-cam.x)*z*W+W/2, solY=(SOL.y-cam.y)*z*H+H/2;
-    drawMarker(solX,solY,'SOL',time,false);
+    const solX=(EARTH.x-cam.x)*z*W+W/2, solY=(EARTH.y-cam.y)*z*H+H/2;
+    drawMarker(solX,solY,'EARTH',time,false);
     if (trace.active&&trace.progress>0) {
       const sigX=(signal.x-cam.x)*z*W+W/2, sigY=(signal.y-cam.y)*z*H+H/2;
       const eX=solX+(sigX-solX)*trace.progress, eY=solY+(sigY-solY)*trace.progress;
@@ -793,7 +791,7 @@
     // ======== GALAXY PHASE ========
     initGalaxy();
     cam.running = true;
-    cam.x = SOL.x; cam.y = SOL.y; cam.zoom = 2.8;
+    cam.x = EARTH.x; cam.y = EARTH.y; cam.zoom = 2.8;
     terminalPhase.classList.add('shrink');
     await wait(400);
     galaxyPhase.classList.add('active');
@@ -845,7 +843,7 @@
   function initInteractiveGalaxy() {
     const sC = document.getElementById('galaxySectionCanvas');
     const sX = sC.getContext('2d');
-    const section = document.getElementById('galaxySection');
+    const section = document.getElementById('backroom');
     const statusEl = document.getElementById('galaxySectionStatus');
     const hintEl = document.getElementById('galaxyHint');
     const infoPanel = document.getElementById('starInfo');
@@ -965,10 +963,10 @@
       for (let i = 0; i < W; i += gs) { sX.beginPath(); sX.moveTo(i, 0); sX.lineTo(i, H); sX.stroke(); }
       for (let i = 0; i < H; i += gs) { sX.beginPath(); sX.moveTo(0, i); sX.lineTo(W, i); sX.stroke(); }
 
-      // SOL marker
-      const solX = (SOL.x - iCam.x) * z * W + W / 2;
-      const solY = (SOL.y - iCam.y) * z * H + H / 2;
-      drawSectionMarker(sX, solX, solY, 'SOL', time, false);
+      // EARTH marker
+      const solX = (EARTH.x - iCam.x) * z * W + W / 2;
+      const solY = (EARTH.y - iCam.y) * z * H + H / 2;
+      drawSectionMarker(sX, solX, solY, 'EARTH', time, false);
 
       // Signal trace + marker (persistent from preloader)
       if (trace.active) {
@@ -1179,6 +1177,16 @@
     requestAnimationFrame(drawStars);
   }
   initStars(); requestAnimationFrame(drawStars); window.addEventListener('resize', initStars);
+
+  // Smooth scroll for internal links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
   function copyCA() {
     navigator.clipboard.writeText('A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF').then(() => {
       const t = document.getElementById('copyToast'); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000);
@@ -1330,44 +1338,18 @@
       d.fillStyle = 'rgba(90,90,90,0.5)';
       d.fill();
 
-      // ---- EYE SOCKETS (very deep, dark) ----
-      ellipse(cx - 62, cy - 5, 48, 40, '#080808');
-      ellipse(cx - 62, cy - 3, 44, 36, '#040404');
-      ellipse(cx + 62, cy - 5, 48, 40, '#080808');
-      ellipse(cx + 62, cy - 3, 44, 36, '#040404');
-
-      // ---- LARGE BLUE EYEBALLS ----
-      // Left eye
-      ellipse(cx - 60, cy - 2, 36, 30, '#707070');
-      d.beginPath(); d.ellipse(cx - 59, cy - 2, 33, 28, 0, 0, Math.PI * 2);
-      d.fillStyle = grad(cx - 62, cy - 6, 2, 30, '#aaddff', '#1a5588');
-      d.fill();
-      // Left iris detail ring
-      d.beginPath(); d.ellipse(cx - 59, cy - 2, 25, 23, 0, 0, Math.PI * 2);
-      d.fillStyle = grad(cx - 59, cy - 4, 0, 25, '#88ccee', '#2266aa');
-      d.fill();
-      // Left pupil
-      ellipse(cx - 58, cy - 1, 14, 14, '#030303');
-      // Left eye highlights
-      ellipse(cx - 70, cy - 12, 8, 6, 'rgba(255,255,255,0.9)');
-      ellipse(cx - 50, cy + 6, 4, 3, 'rgba(255,255,255,0.35)');
-      // Eye rim highlight
-      d.beginPath(); d.ellipse(cx - 60, cy - 2, 36, 30, 0, 0, Math.PI * 2);
-      d.strokeStyle = 'rgba(140,140,140,0.3)'; d.lineWidth = 1.5; d.stroke();
-
-      // Right eye
-      ellipse(cx + 60, cy - 2, 36, 30, '#707070');
-      d.beginPath(); d.ellipse(cx + 61, cy - 2, 33, 28, 0, 0, Math.PI * 2);
-      d.fillStyle = grad(cx + 58, cy - 6, 2, 30, '#aaddff', '#1a5588');
-      d.fill();
-      d.beginPath(); d.ellipse(cx + 61, cy - 2, 25, 23, 0, 0, Math.PI * 2);
-      d.fillStyle = grad(cx + 61, cy - 4, 0, 25, '#88ccee', '#2266aa');
-      d.fill();
-      ellipse(cx + 62, cy - 1, 14, 14, '#030303');
-      ellipse(cx + 50, cy - 12, 8, 6, 'rgba(255,255,255,0.9)');
-      ellipse(cx + 70, cy + 6, 4, 3, 'rgba(255,255,255,0.35)');
-      d.beginPath(); d.ellipse(cx + 60, cy - 2, 36, 30, 0, 0, Math.PI * 2);
-      d.strokeStyle = 'rgba(140,140,140,0.3)'; d.lineWidth = 1.5; d.stroke();
+      // ---- EYE SOCKETS (very deep, hollow, void-like) ----
+      // Outer socket rim
+      ellipse(cx - 62, cy - 5, 50, 42, '#0c0c0c');
+      ellipse(cx + 62, cy - 5, 50, 42, '#0c0c0c');
+      // Deep inner socket — pure void
+      ellipse(cx - 62, cy - 3, 44, 36, '#020202');
+      ellipse(cx + 62, cy - 3, 44, 36, '#020202');
+      // Faint rim catch light — just the edge of the socket
+      d.beginPath(); d.ellipse(cx - 62, cy - 5, 48, 40, 0, 0, Math.PI * 2);
+      d.strokeStyle = 'rgba(80,80,80,0.2)'; d.lineWidth = 1; d.stroke();
+      d.beginPath(); d.ellipse(cx + 62, cy - 5, 48, 40, 0, 0, Math.PI * 2);
+      d.strokeStyle = 'rgba(80,80,80,0.2)'; d.lineWidth = 1; d.stroke();
 
       // ---- UNDER-EYE POUCHES ----
       d.beginPath();
@@ -1527,20 +1509,17 @@
           }
 
           // Map original colors to green scheme
-          const isBlueEye = bb > rr * 1.3 && bb > 80;
-          const isDarkPupil = brightness < 15;
           const isHighlight = rr > 200 && gg > 200 && bb > 200;
+          const isVoid = brightness < 12;
 
           let cr, cg, cb, alpha;
           if (isHighlight) {
             cr = 200; cg = 255; cb = 200;
             alpha = 0.9;
-          } else if (isBlueEye) {
-            cr = 40; cg = 180; cb = 255;
-            alpha = 0.85;
-          } else if (isDarkPupil) {
-            cr = 5; cg = 15; cb = 5;
-            alpha = 0.9;
+          } else if (isVoid) {
+            // Hollow eye sockets — near-invisible dark particles
+            cr = 2; cg = 8; cb = 2;
+            alpha = 0.15;
           } else {
             // Green mapped from brightness
             cr = Math.floor(10 + depth * 50);
