@@ -74,6 +74,27 @@
   .page-wrapper.hidden { opacity: 0; pointer-events: none; }
   .page-wrapper { transition: opacity 0.6s ease 0.3s; }
 
+  /* INTERACTIVE GALAXY SECTION */
+  .galaxy-section { position: relative; width: 100%; height: 80vh; min-height: 500px; overflow: hidden; border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); background: var(--darker); }
+  .galaxy-section canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  .galaxy-section canvas:active { cursor: grabbing; }
+  .galaxy-section-hud { position: absolute; top: 16px; left: 20px; font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; z-index: 2; pointer-events: none; }
+  .galaxy-section-hud span { color: var(--green); text-shadow: 0 0 6px var(--green-dim); }
+  .galaxy-section-hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; z-index: 2; pointer-events: none; opacity: 0.6; transition: opacity 0.5s; }
+  .galaxy-section-hint.hidden { opacity: 0; }
+  .galaxy-section-zoom { position: absolute; bottom: 16px; right: 20px; display: flex; gap: 6px; z-index: 3; }
+  .galaxy-section-zoom button { width: 32px; height: 32px; background: rgba(10,21,10,0.8); border: 1px solid var(--panel-border); color: var(--green); font-family: 'Space Mono', monospace; font-size: 16px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+  .galaxy-section-zoom button:hover { border-color: var(--green); box-shadow: 0 0 10px var(--green-dim); }
+  .star-info { position: absolute; top: 16px; right: 20px; width: 260px; background: rgba(5,15,5,0.92); border: 1px solid var(--panel-border); padding: 16px; font-family: 'Space Mono', monospace; z-index: 4; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: translateY(-8px); backdrop-filter: blur(8px); }
+  .star-info.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .star-info-close { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-dim); font-size: 14px; cursor: pointer; font-family: 'Space Mono', monospace; }
+  .star-info-close:hover { color: var(--green); }
+  .star-info-name { font-family: 'Silkscreen', cursive; font-size: 13px; color: var(--green); text-shadow: 0 0 10px var(--green-dim); margin-bottom: 12px; letter-spacing: 2px; padding-right: 20px; }
+  .star-info-row { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; line-height: 1.6; }
+  .star-info-row span { color: var(--text); }
+  .star-info-desc { font-size: 10px; color: var(--text); line-height: 1.7; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--panel-border); letter-spacing: 0.5px; text-transform: none; }
+  @media (max-width: 768px) { .galaxy-section { height: 60vh; min-height: 400px; } .star-info { width: 200px; padding: 12px; } .star-info-name { font-size: 11px; } }
+
   /* NAV */
   nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(180deg, var(--darker), transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--panel-border); }
   .nav-logo { font-family: 'Silkscreen', cursive; font-size: 24px; color: var(--green); text-shadow: 0 0 20px var(--green), 0 0 40px var(--green-dim); letter-spacing: 4px; }
@@ -236,6 +257,31 @@
       </div>
     </div>
   </section>
+
+  <!-- INTERACTIVE GALAXY MAP -->
+  <section class="galaxy-section" id="galaxySection">
+    <canvas id="galaxySectionCanvas"></canvas>
+    <div class="galaxy-section-hud" id="galaxySectionHud">
+      <div>milky way — <span>interactive galactic map</span></div>
+      <div>data: <span>nasa exoplanet archive + real star catalog</span></div>
+      <div id="galaxySectionStatus">zoom: <span>1.0x</span></div>
+    </div>
+    <div class="galaxy-section-hint" id="galaxyHint">drag to pan · scroll to zoom · click stars for data</div>
+    <div class="galaxy-section-zoom">
+      <button id="zoomIn" title="Zoom in">+</button>
+      <button id="zoomOut" title="Zoom out">−</button>
+      <button id="zoomReset" title="Reset view" style="font-size:10px;">⌂</button>
+    </div>
+    <div class="star-info" id="starInfo">
+      <button class="star-info-close" id="starInfoClose">✕</button>
+      <div class="star-info-name" id="starInfoName"></div>
+      <div class="star-info-row" id="starInfoType"></div>
+      <div class="star-info-row" id="starInfoDist"></div>
+      <div class="star-info-row" id="starInfoExtra"></div>
+      <div class="star-info-desc" id="starInfoDesc"></div>
+    </div>
+  </section>
+
   <div class="ticker-wrap">
     <div class="ticker"><span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · <span>$ET</span> · BORN WITH A DOLLAR SIGN · <span>$ET</span> · MOST ICONIC CHARACTER EVER · <span>$ET</span> · OG CONTRACT · <span>$ET</span> · PHONE HOME TO PROFIT · <span>$ET</span> · THE TICKER THAT WAS ALWAYS MEANT TO BE · </div>
   </div>
@@ -350,40 +396,27 @@
   // Sol is at ~26,000 ly from galactic center in the Orion Arm
   // Positions approximate galactic coordinates mapped to top-down view
   const REAL_STARS = [
-    // Nearby stars (cluster around Sol on galactic scale)
-    { name:'Proxima Centauri', dist:4.24, gx:0.6200, gy:0.4800, type:'M5.5V' },
-    { name:'Alpha Centauri', dist:4.37, gx:0.6201, gy:0.4800, type:'G2V' },
-    { name:'Barnard\'s Star', dist:5.96, gx:0.6201, gy:0.4801, type:'M4V' },
-    { name:'Sirius', dist:8.6, gx:0.6202, gy:0.4799, type:'A1V' },
-    { name:'Vega', dist:25.0, gx:0.6204, gy:0.4795, type:'A0V' },
-    { name:'Arcturus', dist:36.7, gx:0.6206, gy:0.4805, type:'K1.5III' },
-    { name:'Betelgeuse', dist:700, gx:0.623, gy:0.477, type:'M1Ia' },
-    { name:'Rigel', dist:863, gx:0.624, gy:0.483, type:'B8Ia' },
-    { name:'Deneb', dist:2615, gx:0.632, gy:0.470, type:'A2Ia' },
-    { name:'Polaris', dist:433, gx:0.622, gy:0.476, type:'F7Ib' },
-    // Orion Arm (local arm, Sol's neighborhood)
-    { name:'Crab Nebula', dist:6523, gx:0.643, gy:0.462, type:'SNR' },
-    { name:'Orion Nebula', dist:1344, gx:0.626, gy:0.478, type:'HII' },
-    { name:'Eagle Nebula', dist:7000, gx:0.585, gy:0.505, type:'HII' },
-    // Perseus Arm (next arm outward)
-    { name:'NGC 884 (Double Cluster)', dist:7600, gx:0.665, gy:0.440, type:'OC' },
-    { name:'IC 1805 (Heart Nebula)', dist:7500, gx:0.670, gy:0.435, type:'HII' },
-    { name:'Cassiopeia A', dist:11000, gx:0.680, gy:0.425, type:'SNR' },
-    { name:'W51 Complex', dist:17400, gx:0.700, gy:0.415, type:'HII' },
-    // Sagittarius Arm (next arm inward toward center)
-    { name:'Lagoon Nebula (M8)', dist:5200, gx:0.575, gy:0.495, type:'HII' },
-    { name:'Omega Nebula (M17)', dist:5500, gx:0.570, gy:0.498, type:'HII' },
-    { name:'Sagittarius A*', dist:26000, gx:0.500, gy:0.500, type:'SMBH' },
-    // Scutum-Centaurus Arm (major inner arm)
-    { name:'Scutum Star Cloud', dist:18000, gx:0.535, gy:0.510, type:'SC' },
-    { name:'NGC 3603', dist:20000, gx:0.520, gy:0.520, type:'HII' },
-    // Norma / Outer arms
-    { name:'Eta Carinae', dist:7500, gx:0.580, gy:0.515, type:'LBV' },
-    { name:'Westerlund 2', dist:20000, gx:0.530, gy:0.530, type:'OC' },
-    // Far side of galaxy (distant objects)
-    { name:'NGC 7538', dist:9100, gx:0.690, gy:0.430, type:'HII' },
-    { name:'IRAS 20126+4104', dist:5400, gx:0.645, gy:0.455, type:'YSO' },
-    { name:'G31.41+0.31', dist:24000, gx:0.510, gy:0.490, type:'HMC' },
+    { name:'Proxima Centauri', dist:4.24, gx:0.6200, gy:0.4800, type:'M5.5V Red Dwarf', desc:'Closest star to the Sun. Hosts Proxima b, a rocky planet in the habitable zone. Part of the Alpha Centauri triple system.' },
+    { name:'Alpha Centauri', dist:4.37, gx:0.6201, gy:0.4800, type:'G2V Sun-like Star', desc:'Third brightest star in the sky. Binary system (A and B) remarkably similar to our Sun. Nearest Sun-like stars.' },
+    { name:'Barnard\'s Star', dist:5.96, gx:0.6201, gy:0.4801, type:'M4V Red Dwarf', desc:'Second closest star system. Has the highest proper motion of any known star. Possible super-Earth detected in 2018.' },
+    { name:'Sirius', dist:8.6, gx:0.6202, gy:0.4799, type:'A1V Main Sequence', desc:'Brightest star in the night sky. Binary system — Sirius B is a white dwarf, the first ever discovered. Sacred to ancient Egyptians.' },
+    { name:'Vega', dist:25.0, gx:0.6204, gy:0.4795, type:'A0V Main Sequence', desc:'Fifth brightest star. Former North Star and future North Star again in ~12,000 years. Has a large debris disk — possible planet formation.' },
+    { name:'Arcturus', dist:36.7, gx:0.6206, gy:0.4805, type:'K1.5III Red Giant', desc:'Fourth brightest star. An ancient star ~7 billion years old, likely from a dwarf galaxy absorbed by the Milky Way.' },
+    { name:'Betelgeuse', dist:700, gx:0.623, gy:0.477, type:'M1Ia Red Supergiant', desc:'One of the largest stars visible to the naked eye. Expected to go supernova within the next 100,000 years. Experienced the "Great Dimming" in 2019-2020.' },
+    { name:'Rigel', dist:863, gx:0.624, gy:0.483, type:'B8Ia Blue Supergiant', desc:'Brightest star in Orion. ~120,000 times more luminous than the Sun. One of the most luminous stars in our region of the galaxy.' },
+    { name:'Deneb', dist:2615, gx:0.632, gy:0.470, type:'A2Ia White Supergiant', desc:'~200,000 times more luminous than the Sun. One of the most distant stars visible to the naked eye. Part of the Summer Triangle.' },
+    { name:'Polaris', dist:433, gx:0.622, gy:0.476, type:'F7Ib Supergiant', desc:'The current North Star. A Cepheid variable — its brightness pulsation helped measure the scale of the universe.' },
+    { name:'Crab Nebula (M1)', dist:6523, gx:0.643, gy:0.462, type:'Supernova Remnant', desc:'Remnant of a supernova observed by Chinese astronomers in 1054 AD. Contains a pulsar spinning 30 times per second.' },
+    { name:'Orion Nebula (M42)', dist:1344, gx:0.626, gy:0.478, type:'Emission Nebula', desc:'Nearest massive star-forming region. Visible to the naked eye. Contains the Trapezium Cluster of hot young stars.' },
+    { name:'Eagle Nebula (M16)', dist:7000, gx:0.585, gy:0.505, type:'Emission Nebula', desc:'Home of the famous "Pillars of Creation" photographed by Hubble. Active stellar nursery — stars are being born here now.' },
+    { name:'Double Cluster', dist:7600, gx:0.665, gy:0.440, type:'Open Cluster', desc:'NGC 869 and NGC 884. Two young star clusters visible to the naked eye. Each contains hundreds of blue supergiant stars.' },
+    { name:'Heart Nebula', dist:7500, gx:0.670, gy:0.435, type:'Emission Nebula', desc:'IC 1805. Named for its heart-like shape. Powered by a cluster of hot O-type stars at its center.' },
+    { name:'Cassiopeia A', dist:11000, gx:0.680, gy:0.425, type:'Supernova Remnant', desc:'Strongest radio source in the sky outside our solar system. The explosion light reached Earth around 1680 AD.' },
+    { name:'Lagoon Nebula (M8)', dist:5200, gx:0.575, gy:0.495, type:'Emission Nebula', desc:'One of the brightest nebulae visible without a telescope. Contains Herschel 36, a young star ionizing the gas around it.' },
+    { name:'Sagittarius A*', dist:26000, gx:0.500, gy:0.500, type:'Supermassive Black Hole', desc:'The 4-million-solar-mass black hole at the center of our galaxy. First imaged by the Event Horizon Telescope in 2022.' },
+    { name:'Eta Carinae', dist:7500, gx:0.580, gy:0.515, type:'Luminous Blue Variable', desc:'One of the most massive and luminous stars known. ~5 million times brighter than the Sun. Could go hypernova.' },
+    { name:'Westerlund 2', dist:20000, gx:0.530, gy:0.530, type:'Young Star Cluster', desc:'One of the most massive young star clusters in the Milky Way. Contains some of the hottest and most luminous stars known.' },
+    { name:'Sol (Earth\'s Sun)', dist:0, gx:0.620, gy:0.480, type:'G2V Main Sequence', desc:'Our home star. 4.6 billion years old. Located in the Orion Arm, ~26,000 light-years from the galactic center. Home to 8 planets and the only confirmed life in the universe — so far.' },
   ];
 
   // Stars that can be signal sources — distant, in spiral arms, with interesting names
@@ -499,7 +532,13 @@
 
     // Inject real cataloged stars
     for (const rs of REAL_STARS) {
-      gStars.push({ x: rs.gx, y: rs.gy, b: 0.6+Math.random()*0.4, s: 1.0+Math.random()*0.8, p: Math.random()*Math.PI*2, real: true, label: rs.name, starType: rs.type, dist: rs.dist });
+      gStars.push({ x: rs.gx, y: rs.gy, b: 0.6+Math.random()*0.4, s: 1.0+Math.random()*0.8, p: Math.random()*Math.PI*2, real: true, label: rs.name, starType: rs.type, dist: rs.dist, desc: rs.desc });
+    }
+    // Inject signal candidates as clickable stars too
+    for (const sc of SIGNAL_CANDIDATES) {
+      // Don't duplicate if already a real star
+      if (REAL_STARS.some(r => r.name === sc.name)) continue;
+      gStars.push({ x: sc.gx, y: sc.gy, b: 0.5+Math.random()*0.4, s: 0.9+Math.random()*0.6, p: Math.random()*Math.PI*2, real: true, label: sc.name, starType: 'Exoplanet Host', dist: parseFloat(sc.distLy.replace(/,/g,'')), desc: sc.desc + '. Located in the ' + sc.sector + ' sector.' });
     }
   }
 
@@ -793,8 +832,315 @@
     galaxyFinal.classList.add('show');
     await wait(3000);
 
+    // Transition: stop preloader galaxy, start interactive section galaxy
+    cam.running = false;
     preloader.classList.add('done');
     pageWrapper.classList.remove('hidden');
+
+    // Initialize interactive galaxy section after page is visible
+    setTimeout(() => { initInteractiveGalaxy(); }, 800);
+  }
+
+  // ======== INTERACTIVE GALAXY SECTION ========
+  function initInteractiveGalaxy() {
+    const sC = document.getElementById('galaxySectionCanvas');
+    const sX = sC.getContext('2d');
+    const section = document.getElementById('galaxySection');
+    const statusEl = document.getElementById('galaxySectionStatus');
+    const hintEl = document.getElementById('galaxyHint');
+    const infoPanel = document.getElementById('starInfo');
+    const infoName = document.getElementById('starInfoName');
+    const infoType = document.getElementById('starInfoType');
+    const infoDist = document.getElementById('starInfoDist');
+    const infoExtra = document.getElementById('starInfoExtra');
+    const infoDesc = document.getElementById('starInfoDesc');
+
+    // Interactive camera (separate from preloader cam)
+    const iCam = { x: 0.5, y: 0.5, zoom: 1.1 };
+    let dragging = false, dragStartX = 0, dragStartY = 0, camStartX = 0, camStartY = 0;
+    let selectedStar = null;
+    let hintTimer = null;
+    let isVisible = false;
+
+    function resizeSection() {
+      const rect = section.getBoundingClientRect();
+      sC.width = rect.width;
+      sC.height = rect.height;
+    }
+    resizeSection();
+
+    // Reuse existing gStars data (already generated during preloader)
+    function drawInteractive(time) {
+      if (!isVisible) { requestAnimationFrame(drawInteractive); return; }
+      const W = sC.width, H = sC.height, z = iCam.zoom;
+
+      sX.fillStyle = 'rgba(1,5,1,1)';
+      sX.fillRect(0, 0, W, H);
+
+      // Core glow
+      const csx = (0.5 - iCam.x) * z * W + W / 2;
+      const csy = (0.5 - iCam.y) * z * H + H / 2;
+      const cg = sX.createRadialGradient(csx, csy, 0, csx, csy, z * Math.min(W, H) * 0.15);
+      cg.addColorStop(0, 'rgba(57,255,20,0.08)');
+      cg.addColorStop(0.4, 'rgba(57,255,20,0.03)');
+      cg.addColorStop(1, 'transparent');
+      sX.fillStyle = cg;
+      sX.fillRect(0, 0, W, H);
+
+      // Stars
+      for (const st of gStars) {
+        const sx = (st.x - iCam.x) * z * W + W / 2;
+        const sy = (st.y - iCam.y) * z * H + H / 2;
+        if (sx < -10 || sx > W + 10 || sy < -10 || sy > H + 10) continue;
+
+        const tw = 0.6 + 0.4 * Math.sin(time * 0.001 + st.p);
+        const al = st.b * tw;
+        const r = st.s * Math.min(z * 0.6, 3);
+
+        if (st.real) {
+          const rr = r * 1.4;
+          const isSelected = selectedStar === st;
+          const glowMult = isSelected ? 2.5 : 1;
+
+          // Clickable pulse — gentle breathing for real stars
+          const clickPulse = 1 + 0.2 * Math.sin(time * 0.003 + st.p);
+
+          sX.beginPath();
+          sX.arc(sx, sy, rr * clickPulse, 0, Math.PI * 2);
+          sX.fillStyle = `rgba(57,255,20,${Math.min(1, al * 1.4 * glowMult)})`;
+          sX.fill();
+
+          // Outer glow
+          sX.beginPath();
+          sX.arc(sx, sy, rr * 3 * clickPulse * glowMult, 0, Math.PI * 2);
+          sX.fillStyle = `rgba(57,255,20,${al * 0.12 * glowMult})`;
+          sX.fill();
+
+          // Selection ring
+          if (isSelected) {
+            const ringPulse = 1 + 0.3 * Math.sin(time * 0.005);
+            sX.beginPath();
+            sX.arc(sx, sy, 12 * ringPulse, 0, Math.PI * 2);
+            sX.strokeStyle = `rgba(57,255,20,${0.6 * ringPulse})`;
+            sX.lineWidth = 1;
+            sX.stroke();
+            // Crosshair
+            sX.beginPath();
+            sX.moveTo(sx - 18, sy); sX.lineTo(sx - 8, sy);
+            sX.moveTo(sx + 8, sy); sX.lineTo(sx + 18, sy);
+            sX.moveTo(sx, sy - 18); sX.lineTo(sx, sy - 8);
+            sX.moveTo(sx, sy + 8); sX.lineTo(sx, sy + 18);
+            sX.strokeStyle = 'rgba(57,255,20,0.5)';
+            sX.lineWidth = 1;
+            sX.stroke();
+          }
+
+          // Labels at zoom > 1.8
+          if (z > 1.8) {
+            sX.save();
+            sX.font = isSelected ? 'bold 10px "Space Mono",monospace' : '8px "Space Mono",monospace';
+            sX.fillStyle = `rgba(57,255,20,${Math.min(0.7, (z - 1.8) * 0.5)})`;
+            sX.textAlign = 'left';
+            sX.fillText(st.label, sx + rr * clickPulse + 6, sy + 3);
+            sX.restore();
+          }
+        } else {
+          sX.beginPath();
+          sX.arc(sx, sy, r, 0, Math.PI * 2);
+          sX.fillStyle = `rgba(57,255,20,${al})`;
+          sX.fill();
+          if (r > 1.2) {
+            sX.beginPath();
+            sX.arc(sx, sy, r * 2.5, 0, Math.PI * 2);
+            sX.fillStyle = `rgba(57,255,20,${al * 0.08})`;
+            sX.fill();
+          }
+        }
+      }
+
+      // Grid
+      sX.strokeStyle = 'rgba(57,255,20,0.015)';
+      sX.lineWidth = 0.5;
+      const gs = Math.max(40, 60 * z);
+      for (let i = 0; i < W; i += gs) { sX.beginPath(); sX.moveTo(i, 0); sX.lineTo(i, H); sX.stroke(); }
+      for (let i = 0; i < H; i += gs) { sX.beginPath(); sX.moveTo(0, i); sX.lineTo(W, i); sX.stroke(); }
+
+      // SOL marker
+      const solX = (SOL.x - iCam.x) * z * W + W / 2;
+      const solY = (SOL.y - iCam.y) * z * H + H / 2;
+      drawSectionMarker(sX, solX, solY, 'SOL', time, false);
+
+      // Signal trace + marker (persistent from preloader)
+      if (trace.active) {
+        const sigX = (signal.x - iCam.x) * z * W + W / 2;
+        const sigY = (signal.y - iCam.y) * z * H + H / 2;
+        sX.save();
+        sX.beginPath(); sX.moveTo(solX, solY); sX.lineTo(sigX, sigY);
+        sX.strokeStyle = 'rgba(57,255,20,0.3)'; sX.lineWidth = 1; sX.setLineDash([6, 4]); sX.stroke(); sX.setLineDash([]);
+        sX.beginPath(); sX.moveTo(solX, solY); sX.lineTo(sigX, sigY);
+        sX.strokeStyle = 'rgba(57,255,20,0.02)'; sX.lineWidth = 12; sX.stroke();
+        sX.restore();
+        drawSectionMarker(sX, sigX, sigY, signal.name.toUpperCase(), time, true);
+      }
+
+      // Update zoom display
+      statusEl.innerHTML = `zoom: <span>${z.toFixed(1)}x</span>`;
+
+      requestAnimationFrame(drawInteractive);
+    }
+
+    function drawSectionMarker(ctx, x, y, label, time, isSig) {
+      const pulse = 0.5 + 0.5 * Math.sin(time * 0.003);
+      const al = isSig ? 0.9 : 0.7;
+      const sz = isSig ? 12 : 8;
+      ctx.strokeStyle = `rgba(57,255,20,${al})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - sz, y); ctx.lineTo(x - 3, y); ctx.moveTo(x + 3, y); ctx.lineTo(x + sz, y);
+      ctx.moveTo(x, y - sz); ctx.lineTo(x, y - 3); ctx.moveTo(x, y + 3); ctx.lineTo(x, y + sz);
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, isSig ? 2.5 : 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(57,255,20,${al})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, (isSig ? 16 : 10) * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(57,255,20,${isSig ? 0.05 : 0.03})`; ctx.fill();
+      ctx.save();
+      ctx.font = isSig ? 'bold 9px "Space Mono",monospace' : '8px "Space Mono",monospace';
+      ctx.fillStyle = `rgba(57,255,20,${al})`;
+      ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(57,255,20,0.4)'; ctx.shadowBlur = isSig ? 10 : 4;
+      ctx.fillText(label, x + sz + 5, y + 3);
+      ctx.restore();
+    }
+
+    // --- Interaction: Pan ---
+    sC.addEventListener('mousedown', e => {
+      dragging = true;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      camStartX = iCam.x; camStartY = iCam.y;
+      hintEl.classList.add('hidden');
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const dx = (e.clientX - dragStartX) / (sC.width * iCam.zoom);
+      const dy = (e.clientY - dragStartY) / (sC.height * iCam.zoom);
+      iCam.x = camStartX - dx;
+      iCam.y = camStartY - dy;
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    // --- Touch pan ---
+    let touchStartX = 0, touchStartY = 0, touchCamX = 0, touchCamY = 0;
+    let lastPinchDist = 0;
+    sC.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        dragging = true;
+        touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+        touchCamX = iCam.x; touchCamY = iCam.y;
+        hintEl.classList.add('hidden');
+      } else if (e.touches.length === 2) {
+        lastPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      }
+      e.preventDefault();
+    }, { passive: false });
+    sC.addEventListener('touchmove', e => {
+      if (e.touches.length === 1 && dragging) {
+        const dx = (e.touches[0].clientX - touchStartX) / (sC.width * iCam.zoom);
+        const dy = (e.touches[0].clientY - touchStartY) / (sC.height * iCam.zoom);
+        iCam.x = touchCamX - dx;
+        iCam.y = touchCamY - dy;
+      } else if (e.touches.length === 2) {
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        const scale = dist / lastPinchDist;
+        iCam.zoom = Math.max(0.5, Math.min(12, iCam.zoom * scale));
+        lastPinchDist = dist;
+      }
+      e.preventDefault();
+    }, { passive: false });
+    sC.addEventListener('touchend', () => { dragging = false; });
+
+    // --- Zoom: scroll wheel ---
+    sC.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      iCam.zoom = Math.max(0.5, Math.min(12, iCam.zoom * factor));
+      hintEl.classList.add('hidden');
+    }, { passive: false });
+
+    // --- Zoom buttons ---
+    document.getElementById('zoomIn').addEventListener('click', () => {
+      iCam.zoom = Math.min(12, iCam.zoom * 1.4);
+    });
+    document.getElementById('zoomOut').addEventListener('click', () => {
+      iCam.zoom = Math.max(0.5, iCam.zoom * 0.7);
+    });
+    document.getElementById('zoomReset').addEventListener('click', () => {
+      iCam.x = 0.5; iCam.y = 0.5; iCam.zoom = 1.1;
+      selectedStar = null;
+      infoPanel.classList.remove('show');
+    });
+
+    // --- Click: find nearest real star ---
+    sC.addEventListener('click', e => {
+      if (Math.abs(e.clientX - dragStartX) > 5 || Math.abs(e.clientY - dragStartY) > 5) return; // was a drag
+
+      const rect = sC.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const W = sC.width, H = sC.height, z = iCam.zoom;
+
+      let closest = null, closestDist = Infinity;
+
+      for (const st of gStars) {
+        if (!st.real) continue;
+        const sx = (st.x - iCam.x) * z * W + W / 2;
+        const sy = (st.y - iCam.y) * z * H + H / 2;
+        const d = Math.hypot(sx - mx, sy - my);
+        const hitRadius = Math.max(15, 8 * z);
+        if (d < hitRadius && d < closestDist) {
+          closest = st;
+          closestDist = d;
+        }
+      }
+
+      if (closest) {
+        selectedStar = closest;
+        infoName.textContent = closest.label;
+        infoType.innerHTML = `type: <span>${closest.starType || '—'}</span>`;
+        infoDist.innerHTML = `distance: <span>${closest.dist ? closest.dist.toLocaleString() + ' light-years' : 'unknown'}</span>`;
+
+        // Check if it's the signal star
+        if (closest.label === signal.name) {
+          infoExtra.innerHTML = `status: <span style="color:var(--green)">⚠ SIGNAL SOURCE</span>`;
+        } else if (closest.label === 'Sagittarius A*') {
+          infoExtra.innerHTML = `mass: <span>~4 million solar masses</span>`;
+        } else {
+          infoExtra.innerHTML = '';
+        }
+
+        infoDesc.textContent = closest.desc || '';
+        infoPanel.classList.add('show');
+      } else {
+        selectedStar = null;
+        infoPanel.classList.remove('show');
+      }
+    });
+
+    // Close info panel
+    document.getElementById('starInfoClose').addEventListener('click', e => {
+      e.stopPropagation();
+      selectedStar = null;
+      infoPanel.classList.remove('show');
+    });
+
+    // Intersection observer — only render when visible
+    const visObs = new IntersectionObserver(entries => {
+      isVisible = entries[0].isIntersecting;
+    }, { threshold: 0.05 });
+    visObs.observe(section);
+
+    window.addEventListener('resize', resizeSection);
+    isVisible = true;
+    requestAnimationFrame(drawInteractive);
   }
 
   // Auto-start sequence. Audio inits on first user interaction (browser requirement).
