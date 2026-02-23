@@ -1775,27 +1775,19 @@
     return regs;
   }
 
-  // Registration handler
+  // Registration handler — feature in progress
   document.getElementById('rewardsRegister').addEventListener('click', function() {
-    const wallet = document.getElementById('rewardsWallet').value.trim();
-    const boinc = document.getElementById('rewardsBoinc').value.trim();
     const status = document.getElementById('rewardsStatus');
-    if (!wallet || wallet.length < 32 || wallet.length > 44) {
-      status.style.color = '#ff4444';
-      status.textContent = 'Enter a valid Solana wallet address (32–44 chars)';
-      return;
-    }
-    if (!boinc || boinc.length < 2) {
-      status.style.color = '#ff4444';
-      status.textContent = 'Enter your Einstein@home username';
-      return;
-    }
-    saveRegistration(wallet, boinc);
-    status.style.color = 'var(--green)';
-    status.textContent = '✓ Registered! Your rewards will accrue as you earn BOINC credits.';
-    renderLeaderboard();
-    document.getElementById('rewardsWallet').value = '';
-    document.getElementById('rewardsBoinc').value = '';
+    status.innerHTML = `
+      <div style="padding:16px 0 4px;text-align:center;">
+        <div style="font-family:'Silkscreen',cursive;font-size:13px;color:var(--green);letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 10px var(--green-dim);">🔥 WE'RE COOKING</div>
+        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">this feature is under active development</div>
+        <div style="background:rgba(2,8,2,0.6);border:1px solid var(--panel-border);height:24px;position:relative;overflow:hidden;">
+          <div style="width:57%;height:100%;background:linear-gradient(90deg,rgba(57,255,20,0.15),rgba(57,255,20,0.3));border-right:2px solid var(--green);transition:width 1s ease;"></div>
+          <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Silkscreen',cursive;font-size:11px;color:var(--green);letter-spacing:2px;text-shadow:0 0 8px var(--green-dim);">57%</span>
+        </div>
+        <div style="font-size:8px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;line-height:1.7;">registration + reward claims coming soon<br>join <span style="color:var(--green);">Einstein@home</span> in the meantime — your credits will count</div>
+      </div>`;
   });
 
   // Render leaderboard from localStorage
