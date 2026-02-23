@@ -369,8 +369,8 @@
     <div class="br-section br-actions">
       <div class="br-section-title">◈ contribute</div>
       <button onclick="openOnboarding()" class="br-action-btn" style="border:none;text-align:left;">⚡ Join Team $ET — Step-by-step guide</button>
-      <a href="https://www.seti.org/citizen-science" target="_blank" class="br-action-btn">📡 SETI Citizen Science</a>
-      <a href="https://www.unistellar.com/citizen-science/" target="_blank" class="br-action-btn">🔭 Unistellar Network</a>
+      <a href="https://einsteinathome.org/" target="_blank" class="br-action-btn">📡 Einstein@home — Pulsar Search</a>
+      <a href="https://www.seti.org/citizen-science" target="_blank" class="br-action-btn">🔭 SETI Institute Citizen Science</a>
     </div>
   </div>
 
@@ -411,24 +411,13 @@
   <button class="onboard-close" id="onboardClose">✕</button>
   <div class="onboard-box">
     <div class="onboard-title">JOIN THE SEARCH</div>
-    <div class="onboard-sub">donate your computer's idle power to real <span>SETI research</span><br>join team <span>$ET</span> on Science United (UC Berkeley)</div>
+    <div class="onboard-sub">donate your computer's idle power to real <span>SETI research</span><br>join team <span>$ET</span> on Einstein@home (searching for signals from space)</div>
 
     <div class="onboard-step">
       <div class="onboard-step-num">1</div>
       <div class="onboard-step-content">
-        <div class="onboard-step-title">Create a Science United account</div>
-        <div class="onboard-step-desc">Science United is run by UC Berkeley. It automatically assigns your computer to real science projects — astronomy, physics, climate, and more. Free, takes 30 seconds.</div>
-        <div class="onboard-step-links">
-          <a href="https://scienceunited.org/su_join.php" target="_blank" class="onboard-link primary">→ Sign up at scienceunited.org</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="onboard-step">
-      <div class="onboard-step-num">2</div>
-      <div class="onboard-step-content">
         <div class="onboard-step-title">Download BOINC</div>
-        <div class="onboard-step-desc">BOINC is a tiny app that runs invisibly in the background. It downloads scientific computing tasks and crunches them using your idle CPU/GPU. You won't even notice it.</div>
+        <div class="onboard-step-desc">BOINC is a free app by UC Berkeley that runs scientific computing tasks invisibly in the background using your idle CPU/GPU. It's safe, lightweight, and you won't even notice it.</div>
         <div class="onboard-step-links">
           <a href="https://boinc.berkeley.edu/download.php" target="_blank" class="onboard-link primary">→ Download BOINC</a>
           <a href="https://boinc.berkeley.edu/dl/boinc_installer.exe" target="_blank" class="onboard-link">Windows</a>
@@ -438,10 +427,21 @@
     </div>
 
     <div class="onboard-step">
+      <div class="onboard-step-num">2</div>
+      <div class="onboard-step-content">
+        <div class="onboard-step-title">Create an Einstein@home account</div>
+        <div class="onboard-step-desc">Einstein@home uses your computer to search radio telescope data for pulsars, gravitational waves, and continuous signals from neutron stars. It's one of the most active SETI-adjacent projects in the world.</div>
+        <div class="onboard-step-links">
+          <a href="https://einsteinathome.org/create_account_form.php" target="_blank" class="onboard-link primary">→ Sign up at einsteinathome.org</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-step">
       <div class="onboard-step-num">3</div>
       <div class="onboard-step-content">
-        <div class="onboard-step-title">Choose your science areas</div>
-        <div class="onboard-step-desc">In Science United, go to your preferences and select <span style="color:var(--green)">Astronomy</span> and <span style="color:var(--green)">Physics</span> as your preferred areas. This routes your computing power to projects like Einstein@home (pulsar/gravitational wave detection), Asteroids@home, and other space science.</div>
+        <div class="onboard-step-title">Attach Einstein@home in BOINC</div>
+        <div class="onboard-step-desc">Open BOINC Manager → click <span style="color:var(--green)">Add Project</span> → select <span style="color:var(--green)">Einstein@home</span> from the list → sign in with your new account. BOINC will start downloading work units automatically.</div>
       </div>
     </div>
 
@@ -449,9 +449,9 @@
       <div class="onboard-step-num">4</div>
       <div class="onboard-step-content">
         <div class="onboard-step-title">Join Team $ET</div>
-        <div class="onboard-step-desc">Go to Community → Teams and search for <span style="color:var(--green)">$ET</span>. Join the team. Your computing credits now count toward our crew's collective contribution to the search for extraterrestrial intelligence.</div>
+        <div class="onboard-step-desc">On the Einstein@home website, go to <span style="color:var(--green)">Community → Teams</span> and search for <span style="color:var(--green)">$ET</span>. Join the team. Your computing credits count toward our crew's collective search for extraterrestrial signals.</div>
         <div class="onboard-step-links">
-          <a href="https://scienceunited.org/team_search.php" target="_blank" class="onboard-link primary">→ Find Team $ET</a>
+          <a href="https://einsteinathome.org/team_search.php" target="_blank" class="onboard-link primary">→ Find Team $ET</a>
         </div>
       </div>
     </div>
@@ -460,7 +460,7 @@
       <div class="onboard-step-num">5</div>
       <div class="onboard-step-content">
         <div class="onboard-step-title">Let it run</div>
-        <div class="onboard-step-desc">That's it. BOINC runs silently when your computer is idle — searching for gravitational waves, pulsars, asteroids, and potentially extraterrestrial signals. Your computer is now part of a global telescope. Welcome to the crew.</div>
+        <div class="onboard-step-desc">That's it. BOINC runs silently when your computer is idle — analyzing real radio telescope data from Arecibo, LIGO, and Fermi. Your computer is now part of a global network scanning the sky for signals. Welcome to the crew.</div>
       </div>
     </div>
 
@@ -468,9 +468,10 @@
       <div class="onboard-footer-text">
         your computer joins a global network searching the cosmos<br>
         <span>5.2 million+</span> people have contributed to SETI through BOINC<br>
+        einstein@home has discovered <span>90+ pulsars</span> using volunteer computers<br>
         every cycle of your CPU brings us closer to an answer
       </div>
-      <a href="https://scienceunited.org/su_join.php" target="_blank" class="onboard-cta">ENLIST NOW</a>
+      <a href="https://einsteinathome.org/create_account_form.php" target="_blank" class="onboard-cta">ENLIST NOW</a>
     </div>
   </div>
 </div>
