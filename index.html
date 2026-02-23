@@ -140,6 +140,37 @@
   .br-bar-divider { width: 1px; height: 24px; background: var(--panel-border); flex-shrink: 0; }
   .br-bar-feed .br-bar-value { overflow: hidden; text-overflow: ellipsis; }
   body.backroom-active { overflow: hidden; }
+  body.onboard-active { overflow: hidden; }
+
+  /* ONBOARDING OVERLAY */
+  .onboard-overlay { position: fixed; inset: 0; z-index: 9500; background: rgba(2,8,2,0.96); opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  .onboard-overlay.open { opacity: 1; visibility: visible; }
+  .onboard-box { width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 40px 36px; scrollbar-width: thin; scrollbar-color: var(--green-dark) transparent; }
+  .onboard-box::-webkit-scrollbar { width: 4px; }
+  .onboard-box::-webkit-scrollbar-thumb { background: var(--green-dark); border-radius: 2px; }
+  .onboard-close { position: absolute; top: 20px; right: 24px; background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; font-family: 'Space Mono', monospace; z-index: 2; }
+  .onboard-close:hover { color: var(--green); }
+  .onboard-title { font-family: 'Silkscreen', cursive; font-size: 20px; color: var(--green); text-shadow: 0 0 20px var(--green-dim); letter-spacing: 4px; text-align: center; margin-bottom: 8px; }
+  .onboard-sub { font-size: 11px; color: var(--text-dim); text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 32px; line-height: 1.8; }
+  .onboard-sub span { color: var(--green); }
+  .onboard-step { display: flex; gap: 16px; margin-bottom: 24px; padding: 16px; background: rgba(10,21,10,0.5); border: 1px solid var(--panel-border); transition: border-color 0.3s; }
+  .onboard-step:hover { border-color: var(--green-dim); }
+  .onboard-step-num { font-family: 'Silkscreen', cursive; font-size: 24px; color: var(--green); text-shadow: 0 0 10px var(--green-dim); flex-shrink: 0; width: 36px; text-align: center; line-height: 1; padding-top: 2px; }
+  .onboard-step-content { flex: 1; }
+  .onboard-step-title { font-size: 12px; color: var(--text); font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
+  .onboard-step-desc { font-size: 10px; color: var(--text-dim); line-height: 1.7; letter-spacing: 0.5px; }
+  .onboard-step-desc a { color: var(--green); text-decoration: none; border-bottom: 1px solid var(--green-dark); }
+  .onboard-step-desc a:hover { text-shadow: 0 0 6px var(--green-dim); }
+  .onboard-step-links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .onboard-link { display: inline-block; padding: 6px 12px; background: rgba(10,21,10,0.8); border: 1px solid var(--panel-border); color: var(--green); font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; text-decoration: none; transition: all 0.2s; }
+  .onboard-link:hover { border-color: var(--green); box-shadow: 0 0 10px var(--green-dim); }
+  .onboard-link.primary { background: rgba(57,255,20,0.1); border-color: var(--green-dim); }
+  .onboard-footer { text-align: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--panel-border); }
+  .onboard-footer-text { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; line-height: 1.8; margin-bottom: 16px; }
+  .onboard-footer-text span { color: var(--green); }
+  .onboard-cta { display: inline-block; padding: 12px 32px; background: rgba(57,255,20,0.08); border: 1px solid var(--green); color: var(--green); font-family: 'Silkscreen', cursive; font-size: 12px; letter-spacing: 3px; text-decoration: none; cursor: pointer; transition: all 0.3s; text-shadow: 0 0 8px var(--green-dim); }
+  .onboard-cta:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 20px var(--green-dim); }
+  @media (max-width: 768px) { .onboard-box { padding: 32px 20px; } .onboard-title { font-size: 16px; } .onboard-step { flex-direction: column; gap: 8px; } .onboard-step-num { width: auto; } }
 
   @media (max-width: 768px) {
     .br-sidebar { width: 260px; padding: 16px; }
@@ -337,7 +368,7 @@
     <!-- Actions -->
     <div class="br-section br-actions">
       <div class="br-section-title">◈ contribute</div>
-      <a href="https://scienceunited.org/" target="_blank" class="br-action-btn">⚡ Join BOINC / Science United</a>
+      <button onclick="openOnboarding()" class="br-action-btn" style="border:none;text-align:left;">⚡ Join Team $ET — Step-by-step guide</button>
       <a href="https://www.seti.org/citizen-science" target="_blank" class="br-action-btn">📡 SETI Citizen Science</a>
       <a href="https://www.unistellar.com/citizen-science/" target="_blank" class="br-action-btn">🔭 Unistellar Network</a>
     </div>
@@ -368,6 +399,79 @@
       <span class="br-bar-label">Feed</span>
       <span class="br-bar-value" id="brBarFeed">initializing...</span>
     </div>
+    <div class="br-bar-divider"></div>
+    <div class="br-bar-item" style="cursor:pointer;" onclick="openOnboarding()">
+      <span class="br-bar-value" style="font-size:9px;letter-spacing:2px;">◈ JOIN SEARCH</span>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING OVERLAY -->
+<div class="onboard-overlay" id="onboardOverlay">
+  <button class="onboard-close" id="onboardClose">✕</button>
+  <div class="onboard-box">
+    <div class="onboard-title">JOIN THE SEARCH</div>
+    <div class="onboard-sub">donate your computer's idle power to real <span>SETI research</span><br>join team <span>$ET</span> on Science United (UC Berkeley)</div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">1</div>
+      <div class="onboard-step-content">
+        <div class="onboard-step-title">Create a Science United account</div>
+        <div class="onboard-step-desc">Science United is run by UC Berkeley. It automatically assigns your computer to real science projects — astronomy, physics, climate, and more. Free, takes 30 seconds.</div>
+        <div class="onboard-step-links">
+          <a href="https://scienceunited.org/su_join.php" target="_blank" class="onboard-link primary">→ Sign up at scienceunited.org</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">2</div>
+      <div class="onboard-step-content">
+        <div class="onboard-step-title">Download BOINC</div>
+        <div class="onboard-step-desc">BOINC is a tiny app that runs invisibly in the background. It downloads scientific computing tasks and crunches them using your idle CPU/GPU. You won't even notice it.</div>
+        <div class="onboard-step-links">
+          <a href="https://boinc.berkeley.edu/download.php" target="_blank" class="onboard-link primary">→ Download BOINC</a>
+          <a href="https://boinc.berkeley.edu/dl/boinc_installer.exe" target="_blank" class="onboard-link">Windows</a>
+          <a href="https://boinc.berkeley.edu/dl/BOINC.dmg" target="_blank" class="onboard-link">macOS</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">3</div>
+      <div class="onboard-step-content">
+        <div class="onboard-step-title">Choose your science areas</div>
+        <div class="onboard-step-desc">In Science United, go to your preferences and select <span style="color:var(--green)">Astronomy</span> and <span style="color:var(--green)">Physics</span> as your preferred areas. This routes your computing power to projects like Einstein@home (pulsar/gravitational wave detection), Asteroids@home, and other space science.</div>
+      </div>
+    </div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">4</div>
+      <div class="onboard-step-content">
+        <div class="onboard-step-title">Join Team $ET</div>
+        <div class="onboard-step-desc">Go to Community → Teams and search for <span style="color:var(--green)">$ET</span>. Join the team. Your computing credits now count toward our crew's collective contribution to the search for extraterrestrial intelligence.</div>
+        <div class="onboard-step-links">
+          <a href="https://scienceunited.org/team_search.php" target="_blank" class="onboard-link primary">→ Find Team $ET</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">5</div>
+      <div class="onboard-step-content">
+        <div class="onboard-step-title">Let it run</div>
+        <div class="onboard-step-desc">That's it. BOINC runs silently when your computer is idle — searching for gravitational waves, pulsars, asteroids, and potentially extraterrestrial signals. Your computer is now part of a global telescope. Welcome to the crew.</div>
+      </div>
+    </div>
+
+    <div class="onboard-footer">
+      <div class="onboard-footer-text">
+        your computer joins a global network searching the cosmos<br>
+        <span>5.2 million+</span> people have contributed to SETI through BOINC<br>
+        every cycle of your CPU brings us closer to an answer
+      </div>
+      <a href="https://scienceunited.org/su_join.php" target="_blank" class="onboard-cta">ENLIST NOW</a>
+    </div>
   </div>
 </div>
 
@@ -375,7 +479,7 @@
 <div class="page-wrapper hidden" id="pageWrapper">
   <nav>
     <div class="nav-logo">$ET</div>
-    <div class="nav-links"><a href="#backroom">Backroom</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
+    <div class="nav-links"><a href="#backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
   </nav>
   <section class="hero">
     <div class="beam"></div>
@@ -385,6 +489,7 @@
     <p class="hero-tagline">the search for <span>extraterrestrial</span> life</p>
     <div class="cta-group">
       <a href="javascript:void(0)" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
+      <a href="javascript:void(0)" class="btn btn-ghost" onclick="openOnboarding()">✦ Join the Search</a>
     </div>
   </section>
 
@@ -1463,16 +1568,31 @@
   document.getElementById('backroomBack').addEventListener('click', () => {
     closeBackroom();
   });
-  // ESC key closes backroom
+  // ESC key closes backroom or onboarding
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('backroomOverlay').classList.contains('open')) {
-      closeBackroom();
+    if (e.key === 'Escape') {
+      if (document.getElementById('onboardOverlay').classList.contains('open')) {
+        closeOnboarding();
+      } else if (document.getElementById('backroomOverlay').classList.contains('open')) {
+        closeBackroom();
+      }
     }
   });
   // Nav backroom link
   document.querySelectorAll('a[href="#backroom"]').forEach(a => {
     a.addEventListener('click', e => { e.preventDefault(); openBackroom(); });
   });
+
+  // Onboarding open/close
+  window.openOnboarding = function() {
+    document.getElementById('onboardOverlay').classList.add('open');
+    document.body.classList.add('onboard-active');
+  };
+  window.closeOnboarding = function() {
+    document.getElementById('onboardOverlay').classList.remove('open');
+    document.body.classList.remove('onboard-active');
+  };
+  document.getElementById('onboardClose').addEventListener('click', closeOnboarding);
 
   function copyCA() {
     navigator.clipboard.writeText('A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF').then(() => {
