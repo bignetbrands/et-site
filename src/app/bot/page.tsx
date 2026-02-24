@@ -75,7 +75,7 @@ export default function BotDashboard() {
         body: JSON.stringify({ pillar: selectedPillar, dryRun: true }),
       });
       const data = await res.json();
-      if (data.error) { addLog(`Error: ${data.error}`, "error"); return; }
+      if (data.error) { addLog(`Error: ${data.error}`, "error"); setLoading(""); return; }
       setPreview({ text: data.tweet, pillar: data.pillar, imageUrl: data.imageUrl, charCount: data.charCount });
       addLog(`Preview: "${data.tweet.slice(0, 60)}..." (${data.charCount} chars)`, "success");
     } catch (e) {
