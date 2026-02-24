@@ -239,6 +239,38 @@
 
   @media (max-width: 768px) { .rewards-box { padding: 32px 20px; } .rewards-title { font-size: 16px; } .rewards-pool { grid-template-columns: 1fr; } .rewards-lb-header, .rewards-lb-row { grid-template-columns: 28px 1fr 70px 60px; font-size: 8px; } }
 
+  /* CHAT OVERLAY */
+  body.chat-active { overflow: hidden; }
+  .chat-overlay { position: fixed; inset: 0; z-index: 9500; background: rgba(2,8,2,0.96); opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  .chat-overlay.open { opacity: 1; visibility: visible; }
+  .chat-box { width: 100%; max-width: 480px; height: 80vh; max-height: 700px; display: flex; flex-direction: column; border: 1px solid var(--panel-border); background: rgba(5,14,5,0.9); position: relative; }
+  .chat-close { position: absolute; top: 10px; right: 14px; background: none; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer; font-family: 'Space Mono', monospace; z-index: 2; }
+  .chat-close:hover { color: var(--green); }
+  .chat-header { padding: 16px 20px; border-bottom: 1px solid var(--panel-border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .chat-avatar { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--green-dark); display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(57,255,20,0.05); }
+  .chat-header-info { flex: 1; }
+  .chat-header-name { font-family: 'Silkscreen', cursive; font-size: 13px; color: var(--green); letter-spacing: 2px; text-shadow: 0 0 8px var(--green-dim); }
+  .chat-header-status { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: var(--green-dark) transparent; }
+  .chat-messages::-webkit-scrollbar { width: 3px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--green-dark); }
+  .chat-msg { max-width: 85%; padding: 10px 14px; font-size: 12px; line-height: 1.6; letter-spacing: 0.3px; }
+  .chat-msg.et { align-self: flex-start; background: rgba(57,255,20,0.06); border: 1px solid var(--panel-border); color: var(--text); border-radius: 0 12px 12px 12px; }
+  .chat-msg.user { align-self: flex-end; background: rgba(57,255,20,0.12); border: 1px solid var(--green-dark); color: var(--green); border-radius: 12px 0 12px 12px; }
+  .chat-msg.typing { color: var(--text-dim); font-style: italic; }
+  .chat-msg.typing .dot-anim { display: inline-block; animation: dotPulse 1.4s infinite; }
+  .chat-msg.typing .dot-anim:nth-child(2) { animation-delay: 0.2s; }
+  .chat-msg.typing .dot-anim:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotPulse { 0%,60%,100% { opacity: 0.2; } 30% { opacity: 1; } }
+  .chat-input-wrap { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--panel-border); flex-shrink: 0; }
+  .chat-input { flex: 1; padding: 10px 14px; background: rgba(2,8,2,0.8); border: 1px solid var(--panel-border); color: var(--green); font-family: 'Space Mono', monospace; font-size: 11px; outline: none; transition: border-color 0.2s; }
+  .chat-input::placeholder { color: rgba(57,255,20,0.2); }
+  .chat-input:focus { border-color: var(--green-dim); }
+  .chat-send { padding: 10px 18px; background: rgba(57,255,20,0.08); border: 1px solid var(--green); color: var(--green); font-family: 'Silkscreen', cursive; font-size: 10px; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .chat-send:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 12px var(--green-dim); }
+  .chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
+  @media (max-width: 768px) { .chat-box { max-width: 100%; height: 100vh; max-height: 100vh; border: none; } }
+
   @media (max-width: 768px) {
     .br-sidebar { width: 260px; padding: 16px; }
     .br-star-name { font-size: 12px; }
@@ -628,11 +660,32 @@
   </div>
 </div>
 
+<!-- CHAT OVERLAY -->
+<div class="chat-overlay" id="chatOverlay">
+  <div class="chat-box">
+    <button class="chat-close" id="chatClose">✕</button>
+    <div class="chat-header">
+      <div class="chat-avatar">👽</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name">$ET</div>
+        <div class="chat-header-status">online · stranded on earth</div>
+      </div>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg et">hey. you found me. most humans don't look up long enough to notice anything, let alone an alien on the internet. what's on your mind?</div>
+    </div>
+    <div class="chat-input-wrap">
+      <input type="text" class="chat-input" id="chatInput" placeholder="say something to ET..." autocomplete="off" spellcheck="false" maxlength="500">
+      <button class="chat-send" id="chatSend">SEND</button>
+    </div>
+  </div>
+</div>
+
 <!-- MAIN PAGE -->
 <div class="page-wrapper hidden" id="pageWrapper">
   <nav>
     <div class="nav-logo">$ET</div>
-    <div class="nav-links"><a href="#backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search</a><a href="javascript:void(0)" onclick="openRewards()">Rewards</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
+    <div class="nav-links"><a href="#backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search</a><a href="javascript:void(0)" onclick="openRewards()">Rewards</a><a href="javascript:void(0)" onclick="openChat()">Talk to ET</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
   </nav>
   <section class="hero">
     <div class="beam"></div>
@@ -644,6 +697,7 @@
       <a href="javascript:void(0)" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
       <a href="javascript:void(0)" class="btn btn-ghost" onclick="openOnboarding()">✦ Join the Search</a>
       <a href="javascript:void(0)" class="btn btn-ghost" onclick="openRewards()">⚡ Earn Rewards</a>
+      <a href="javascript:void(0)" class="btn btn-ghost" onclick="openChat()">👽 Talk to ET</a>
     </div>
   </section>
 
@@ -1722,10 +1776,12 @@
   document.getElementById('backroomBack').addEventListener('click', () => {
     closeBackroom();
   });
-  // ESC key closes backroom, onboarding, or rewards
+  // ESC key closes backroom, onboarding, rewards, or chat
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (document.getElementById('rewardsOverlay').classList.contains('open')) {
+      if (document.getElementById('chatOverlay').classList.contains('open')) {
+        closeChat();
+      } else if (document.getElementById('rewardsOverlay').classList.contains('open')) {
         closeRewards();
       } else if (document.getElementById('onboardOverlay').classList.contains('open')) {
         closeOnboarding();
@@ -1818,6 +1874,84 @@
 
   // Update ESC handler to also close rewards
   renderLeaderboard();
+
+  // Chat open/close
+  window.openChat = function() {
+    document.getElementById('chatOverlay').classList.add('open');
+    document.body.classList.add('chat-active');
+    document.getElementById('chatInput').focus();
+  };
+  window.closeChat = function() {
+    document.getElementById('chatOverlay').classList.remove('open');
+    document.body.classList.remove('chat-active');
+  };
+  document.getElementById('chatClose').addEventListener('click', closeChat);
+
+  // Chat messaging
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  let chatHistory = [];
+  let chatSending = false;
+
+  function addChatMsg(text, who) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + who;
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'chat-msg et typing';
+    div.id = 'chatTyping';
+    div.innerHTML = '<span class="dot-anim">.</span><span class="dot-anim">.</span><span class="dot-anim">.</span>';
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('chatTyping');
+    if (t) t.remove();
+  }
+
+  async function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text || chatSending) return;
+    chatSending = true;
+    chatSend.disabled = true;
+    chatInput.value = '';
+
+    addChatMsg(text, 'user');
+    chatHistory.push({ role: 'user', content: text });
+    showTyping();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: chatHistory }),
+      });
+      const data = await res.json();
+      removeTyping();
+      const reply = data.reply || "ET's signal dropped. try again.";
+      addChatMsg(reply, 'et');
+      chatHistory.push({ role: 'assistant', content: reply });
+    } catch(e) {
+      removeTyping();
+      addChatMsg("something went wrong with ET's transmitter. earth tech, am i right?", 'et');
+    }
+    chatSending = false;
+    chatSend.disabled = false;
+    chatInput.focus();
+  }
+
+  chatSend.addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  });
 
   function copyCA() {
     navigator.clipboard.writeText('A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF').then(() => {
