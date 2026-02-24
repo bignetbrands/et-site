@@ -17,8 +17,8 @@ function getClient(): Anthropic {
 }
 
 const MODELS = {
-  sonnet: "claude-sonnet-4-5-20250514",
-  opus: "claude-opus-4-5-20250220",
+  sonnet: "claude-sonnet-4-5-20250929",
+  opus: "claude-opus-4-6",
 } as const;
 
 /**
