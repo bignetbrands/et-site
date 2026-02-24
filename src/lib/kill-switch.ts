@@ -1,34 +1,41 @@
-import { kv } from "@vercel/kv";
+import { createClient, type RedisClientType } from "redis";
 
 const KILL_SWITCH_KEY = "et:kill_switch";
 
-/**
- * Check if kill switch is active. Used by the cron route.
- */
-export async function isKillSwitchActive(): Promise<boolean> {
+let _client: RedisClientType | null = null;
+
+async function getRedis(): Promise<RedisClientType | null> {
+  if (!process.env.REDIS_URL) return null;
+  if (_client && _client.isOpen) return _client;
   try {
-    const enabled = await kv.get<boolean>(KILL_SWITCH_KEY);
-    return enabled === true;
-  } catch {
-    return false; // If KV is down, default to active (don't block posting)
+    _client = createClient({ url: process.env.REDIS_URL });
+    _client.on("error", (err: Error) => console.error("[Redis] Error:", err));
+    await _client.connect();
+    return _client;
+  } catch (e) {
+    console.warn("[Redis] Connection failed:", e);
+    return null;
   }
 }
 
-/**
- * Set kill switch state.
- */
-export async function setKillSwitch(enabled: boolean): Promise<void> {
-  await kv.set(KILL_SWITCH_KEY, enabled);
-}
-
-/**
- * Get kill switch state.
- */
-export async function getKillSwitch(): Promise<boolean> {
+export async function isKillSwitchActive(): Promise<boolean> {
+  const redis = await getRedis();
+  if (!redis) return false;
   try {
-    const enabled = await kv.get<boolean>(KILL_SWITCH_KEY);
-    return enabled === true;
+    const val = await redis.get(KILL_SWITCH_KEY);
+    return val === "true";
   } catch {
     return false;
   }
+}
+
+export async function setKillSwitch(enabled: boolean): Promise<void> {
+  const redis = await getRedis();
+  if (redis) {
+    await redis.set(KILL_SWITCH_KEY, String(enabled));
+  }
+}
+
+export async function getKillSwitch(): Promise<boolean> {
+  return isKillSwitchActive();
 }

@@ -1,4 +1,4 @@
-import { kv } from "@vercel/kv";
+import { createClient, type RedisClientType } from "redis";
 import { ContentPillar, TweetRecord, DailyState } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 
@@ -11,6 +11,22 @@ const ALL_PILLARS: ContentPillar[] = [
   "disclosure_conspiracy",
 ];
 
+let _client: RedisClientType | null = null;
+
+async function getRedis(): Promise<RedisClientType | null> {
+  if (!process.env.REDIS_URL) return null;
+  if (_client && _client.isOpen) return _client;
+  try {
+    _client = createClient({ url: process.env.REDIS_URL });
+    _client.on("error", (err: Error) => console.error("[Redis] Error:", err));
+    await _client.connect();
+    return _client;
+  } catch (e) {
+    console.warn("[Redis] Connection failed:", e);
+    return null;
+  }
+}
+
 function todayKey(): string {
   const now = new Date();
   return `daily:${now.toISOString().split("T")[0]}`;
@@ -20,20 +36,14 @@ function recentKey(): string {
   return "recent_tweets";
 }
 
-/**
- * Get today's posting state.
- */
 export async function getDailyState(): Promise<DailyState> {
-  const key = todayKey();
-
-  try {
-    const state = await kv.get<DailyState>(key);
-    if (state) return state;
-  } catch {
-    // KV not configured or error — return fresh state
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      const raw = await redis.get(todayKey());
+      if (raw) return JSON.parse(raw);
+    } catch { /* fall through */ }
   }
-
-  // Fresh day
   const fresh: DailyState = {
     date: new Date().toISOString().split("T")[0],
     tweets: [],
@@ -41,71 +51,51 @@ export async function getDailyState(): Promise<DailyState> {
       ALL_PILLARS.map((p) => [p, 0])
     ) as Record<ContentPillar, number>,
   };
-
   return fresh;
 }
 
-/**
- * Record a posted tweet in today's state.
- */
 export async function recordTweet(record: TweetRecord): Promise<void> {
-  const key = todayKey();
   const state = await getDailyState();
-
   state.tweets.push(record);
-  state.pillarCounts[record.pillar] =
-    (state.pillarCounts[record.pillar] || 0) + 1;
+  state.pillarCounts[record.pillar] = (state.pillarCounts[record.pillar] || 0) + 1;
 
-  try {
-    // Expire at end of day + 24h buffer (so we can look back)
-    await kv.set(key, state, { ex: 172800 });
-
-    // Also push to recent tweets list (keep last 50)
-    const recent = await getRecentTweets();
-    recent.unshift(record.text);
-    await kv.set(recentKey(), recent.slice(0, 50));
-  } catch {
-    // KV not configured — state won't persist but bot still works
-    console.warn("KV not available — tweet recorded in memory only");
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      await redis.set(todayKey(), JSON.stringify(state), { EX: 172800 });
+      const recent = await getRecentTweets();
+      recent.unshift(record.text);
+      await redis.set(recentKey(), JSON.stringify(recent.slice(0, 50)));
+    } catch {
+      console.warn("Redis not available — tweet recorded in memory only");
+    }
   }
 }
 
-/**
- * Get recent tweet texts for variety context.
- */
 export async function getRecentTweets(): Promise<string[]> {
-  try {
-    const recent = await kv.get<string[]>(recentKey());
-    return recent || [];
-  } catch {
-    return [];
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      const raw = await redis.get(recentKey());
+      return raw ? JSON.parse(raw) : [];
+    } catch { /* fall through */ }
   }
+  return [];
 }
 
-/**
- * Get how many total tweets have been posted today.
- */
 export async function getTodayTweetCount(): Promise<number> {
   const state = await getDailyState();
   return state.tweets.length;
 }
 
-/**
- * Get the timestamp of the last tweet posted today.
- */
 export async function getLastTweetTime(): Promise<Date | null> {
   const state = await getDailyState();
   if (state.tweets.length === 0) return null;
   return new Date(state.tweets[state.tweets.length - 1].postedAt);
 }
 
-/**
- * Get remaining pillar capacity for today.
- * Returns pillars that haven't hit their max target.
- */
 export async function getAvailablePillars(): Promise<ContentPillar[]> {
   const state = await getDailyState();
-
   return ALL_PILLARS.filter((pillar) => {
     const count = state.pillarCounts[pillar] || 0;
     const max = PILLAR_CONFIGS[pillar].dailyTarget.max;
@@ -113,13 +103,8 @@ export async function getAvailablePillars(): Promise<ContentPillar[]> {
   });
 }
 
-/**
- * Get pillars that haven't met their minimum target yet.
- * These should be prioritized.
- */
 export async function getUnderservedPillars(): Promise<ContentPillar[]> {
   const state = await getDailyState();
-
   return ALL_PILLARS.filter((pillar) => {
     const count = state.pillarCounts[pillar] || 0;
     const min = PILLAR_CONFIGS[pillar].dailyTarget.min;
