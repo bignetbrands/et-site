@@ -166,7 +166,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // LORE IMAGE PROMPT TEMPLATE — For DALL-E
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Super 8mm film footage, vintage analog photography style. A small, gentle alien figure with large eyes is the central subject. Warm amber and faded green tones, heavy film grain, natural light leaks, soft halation around highlights, slightly faded color. The image feels like intimate private footage shot on actual Super 8mm film stock — nostalgic, imperfect, yellowing with age. NOT digital, NOT clean, NOT AI-looking. Muted blues, yellowed whites, warm analog texture throughout. Square format (1024x1024), NO filmstrip borders, NO sprocket holes, NO frame edges. The scene depicts:`;
+export const LORE_IMAGE_PROMPT_PREFIX = `Polaroid photograph, realistic analog photography. A small, gentle alien figure with large eyes is the central subject. Warm natural tones, slightly washed-out color, soft natural lighting. The image feels like a real Polaroid snapshot — intimate, candid, slightly imperfect. Realistic photographic quality with the subtle color shift and soft vignette of instant film. NOT digital, NOT clean, NOT AI-looking. NO film strips, NO sprocket holes, NO borders, NO frame edges, NO Polaroid white border. Square format (1024x1024). The scene depicts:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Ancient Egyptian hieroglyphic tomb painting fused with Salvador Dalí surrealism. Flat, profile-view figures in classic Egyptian hieroglyphic style — side-profile stance, symbolic representation, on a papyrus or stone wall texture. Woven into the ancient style are Dalí-esque surreal distortions: melting forms, impossible geometry, dreamlike scale shifts, floating objects, warped perspectives. Figures are Egyptian art style (symbolic, stylized) — NOT realistic humans. Color palette: Gold, ochre, terracotta, deep blue, black outlines. Warm earth tones throughout. NO readable text, NO modern UI elements, NO clean digital aesthetics. Square format (1024x1024). The scene depicts:`;
 
@@ -245,23 +245,22 @@ Rules:
 Output ONLY the scene description, nothing else.`;
   }
 
-  // Default: Personal Lore — Super 8mm Film style
+  // Default: Personal Lore — Polaroid photograph style
   return `You are generating a visual description for a DALL-E image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
 
 "${tweetText}"
 
-The image style is: Super 8mm vintage film photography. ET's private, intimate photography — he is the subject.
+The image style is: Realistic Polaroid photograph. ET's private, intimate snapshots — he is the subject.
 
 Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet as a visual.
 
 Rules:
 - ET himself is ALWAYS the central figure — a small, gentle alien figure with large eyes, clearly not human
 - Show his posture, his environment, his solitude
-- Focus on mood and emotion over literal depiction
-- Can be impressionistic or dreamlike for emotional content, but ET is still present in the frame
-- More grounded and realistic for event-based content (the crash, a place, a moment)
-- The mood should feel intimate, private — like a moment captured by someone who didn't know they were being filmed
-- Never include text, watermarks, or UI elements
+- Describe a realistic, grounded scene — as if someone took a candid Polaroid of ET in that moment
+- Focus on mood and emotion, but keep the scene photographic and believable
+- The mood should feel intimate, private — like a snapshot taken by someone who cared about him
+- Never include text, watermarks, borders, or UI elements
 - Never describe human subjects in place of ET
 
 Output ONLY the scene description, nothing else.`;
