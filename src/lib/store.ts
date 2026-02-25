@@ -327,7 +327,7 @@ export async function getTargets(): Promise<TargetAccount[]> {
 
   try {
     const all = await redis.hGetAll(TARGETS_KEY);
-    const targets: TargetAccount[] = Object.values(all).map((v) => JSON.parse(v));
+    const targets: TargetAccount[] = Object.values(all).map((v) => JSON.parse(v as string));
 
     // Sort: forced first, then by votes desc, then by oldest submission
     targets.sort((a, b) => {

@@ -168,7 +168,7 @@ export async function generateTargetInteraction(
 
   // Parse TWEET_ID and REPLY from response
   const idMatch = text.match(/TWEET_ID:\s*(\d+)/);
-  const replyMatch = text.match(/REPLY:\s*(.+)/s);
+  const replyMatch = text.match(/REPLY:\s*([\s\S]+)/);
 
   if (!idMatch || !replyMatch) {
     console.warn("[ET Target] Failed to parse response:", text.substring(0, 200));
