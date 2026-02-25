@@ -318,20 +318,30 @@ export async function interactWithTarget(
 
     console.log(`[ET Target] Replying to tweet ${interaction.tweetId}: "${interaction.replyText.substring(0, 60)}..."`);
 
-    // 3. Post the reply
-    const replyId = await postReply(interaction.replyText, interaction.tweetId);
+    // 3. Try posting as reply first
+    try {
+      const replyId = await postReply(interaction.replyText, interaction.tweetId);
+      await resolveTarget(handle);
+      console.log(`[ET Target] Posted reply ${replyId} to @${handle}`);
+      return { success: true, tweetId: interaction.tweetId, replyText: interaction.replyText, replyId };
+    } catch (replyError: any) {
+      const code = replyError?.code || replyError?.data?.status || replyError?.status;
+      console.warn(`[ET Target] Reply failed (${code}), falling back to standalone mention...`);
 
-    // 4. Mark as interacted
-    await resolveTarget(handle);
+      // 4. Fallback: post as a standalone tweet mentioning them
+      const mentionText = `@${handle} ${interaction.replyText}`;
+      const truncated = mentionText.length > 280 ? mentionText.substring(0, 277) + "..." : mentionText;
 
-    console.log(`[ET Target] Posted reply ${replyId} to @${handle}`);
-
-    return {
-      success: true,
-      tweetId: interaction.tweetId,
-      replyText: interaction.replyText,
-      replyId,
-    };
+      try {
+        const tweetId = await postTweet(truncated);
+        await resolveTarget(handle);
+        console.log(`[ET Target] Posted mention tweet ${tweetId} to @${handle}`);
+        return { success: true, tweetId: interaction.tweetId, replyText: truncated, replyId: tweetId };
+      } catch (mentionError) {
+        console.error(`[ET Target] Mention fallback also failed:`, mentionError);
+        throw mentionError;
+      }
+    }
   } catch (error) {
     console.error(`[ET Target] Error interacting with @${handle}:`, error);
     return {

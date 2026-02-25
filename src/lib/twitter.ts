@@ -42,11 +42,18 @@ export async function postReply(
   text: string,
   replyToId: string
 ): Promise<string> {
-  const response = await getClient().v2.tweet({
-    text,
-    reply: { in_reply_to_tweet_id: replyToId },
-  });
-  return response.data.id;
+  try {
+    const response = await getClient().v2.tweet({
+      text,
+      reply: { in_reply_to_tweet_id: replyToId },
+    });
+    return response.data.id;
+  } catch (error: any) {
+    // Log the full Twitter error for debugging
+    const details = error?.data || error?.errors || error?.message || error;
+    console.error(`[Twitter] postReply failed (tweet ${replyToId}):`, JSON.stringify(details, null, 2));
+    throw error;
+  }
 }
 
 /**
