@@ -67,7 +67,6 @@ export async function POST(request: Request) {
 
         const result = await interactWithTarget(targetHandle);
         return NextResponse.json({
-          success: result.success,
           handle: targetHandle,
           ...result,
         });
