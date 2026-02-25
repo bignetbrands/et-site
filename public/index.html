@@ -26,9 +26,9 @@
   .page-wrapper { position: relative; z-index: 1; min-height: 100vh; }
 
   /* PRELOADER */
-  .preloader { position: fixed; top:0;right:0;bottom:0;left:0; z-index: 10000; background: var(--darker); display: flex; justify-content: center; align-items: center; padding: 24px; transition: opacity 0.5s ease, visibility 0.5s ease; }
+  .preloader { position: fixed; top:0;right:0;bottom:0;left:0; z-index: 10000; background: var(--darker); display: flex; justify-content: center; align-items: center; padding: 24px; transition: opacity 0.3s ease, visibility 0.3s ease; }
   .preloader.done { opacity: 0; visibility: hidden; pointer-events: none; }
-  .preloader-terminal { width: 100%; max-width: 660px; background: #050f05; border: 1px solid var(--panel-border); border-radius: 4px; overflow: hidden; box-shadow: 0 0 60px rgba(57,255,20,0.05); transition: opacity 0.4s ease, transform 0.4s ease; position: relative; z-index: 2; }
+  .preloader-terminal { width: 100%; max-width: 660px; background: #050f05; border: 1px solid var(--panel-border); border-radius: 4px; overflow: hidden; box-shadow: 0 0 60px rgba(57,255,20,0.05); transition: opacity 0.25s ease, transform 0.25s ease; position: relative; z-index: 2; }
   .preloader-terminal.shrink { opacity: 0; transform: scale(0.92) translateY(-30px); pointer-events: none; }
   .preloader-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #0a1a0a; border-bottom: 1px solid var(--panel-border); }
   .preloader-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green-dark); }
@@ -36,7 +36,7 @@
   .preloader-title { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-dim); letter-spacing: 2px; margin-left: 8px; text-transform: uppercase; }
   .preloader-body { padding: 20px; min-height: 380px; max-height: 440px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
   .preloader-lines { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-  .preloader-line { font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.7; color: var(--text-dim); white-space: pre; opacity: 0; transform: translateY(4px); animation: lineIn 0.15s ease forwards; flex-shrink: 0; }
+  .preloader-line { font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.7; color: var(--text-dim); white-space: pre; opacity: 0; transform: translateY(4px); animation: lineIn 0.08s ease forwards; flex-shrink: 0; }
   .preloader-line.green { color: var(--green); text-shadow: 0 0 8px var(--green-dim); }
   .preloader-line.dim { color: #2a5a22; }
   .preloader-line.warn { color: #ffaa00; text-shadow: 0 0 8px rgba(255,170,0,0.3); }
@@ -55,7 +55,7 @@
   .radar-dot { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: var(--green); border-radius: 50%; transform: translate(-50%,-50%); box-shadow: 0 0 8px var(--green); }
 
   /* Galaxy */
-  .galaxy-phase { position: absolute; top:0;right:0;bottom:0;left:0; opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+  .galaxy-phase { position: absolute; top:0;right:0;bottom:0;left:0; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
   .galaxy-phase.active { opacity: 1; }
   #galaxyCanvas { position: absolute; top:0;right:0;bottom:0;left:0; width: 100%; height: 100%; }
   .galaxy-hud { position: absolute; top: 24px; left: 28px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; z-index: 2; opacity: 0; transition: opacity 0.6s ease; }
@@ -1139,7 +1139,7 @@
   // ======== MAIN SEQUENCE ========
   async function runSequence() {
    try {
-    const d = 50;
+    const d = 25;
 
     // ---- BOOT PHASE ----
     await addLine('$ et_signal_relay v4.2.0', 'green');
@@ -1148,7 +1148,7 @@
     setProg(2);
 
     await addLine('[boot] loading kernel modules...', 'dim', d);
-    await wait(80);
+    await wait(40);
     await addLine('[boot]   mod_antenna_array.ko        loaded', 'dim', d*0.6);
     await addLine('[boot]   mod_quantum_decoder.ko      loaded', 'dim', d*0.6);
     await addLine('[boot]   mod_signal_processor.ko     loaded', 'dim', d*0.6);
@@ -1156,7 +1156,7 @@
     setProg(7);
 
     await addLine('[boot] mounting /dev/solana...', 'dim', d);
-    await wait(120);
+    await wait(60);
     await addLine('[boot]   rpc endpoint: mainnet-beta    OK', 'dim', d*0.5);
     await addLine('[boot]   block height: 298,441,207     OK', 'dim', d*0.5);
     setProg(11);
@@ -1169,7 +1169,7 @@
 
     await addLine('', '', d*0.3);
     await addLine('[sys]  allocating deep-space antenna array', '', d);
-    await wait(100);
+    await wait(50);
     await addLine('[sys]    dish 01 .... online   ✓', 'green', d*0.6);
     await addLine('[sys]    dish 02 .... online   ✓', 'green', d*0.6);
     await addLine('[sys]    dish 03 .... online   ✓', 'green', d*0.6);
@@ -1186,7 +1186,7 @@
     // ---- SELF-TEST ----
     await addLine('', '', d*0.3);
     await addLine('$ running pre-flight diagnostics...', 'green', d);
-    await wait(80);
+    await wait(40);
     await addLine('[diag] antenna alignment .............. PASS', 'dim', d*0.7);
     await addLine('[diag] signal-to-noise ratio .......... PASS', 'dim', d*0.7);
     await addLine('[diag] temporal sync (UTC) ............ PASS', 'dim', d*0.7);
@@ -1203,7 +1203,7 @@
     await addLine(`[scan] source: ${isLive ? 'NASA Exoplanet Archive (live)' : 'local exoplanet catalog'}`, isLive ? 'green' : 'dim', d);
     await addLine(`[scan] filter: habitable zone, 0.5-2.5 R⊕, 170-320K`, 'dim', d*0.5);
     await addLine(`[scan] results: ${planets.length} candidates`, '', d*0.5);
-    await wait(80);
+    await wait(40);
 
     const showCount = Math.min(planets.length, 12);
     for (let i = 0; i < showCount; i++) {
@@ -1227,7 +1227,7 @@
     await addLine('[tx]   error correction: reed-solomon', 'dim', d*0.5);
     setProg(59);
     await addLine('[tx]   broadcasting on all frequencies...', 'green', d);
-    await wait(120);
+    await wait(60);
 
     // ---- PINGING ----
     await addLine('', '', d*0.3);
@@ -1249,19 +1249,19 @@
 
     // ---- SIGNAL DETECTED ----
     await addLine('', '', d*0.3);
-    await wait(150);
+    await wait(75);
     await addLine('[rx]   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░', 'dim', d);
-    await wait(120);
+    await wait(60);
     sfxWarn();
     await addLine('[rx]   ██ ANOMALOUS SIGNAL DETECTED ██', 'warn', d);
-    await wait(80);
+    await wait(40);
     await addLine('[rx]   ██ ANOMALOUS SIGNAL DETECTED ██', 'warn', d*0.3);
     setProg(76);
     await addLine('[rx]   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░', 'dim', d*0.5);
-    await wait(120);
+    await wait(60);
 
     await addLine('[rx]   analyzing waveform pattern...', '', d);
-    await wait(150);
+    await wait(75);
     await addLine('[rx]   spectral class: non-terrestrial', 'warn', d*0.8);
     await addLine('[rx]   modulation: unknown protocol', 'warn', d*0.6);
     await addLine(`[rx]   estimated origin: ${signal.sector}`, 'warn', d*0.6);
@@ -1270,11 +1270,11 @@
 
     await addLine('', '', d*0.3);
     await addLine('[rx]   attempting decode...', 'green', d);
-    await wait(200);
+    await wait(100);
     await addLine('[rx]   ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░ 50%', 'dim', d*0.5);
-    await wait(120);
+    await wait(60);
     await addLine('[rx]   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░ 75%', 'dim', d*0.4);
-    await wait(80);
+    await wait(40);
     await addLine('[rx]   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ 100%', 'green', d*0.3);
     setProg(84);
 
@@ -1285,32 +1285,32 @@
 
     await addLine('', '', d*0.3);
     await addLine('[sys]  triangulating coordinates...', 'green', d);
-    await wait(200);
+    await wait(100);
     await addLine('[sys]  lock confirmed. opening galactic map...', 'success', d);
     setProg(90);
 
-    await wait(300);
+    await wait(150);
 
     // ======== GALAXY PHASE ========
     initGalaxy();
     cam.running = true;
     cam.x = EARTH.x; cam.y = EARTH.y; cam.zoom = 2.8;
     terminalPhase.classList.add('shrink');
-    await wait(250);
+    await wait(120);
     galaxyPhase.classList.add('active');
     requestAnimationFrame(drawGalaxy);
-    await wait(350);
+    await wait(180);
     galaxyHud.classList.add('show');
     galaxyHudRight.classList.add('show');
 
     // Zoom out to full galaxy
-    await animateTo(cam, { x: 0.5, y: 0.5, zoom: 1.05 }, 1800);
-    await wait(250);
+    await animateTo(cam, { x: 0.5, y: 0.5, zoom: 1.05 }, 900);
+    await wait(120);
 
     // Trace signal
     trace.active = true;
     galaxyStatus.innerHTML = 'status: <span style="color:#ffaa00">TRACING SIGNAL...</span>';
-    await animateTo(trace, { progress: 1 }, 1600);
+    await animateTo(trace, { progress: 1 }, 800);
 
     // Signal found!
     trace.pulsing = true;
@@ -1319,11 +1319,11 @@
     galaxyDist.innerHTML = `distance: <span>${signal.distLy} ly</span>`;
     galaxyCoord.innerHTML = `sector: <span>${signal.sector}</span>`;
     galaxyStar.innerHTML = `star: <span>${signal.name}</span>`;
-    await wait(400);
+    await wait(200);
 
     // Zoom into signal
-    await animateTo(cam, { x: signal.x, y: signal.y, zoom: 5 }, 2000);
-    await wait(200);
+    await animateTo(cam, { x: signal.x, y: signal.y, zoom: 5 }, 1000);
+    await wait(100);
 
     // Show star name label on canvas
     galaxyStarLabel.textContent = '★ ' + signal.name;
@@ -1331,7 +1331,7 @@
 
     galaxyStatus.innerHTML = 'status: <span style="color:var(--green);font-weight:700">✓ CONTACT ESTABLISHED</span>';
     galaxyFinal.classList.add('show');
-    await wait(1500);
+    await wait(750);
 
     // Transition: stop preloader galaxy, show main page
     cam.running = false;
@@ -1767,7 +1767,7 @@
       preloader.classList.add('done');
       pageWrapper.classList.remove('hidden');
     }
-  }, 45000);
+  }, 25000);
 })();
 </script>
 
