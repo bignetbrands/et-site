@@ -167,3 +167,48 @@ export async function verifyCredentials(): Promise<{
   const me = await getClient().v2.me();
   return { id: me.data.id, username: me.data.username };
 }
+
+/**
+ * Search for recent popular tweets in ET's topic areas.
+ * Returns a handful of trending topics/conversations for context.
+ */
+export async function getTrendingContext(): Promise<string[]> {
+  const queries = [
+    "UFO OR UAP OR alien disclosure -is:retweet lang:en",
+    "SETI OR exoplanet OR telescope discovery -is:retweet lang:en",
+    "solana OR memecoin OR crypto -is:retweet lang:en",
+  ];
+
+  // Pick 1-2 random topic areas to search
+  const shuffled = queries.sort(() => Math.random() - 0.5);
+  const toSearch = shuffled.slice(0, 2);
+
+  const trending: string[] = [];
+
+  for (const query of toSearch) {
+    try {
+      const results = await getClient().v2.search(query, {
+        max_results: 10,
+        sort_order: "relevancy",
+        "tweet.fields": "public_metrics,created_at",
+      });
+
+      if (results.data?.data) {
+        // Pick tweets with decent engagement
+        const popular = results.data.data
+          .filter((t) => {
+            const likes = t.public_metrics?.like_count || 0;
+            return likes >= 10 && t.text.length > 30;
+          })
+          .slice(0, 3)
+          .map((t) => t.text.replace(/https:\/\/t\.co\/\w+/g, "").trim());
+
+        trending.push(...popular);
+      }
+    } catch (error) {
+      console.warn(`[ET Trending] Search failed for query:`, error);
+    }
+  }
+
+  return trending;
+}

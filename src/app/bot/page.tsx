@@ -311,7 +311,7 @@ export default function BotDashboard() {
 
         {/* Footer */}
         <div style={styles.footer}>
-          <span>tweets: hourly · replies: every 15 min</span>
+          <span>cron: every 15m · intervals: randomized</span>
           <span>·</span>
           <span>model: sonnet (bulk + replies) / opus (lore)</span>
           <span>·</span>

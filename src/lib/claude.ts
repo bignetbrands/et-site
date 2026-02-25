@@ -28,7 +28,8 @@ const MODELS = {
  */
 export async function generateTweet(
   pillar: ContentPillar,
-  recentTweets: string[]
+  recentTweets: string[],
+  trendingContext?: string[]
 ): Promise<string> {
   const config = PILLAR_CONFIGS[pillar];
   const model = MODELS[config.model];
@@ -40,7 +41,7 @@ export async function generateTweet(
     messages: [
       {
         role: "user",
-        content: buildTweetPrompt(pillar, recentTweets),
+        content: buildTweetPrompt(pillar, recentTweets, trendingContext),
       },
     ],
     temperature: 0.9,

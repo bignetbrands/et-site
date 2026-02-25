@@ -2,7 +2,7 @@ import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply } from "./claude";
 import { generateLoreImage, downloadImage } from "./dalle";
-import { postTweet, postTweetWithImage, postReply, getMentions, getTweet, type Mention } from "./twitter";
+import { postTweet, postTweetWithImage, postReply, getMentions, getTweet, getTrendingContext, type Mention } from "./twitter";
 import {
   recordTweet,
   getRecentTweets,
@@ -30,32 +30,42 @@ export interface ReplyResult {
 
 /**
  * Full pipeline: generate tweet → (optionally) generate image → post to X → record.
- *
- * Returns the posted tweet record, or null if something failed.
+ * If useTrending is true, fetches current trending topics and injects as context.
  */
 export async function executeTweet(
-  pillar: ContentPillar
+  pillar: ContentPillar,
+  useTrending: boolean = false
 ): Promise<TweetRecord | null> {
   const config = PILLAR_CONFIGS[pillar];
 
-  console.log(`[ET] Generating ${config.name} tweet...`);
+  console.log(`[ET] Generating ${config.name} tweet...${useTrending ? " (with trending context)" : ""}`);
 
   try {
     // 1. Get recent tweets for variety context
     const recentTweets = await getRecentTweets();
 
-    // 2. Generate tweet text via Claude
-    const tweetText = await generateTweet(pillar, recentTweets);
+    // 2. Optionally fetch trending topics
+    let trendingContext: string[] | undefined;
+    if (useTrending) {
+      try {
+        trendingContext = await getTrendingContext();
+        console.log(`[ET] Fetched ${trendingContext.length} trending items`);
+      } catch (e) {
+        console.warn("[ET] Trending fetch failed, proceeding without:", e);
+      }
+    }
+
+    // 3. Generate tweet text via Claude
+    const tweetText = await generateTweet(pillar, recentTweets, trendingContext);
 
     if (!tweetText || tweetText.length > 280) {
       console.error(
         `[ET] Invalid tweet generated: ${tweetText?.length || 0} chars`
       );
-      // Retry once with a nudge
       const retry = await generateTweet(pillar, [
         ...recentTweets,
         "(IMPORTANT: keep under 280 characters)",
-      ]);
+      ], trendingContext);
       if (!retry || retry.length > 280) {
         console.error("[ET] Retry also failed. Skipping.");
         return null;
@@ -283,10 +293,19 @@ async function postAndRecord(
  * Useful for testing and calibrating the voice.
  */
 export async function dryRun(
-  pillar: ContentPillar
+  pillar: ContentPillar,
+  useTrending: boolean = false
 ): Promise<GeneratedTweet> {
   const recentTweets = await getRecentTweets();
-  const tweetText = await generateTweet(pillar, recentTweets);
+
+  let trendingContext: string[] | undefined;
+  if (useTrending) {
+    try {
+      trendingContext = await getTrendingContext();
+    } catch { /* proceed without */ }
+  }
+
+  const tweetText = await generateTweet(pillar, recentTweets, trendingContext);
 
   const result: GeneratedTweet = {
     text: tweetText,

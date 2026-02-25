@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/tweet
  *
- * Called by Vercel cron every hour.
- * The scheduler decides whether to actually tweet.
+ * Called by Vercel cron every 15 minutes.
+ * The scheduler decides whether to actually tweet based on randomized intervals.
  *
  * Protected by CRON_SECRET to prevent unauthorized triggers.
  */
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     }
 
     // Execute the tweet
-    const record = await executeTweet(decision.pillar);
+    const record = await executeTweet(decision.pillar, decision.useTrending);
 
     if (!record) {
       return NextResponse.json({

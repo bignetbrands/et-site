@@ -171,19 +171,31 @@ export function buildVarietyContext(recentTweets: string[]): string {
 
 export function buildTweetPrompt(
   pillar: ContentPillar,
-  recentTweets: string[]
+  recentTweets: string[],
+  trendingContext?: string[]
 ): string {
   const config = PILLAR_CONFIGS[pillar];
 
-  return `CONTENT PILLAR: ${config.name}
+  let prompt = `CONTENT PILLAR: ${config.name}
 DESCRIPTION: ${config.description}
 TONE: ${config.tone}
 
 REFERENCE TWEETS (match this quality and voice — do NOT copy these):
 ${config.exampleTweets.map((t) => `- "${t}"`).join("\n")}
-${buildVarietyContext(recentTweets)}
+${buildVarietyContext(recentTweets)}`;
+
+  if (trendingContext && trendingContext.length > 0) {
+    prompt += `
+
+TRENDING RIGHT NOW (react to one of these through ET's alien lens — don't quote them, just riff on the topic):
+${trendingContext.map((t) => `- "${t.substring(0, 150)}"`).join("\n")}`;
+  }
+
+  prompt += `
 
 Write one tweet as ET. Max 280 characters. Output ONLY the tweet text, nothing else.`;
+
+  return prompt;
 }
 
 // ============================================================

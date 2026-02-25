@@ -119,6 +119,35 @@ export async function getUnderservedPillars(): Promise<ContentPillar[]> {
 const LAST_MENTION_KEY = "last_mention_id";
 const REPLIED_KEY = "replied_mentions";
 const REPLY_COUNT_KEY = "reply_count_daily";
+const NEXT_TWEET_KEY = "next_tweet_time";
+
+/**
+ * Get the scheduled next tweet time (epoch ms).
+ */
+export async function getNextTweetTime(): Promise<number | null> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      const val = await redis.get(NEXT_TWEET_KEY);
+      return val ? parseInt(val, 10) : null;
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+/**
+ * Set the next scheduled tweet time (epoch ms).
+ */
+export async function setNextTweetTime(epochMs: number): Promise<void> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      await redis.set(NEXT_TWEET_KEY, epochMs.toString(), { EX: 86400 });
+    } catch {
+      console.warn("[Redis] Failed to save next tweet time");
+    }
+  }
+}
 
 /**
  * Get the last processed mention ID.

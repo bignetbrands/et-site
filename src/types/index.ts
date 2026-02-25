@@ -40,5 +40,6 @@ export interface DailyState {
 export interface SchedulerDecision {
   shouldTweet: boolean;
   pillar?: ContentPillar;
+  useTrending?: boolean;
   reason: string;
 }

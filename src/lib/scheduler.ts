@@ -6,29 +6,31 @@ import {
   getUnderservedPillars,
   getLastTweetTime,
   getTodayTweetCount,
+  getNextTweetTime,
+  setNextTweetTime,
 } from "./store";
 
 // ============================================================
-// SCHEDULE CONFIG
+// SCHEDULE CONFIG — Organic, human-like timing
 // ============================================================
 
-// ET's "active hours" — he sleeps (or pretends to)
-const ACTIVE_START_HOUR = 9; // 9 AM UTC (adjust for your timezone)
-const ACTIVE_END_HOUR = 3; // 3 AM UTC (next day — late night ET)
+// ET's "active hours"
+const ACTIVE_START_HOUR = 9; // 9 AM UTC
+const ACTIVE_END_HOUR = 3; // 3 AM UTC (next day)
 
 const DAILY_TWEET_TARGET = { min: 7, max: 10 };
 
-// Minimum gap between tweets (minutes) — prevents robotic rapid-fire
-const MIN_GAP_MINUTES = 30;
-
-// Probability of tweeting in any given hourly check
-// Higher during peak hours, lower during off-peak
-const TWEET_PROBABILITY: Record<string, number> = {
-  morning: 0.55, // 9-12: moderate
-  afternoon: 0.65, // 12-18: higher activity
-  evening: 0.7, // 18-22: peak hours
-  latenight: 0.45, // 22-3: contemplative, less frequent
+// Random gap range between tweets (minutes)
+// Varies by time of day for organic feel
+const GAP_RANGES: Record<string, { min: number; max: number }> = {
+  morning: { min: 50, max: 130 },   // slower start
+  afternoon: { min: 40, max: 100 },  // more active
+  evening: { min: 35, max: 90 },     // peak hours, tighter gaps
+  latenight: { min: 60, max: 160 },  // sparse, contemplative
 };
+
+// Chance of a trending/reactive tweet instead of pillar tweet
+const TRENDING_CHANCE = 0.25; // 25% of tweets reference current topics
 
 // ============================================================
 // TIME HELPERS
@@ -40,11 +42,9 @@ function getCurrentHourUTC(): number {
 
 function isActiveHour(): boolean {
   const hour = getCurrentHourUTC();
-  // Active from ACTIVE_START_HOUR to ACTIVE_END_HOUR (wrapping past midnight)
   if (ACTIVE_START_HOUR < ACTIVE_END_HOUR) {
     return hour >= ACTIVE_START_HOUR && hour < ACTIVE_END_HOUR;
   }
-  // Wraps past midnight (e.g., 9 AM to 3 AM)
   return hour >= ACTIVE_START_HOUR || hour < ACTIVE_END_HOUR;
 }
 
@@ -56,28 +56,30 @@ function getTimeOfDay(): "morning" | "afternoon" | "evening" | "latenight" {
   return "latenight";
 }
 
-/**
- * Returns hours remaining in ET's active day.
- */
 function getActiveHoursRemaining(): number {
   const hour = getCurrentHourUTC();
   if (ACTIVE_END_HOUR > ACTIVE_START_HOUR) {
     return Math.max(0, ACTIVE_END_HOUR - hour);
   }
-  // Wraps past midnight
   if (hour >= ACTIVE_START_HOUR) {
     return 24 - hour + ACTIVE_END_HOUR;
   }
   return Math.max(0, ACTIVE_END_HOUR - hour);
 }
 
+/**
+ * Generate a random gap in minutes for the next tweet.
+ */
+function randomGap(): number {
+  const tod = getTimeOfDay();
+  const range = GAP_RANGES[tod] || { min: 45, max: 120 };
+  return range.min + Math.floor(Math.random() * (range.max - range.min));
+}
+
 // ============================================================
 // PILLAR SELECTION
 // ============================================================
 
-/**
- * Pick which pillar to tweet from, weighted by need and time of day.
- */
 async function selectPillar(): Promise<ContentPillar | null> {
   const available = await getAvailablePillars();
   if (available.length === 0) return null;
@@ -86,12 +88,10 @@ async function selectPillar(): Promise<ContentPillar | null> {
   const hoursLeft = getActiveHoursRemaining();
   const timeOfDay = getTimeOfDay();
 
-  // If we have underserved pillars and limited time, prioritize them
   if (underserved.length > 0 && hoursLeft <= underserved.length + 2) {
     return weightedRandom(underserved, timeOfDay);
   }
 
-  // 70% chance to pick from underserved if any exist, 30% from all available
   if (underserved.length > 0 && Math.random() < 0.7) {
     return weightedRandom(underserved, timeOfDay);
   }
@@ -99,14 +99,10 @@ async function selectPillar(): Promise<ContentPillar | null> {
   return weightedRandom(available, timeOfDay);
 }
 
-/**
- * Weighted random pillar selection based on time of day.
- */
 function weightedRandom(
   pillars: ContentPillar[],
   timeOfDay: string
 ): ContentPillar {
-  // Time-based weights: certain content fits better at certain times
   const timeWeights: Record<string, Partial<Record<ContentPillar, number>>> = {
     morning: {
       human_observation: 1.5,
@@ -146,7 +142,7 @@ function weightedRandom(
     if (random <= 0) return pillar;
   }
 
-  return pillars[0]; // Fallback
+  return pillars[0];
 }
 
 // ============================================================
@@ -155,7 +151,7 @@ function weightedRandom(
 
 /**
  * Should ET tweet right now?
- * Returns a decision with reasoning.
+ * Uses randomized next-tweet-time stored in Redis for organic intervals.
  */
 export async function shouldTweet(): Promise<SchedulerDecision> {
   // Check if we're in active hours
@@ -175,58 +171,30 @@ export async function shouldTweet(): Promise<SchedulerDecision> {
     };
   }
 
-  // Check minimum gap
-  const lastTime = await getLastTweetTime();
-  if (lastTime) {
-    const minutesSince =
-      (Date.now() - lastTime.getTime()) / (1000 * 60);
-    if (minutesSince < MIN_GAP_MINUTES) {
-      return {
-        shouldTweet: false,
-        reason: `Too soon — ${Math.round(minutesSince)}m since last tweet (min ${MIN_GAP_MINUTES}m)`,
-      };
-    }
-  }
+  const now = Date.now();
 
   // Check if we're falling behind and need to catch up
   const hoursLeft = getActiveHoursRemaining();
   const tweetsNeeded = DAILY_TWEET_TARGET.min - todayCount;
+  const catchUp = tweetsNeeded > 0 && hoursLeft <= tweetsNeeded + 1;
 
-  if (tweetsNeeded > 0 && hoursLeft <= tweetsNeeded + 1) {
-    // Running low on time — force a tweet
-    const pillar = await selectPillar();
-    if (!pillar) {
+  if (!catchUp) {
+    // Check the randomized next-tweet-time
+    const nextTime = await getNextTweetTime();
+
+    if (nextTime && now < nextTime) {
+      const minsLeft = Math.round((nextTime - now) / 60000);
       return {
         shouldTweet: false,
-        reason: "All pillars maxed out for today",
+        reason: `Waiting — next tweet in ~${minsLeft}m`,
       };
     }
-    return {
-      shouldTweet: true,
-      pillar,
-      reason: `Catch-up mode — ${tweetsNeeded} tweets needed, ${hoursLeft}h left`,
-    };
-  }
-
-  // Probabilistic decision based on time of day
-  const timeOfDay = getTimeOfDay();
-  const probability = TWEET_PROBABILITY[timeOfDay] || 0.5;
-
-  // Add slight boost if we're below minimum
-  const adjustedProbability =
-    todayCount < DAILY_TWEET_TARGET.min
-      ? Math.min(probability + 0.15, 0.9)
-      : probability;
-
-  if (Math.random() > adjustedProbability) {
-    return {
-      shouldTweet: false,
-      reason: `Probabilistic skip (${Math.round(adjustedProbability * 100)}% chance, rolled no)`,
-    };
   }
 
   // Pick a pillar
+  const useTrending = Math.random() < TRENDING_CHANCE;
   const pillar = await selectPillar();
+
   if (!pillar) {
     return {
       shouldTweet: false,
@@ -234,9 +202,17 @@ export async function shouldTweet(): Promise<SchedulerDecision> {
     };
   }
 
+  // Schedule the NEXT tweet with a random gap
+  const gap = randomGap();
+  await setNextTweetTime(now + gap * 60000);
+
+  const timeOfDay = getTimeOfDay();
   return {
     shouldTweet: true,
     pillar,
-    reason: `${timeOfDay} tweet — ${todayCount + 1} today, pillar: ${pillar}`,
+    useTrending: useTrending,
+    reason: catchUp
+      ? `Catch-up — ${tweetsNeeded} needed, ${hoursLeft}h left. Pillar: ${pillar}${useTrending ? " (trending)" : ""}. Next in ~${gap}m`
+      : `${timeOfDay} tweet — #${todayCount + 1} today, pillar: ${pillar}${useTrending ? " (trending)" : ""}. Next in ~${gap}m`,
   };
 }
