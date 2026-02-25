@@ -23,6 +23,7 @@ export interface Mention {
   conversationId?: string;
   inReplyToId?: string;
   createdAt?: string;
+  imageUrls?: string[];
 }
 
 /**
@@ -86,9 +87,10 @@ export async function getMentions(
 
   const params: Record<string, unknown> = {
     max_results: Math.min(maxResults, 100),
-    "tweet.fields": "created_at,conversation_id,in_reply_to_user_id,author_id,referenced_tweets",
-    expansions: "author_id",
+    "tweet.fields": "created_at,conversation_id,in_reply_to_user_id,author_id,referenced_tweets,attachments",
+    expansions: "author_id,attachments.media_keys",
     "user.fields": "username",
+    "media.fields": "url,preview_image_url,type",
   };
 
   if (sinceId) {
@@ -104,11 +106,30 @@ export async function getMentions(
     }
   }
 
+  // Build media key → URL map
+  const mediaMap = new Map<string, string>();
+  if (timeline.includes?.media) {
+    for (const m of timeline.includes.media) {
+      if (m.type === "photo" && (m.url || m.preview_image_url)) {
+        mediaMap.set(m.media_key, m.url || m.preview_image_url || "");
+      }
+    }
+  }
+
   const mentions: Mention[] = [];
   if (timeline.data?.data) {
     for (const tweet of timeline.data.data) {
       // Skip our own tweets (self-mentions)
       if (tweet.author_id === userId) continue;
+
+      // Extract image URLs from attachments
+      const imageUrls: string[] = [];
+      if (tweet.attachments?.media_keys) {
+        for (const key of tweet.attachments.media_keys) {
+          const url = mediaMap.get(key);
+          if (url) imageUrls.push(url);
+        }
+      }
 
       mentions.push({
         id: tweet.id,
@@ -120,6 +141,7 @@ export async function getMentions(
           (r) => r.type === "replied_to"
         )?.id,
         createdAt: tweet.created_at,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
       });
     }
   }

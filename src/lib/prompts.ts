@@ -245,12 +245,17 @@ REPLY MODE — ADDITIONAL RULES:
 export function buildReplyPrompt(
   mentionText: string,
   authorUsername: string,
-  conversationContext?: string
+  conversationContext?: string,
+  hasImages?: boolean
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
   if (conversationContext) {
     prompt += `\n\nCONTEXT (the tweet they replied to):\n"${conversationContext}"`;
+  }
+
+  if (hasImages) {
+    prompt += `\n\nThey also attached image(s) which you can see above. React to the image naturally — comment on what you see through ET's alien perspective. Don't describe the image mechanically, just vibe with it.`;
   }
 
   prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply.`;

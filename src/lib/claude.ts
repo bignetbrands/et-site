@@ -59,12 +59,36 @@ export async function generateTweet(
 
 /**
  * Generate a reply to a mention.
+ * If imageUrls are provided, uses Claude's vision to "see" the images.
  */
 export async function generateReply(
   mentionText: string,
   authorUsername: string,
-  conversationContext?: string
+  conversationContext?: string,
+  imageUrls?: string[]
 ): Promise<string> {
+  // Build message content — text + optional images
+  const content: Array<{ type: string; source?: Record<string, string>; text?: string }> = [];
+
+  // Add images first if present (Claude vision expects images before text)
+  if (imageUrls && imageUrls.length > 0) {
+    for (const url of imageUrls.slice(0, 4)) { // Max 4 images
+      content.push({
+        type: "image",
+        source: {
+          type: "url",
+          url,
+        },
+      });
+    }
+  }
+
+  // Add the text prompt
+  content.push({
+    type: "text",
+    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0),
+  });
+
   const response = await getClient().messages.create({
     model: MODELS.sonnet,
     max_tokens: 300,
@@ -72,7 +96,7 @@ export async function generateReply(
     messages: [
       {
         role: "user",
-        content: buildReplyPrompt(mentionText, authorUsername, conversationContext),
+        content: content as any,
       },
     ],
     temperature: 0.9,

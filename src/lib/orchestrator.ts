@@ -194,13 +194,14 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     }
   }
 
-  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."`);
+  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}`);
 
   // Generate the reply
   const replyText = await generateReply(
     mention.text,
     authorUsername,
-    conversationContext
+    conversationContext,
+    mention.imageUrls
   );
 
   if (!replyText || replyText.length > 280) {
