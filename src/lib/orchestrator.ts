@@ -2,7 +2,7 @@ import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply } from "./claude";
 import { generateLoreImage, downloadImage } from "./dalle";
-import { postTweet, postTweetWithImage, postReply, getMentions, getTweet, getTrendingContext, type Mention } from "./twitter";
+import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, type Mention } from "./twitter";
 import {
   recordTweet,
   getRecentTweets,
@@ -357,7 +357,7 @@ export async function interactWithTarget(
  */
 export async function replyToSpecificTweet(
   tweetUrl: string
-): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; error?: string }> {
+): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; method?: string; error?: string }> {
   // Extract tweet ID from URL or raw ID
   const idMatch = tweetUrl.match(/status\/(\d+)/);
   const tweetId = idMatch ? idMatch[1] : tweetUrl.replace(/\D/g, "");
@@ -386,11 +386,20 @@ export async function replyToSpecificTweet(
 
     console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
 
-    // 3. Post the reply
-    const replyId = await postReply(replyText, tweetId);
-    console.log(`[ET Reply] Posted reply ${replyId} to tweet ${tweetId}`);
+    // 3. Try direct reply first
+    try {
+      const replyId = await postReply(replyText, tweetId);
+      console.log(`[ET Reply] Posted reply ${replyId} to tweet ${tweetId}`);
+      return { success: true, tweetId, replyText, replyId, method: "reply" };
+    } catch (replyError: any) {
+      const status = replyError?.data?.status || replyError?.code;
+      console.warn(`[ET Reply] Direct reply failed (${status}), falling back to quote tweet...`);
 
-    return { success: true, tweetId, replyText, replyId };
+      // 4. Fallback: quote tweet
+      const qtId = await postQuoteTweet(replyText, tweetId);
+      console.log(`[ET Reply] Posted quote tweet ${qtId} for tweet ${tweetId}`);
+      return { success: true, tweetId, replyText, replyId: qtId, method: "quote" };
+    }
   } catch (error) {
     console.error(`[ET Reply] Error:`, error);
     return {

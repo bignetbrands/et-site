@@ -57,6 +57,26 @@ export async function postReply(
 }
 
 /**
+ * Post a quote tweet (retweet with comment).
+ */
+export async function postQuoteTweet(
+  text: string,
+  quoteTweetId: string
+): Promise<string> {
+  try {
+    const response = await getClient().v2.tweet({
+      text,
+      quote_tweet_id: quoteTweetId,
+    });
+    return response.data.id;
+  } catch (error: any) {
+    const details = error?.data || error?.errors || error?.message || error;
+    console.error(`[Twitter] postQuoteTweet failed (tweet ${quoteTweetId}):`, JSON.stringify(details, null, 2));
+    throw error;
+  }
+}
+
+/**
  * Post a tweet with an image.
  * Uploads the image first via v1.1 media endpoint, then posts the tweet.
  * Returns the tweet ID.
