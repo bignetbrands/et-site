@@ -243,33 +243,25 @@ export async function getUserRecentTweets(
   maxResults: number = 10
 ): Promise<Array<{ id: string; text: string; likes: number; createdAt?: string }>> {
   try {
-    // Look up user ID from username
-    const user = await getClient().v2.userByUsername(username, {
-      "user.fields": "public_metrics",
-    });
-
-    if (!user.data) return [];
-
-    const userId = user.data.id;
-
-    // Fetch their recent tweets
-    const timeline = await getClient().v2.userTimeline(userId, {
+    // Use search API instead of userTimeline (more accessible on pay-per-use)
+    const clean = username.replace(/^@/, "");
+    const results = await getClient().v2.search(`from:${clean} -is:retweet -is:reply`, {
       max_results: Math.min(maxResults, 100),
       "tweet.fields": "public_metrics,created_at",
-      exclude: ["retweets", "replies"],
+      sort_order: "recency",
     });
 
-    if (!timeline.data?.data) return [];
+    if (!results.data?.data) return [];
 
-    return timeline.data.data
+    return results.data.data
       .map((t) => ({
         id: t.id,
         text: t.text.replace(/https:\/\/t\.co\/\w+/g, "").trim(),
         likes: t.public_metrics?.like_count || 0,
         createdAt: t.created_at,
       }))
-      .filter((t) => t.text.length > 15) // skip very short tweets
-      .sort((a, b) => b.likes - a.likes); // most engaging first
+      .filter((t) => t.text.length > 15)
+      .sort((a, b) => b.likes - a.likes);
   } catch (error) {
     console.warn(`[ET Targets] Failed to fetch tweets for @${username}:`, error);
     return [];
