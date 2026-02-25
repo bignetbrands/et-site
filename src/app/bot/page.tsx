@@ -304,6 +304,44 @@ export default function BotDashboard() {
           <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
             FORCE: adds to front of queue · INTERACT: replies to their latest tweet now (leave blank for next in queue)
           </div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <input
+              type="text"
+              id="adminTweetUrl"
+              placeholder="https://x.com/user/status/123..."
+              style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
+              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminReplyBtn")?.click(); }}
+            />
+            <button
+              id="adminReplyBtn"
+              onClick={async () => {
+                const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
+                const tweetUrl = inp?.value.trim();
+                if (!tweetUrl) { addLog("Paste a tweet URL first", "warn"); return; }
+                setLoading("reply");
+                addLog(`Replying to tweet: ${tweetUrl.substring(0, 60)}...`, "info");
+                try {
+                  const res = await fetch("/api/targets/admin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "reply", tweetUrl, secret }),
+                  });
+                  const data = await res.json();
+                  if (data.error) addLog(`Error: ${data.error}`, "error");
+                  else if (data.success) { addLog(`✓ Replied: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; }
+                  else addLog(`Failed: ${data.error}`, "error");
+                } catch (e) { addLog(`Reply failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPost}
+            >
+              {loading === "reply" ? "..." : "💬 REPLY"}
+            </button>
+          </div>
+          <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
+            REPLY: paste a tweet URL and ET will reply to it directly
+          </div>
           <button
             onClick={async () => {
               setLoading("loadTargets");

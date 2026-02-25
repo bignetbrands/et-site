@@ -4,7 +4,7 @@ import {
   removeTarget,
   getNextTarget,
 } from "@/lib/store";
-import { interactWithTarget } from "@/lib/orchestrator";
+import { interactWithTarget, replyToSpecificTweet } from "@/lib/orchestrator";
 import { isKillSwitchActive } from "@/lib/kill-switch";
 
 export const maxDuration = 60;
@@ -84,9 +84,26 @@ export async function POST(request: Request) {
         });
       }
 
+      case "reply": {
+        // Reply to a specific tweet by URL
+        if (await isKillSwitchActive()) {
+          return NextResponse.json({
+            error: "Kill switch active — resume ET first",
+          }, { status: 400 });
+        }
+
+        const tweetUrl = body.tweetUrl || body.handle; // accept either field
+        if (!tweetUrl) {
+          return NextResponse.json({ error: "Missing tweetUrl" }, { status: 400 });
+        }
+
+        const result = await replyToSpecificTweet(tweetUrl);
+        return NextResponse.json(result);
+      }
+
       default:
         return NextResponse.json(
-          { error: "Invalid action. Use: force, interact, remove" },
+          { error: "Invalid action. Use: force, interact, remove, reply" },
           { status: 400 }
         );
     }

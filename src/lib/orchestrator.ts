@@ -352,6 +352,55 @@ export async function interactWithTarget(
 }
 
 /**
+ * Reply to a specific tweet by URL or ID.
+ * Fetches the tweet, generates an ET-voiced reply, and posts it.
+ */
+export async function replyToSpecificTweet(
+  tweetUrl: string
+): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; error?: string }> {
+  // Extract tweet ID from URL or raw ID
+  const idMatch = tweetUrl.match(/status\/(\d+)/);
+  const tweetId = idMatch ? idMatch[1] : tweetUrl.replace(/\D/g, "");
+
+  if (!tweetId) {
+    return { success: false, error: "Could not extract tweet ID from URL" };
+  }
+
+  console.log(`[ET Reply] Replying to specific tweet ${tweetId}...`);
+
+  try {
+    // 1. Fetch the tweet
+    const tweet = await getTweet(tweetId);
+    if (!tweet) {
+      return { success: false, error: `Could not fetch tweet ${tweetId}` };
+    }
+
+    const author = tweet.authorUsername || "someone";
+    console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."`);
+
+    // 2. Generate reply via Claude
+    const replyText = await generateReply(tweet.text, author);
+    if (!replyText) {
+      return { success: false, error: "Failed to generate reply" };
+    }
+
+    console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
+
+    // 3. Post the reply
+    const replyId = await postReply(replyText, tweetId);
+    console.log(`[ET Reply] Posted reply ${replyId} to tweet ${tweetId}`);
+
+    return { success: true, tweetId, replyText, replyId };
+  } catch (error) {
+    console.error(`[ET Reply] Error:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
  * Dry run — generates a tweet without posting.
  * Useful for testing and calibrating the voice.
  */
