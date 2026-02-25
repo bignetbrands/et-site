@@ -393,12 +393,31 @@ export async function replyToSpecificTweet(
       return { success: true, tweetId, replyText, replyId, method: "reply" };
     } catch (replyError: any) {
       const status = replyError?.data?.status || replyError?.code;
-      console.warn(`[ET Reply] Direct reply failed (${status}), falling back to quote tweet...`);
+      console.warn(`[ET Reply] Direct reply failed (${status}), trying quote tweet...`);
 
       // 4. Fallback: quote tweet
-      const qtId = await postQuoteTweet(replyText, tweetId);
-      console.log(`[ET Reply] Posted quote tweet ${qtId} for tweet ${tweetId}`);
-      return { success: true, tweetId, replyText, replyId: qtId, method: "quote" };
+      try {
+        const qtId = await postQuoteTweet(replyText, tweetId);
+        console.log(`[ET Reply] Posted quote tweet ${qtId} for tweet ${tweetId}`);
+        return { success: true, tweetId, replyText, replyId: qtId, method: "quote" };
+      } catch (qtError: any) {
+        const qtStatus = qtError?.data?.status || qtError?.code;
+        console.warn(`[ET Reply] Quote tweet failed (${qtStatus}), posting as standalone mention...`);
+
+        // 5. Final fallback: standalone tweet with @mention + link
+        const tweetLink = `https://x.com/${author}/status/${tweetId}`;
+        // Twitter wraps all URLs to 23 chars via t.co
+        const maxTextLen = 280 - 23 - 2; // 23 for t.co link, 2 for "\n\n"
+        const mentionText = `@${author} ${replyText}`;
+        const trimmedText = mentionText.length > maxTextLen
+          ? mentionText.substring(0, maxTextLen - 3) + "..."
+          : mentionText;
+        const fullTweet = `${trimmedText}\n\n${tweetLink}`;
+
+        const mentionId = await postTweet(fullTweet);
+        console.log(`[ET Reply] Posted standalone mention ${mentionId} to @${author}`);
+        return { success: true, tweetId, replyText: trimmedText, replyId: mentionId, method: "mention" };
+      }
     }
   } catch (error) {
     console.error(`[ET Reply] Error:`, error);

@@ -328,7 +328,7 @@ export default function BotDashboard() {
                   });
                   const data = await res.json();
                   if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else if (data.success) { addLog(`✓ ${data.method === "quote" ? "Quote tweeted" : "Replied"}: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; }
+                  else if (data.success) { const m = data.method === "quote" ? "Quote tweeted" : data.method === "mention" ? "Mentioned" : "Replied"; addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; }
                   else addLog(`Failed: ${data.error}`, "error");
                 } catch (e) { addLog(`Reply failed: ${e}`, "error"); }
                 setLoading("");
