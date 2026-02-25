@@ -192,7 +192,6 @@ export async function verifyCredentials(): Promise<{
 
 /**
  * Search for recent popular tweets in ET's topic areas.
- * Returns a handful of trending topics/conversations for context.
  */
 export async function getTrendingContext(): Promise<string[]> {
   const queries = [
@@ -233,4 +232,46 @@ export async function getTrendingContext(): Promise<string[]> {
   }
 
   return trending;
+}
+
+/**
+ * Fetch recent tweets from a specific user by username.
+ * Returns their most engaging recent tweets for ET to reply to.
+ */
+export async function getUserRecentTweets(
+  username: string,
+  maxResults: number = 10
+): Promise<Array<{ id: string; text: string; likes: number; createdAt?: string }>> {
+  try {
+    // Look up user ID from username
+    const user = await getClient().v2.userByUsername(username, {
+      "user.fields": "public_metrics",
+    });
+
+    if (!user.data) return [];
+
+    const userId = user.data.id;
+
+    // Fetch their recent tweets
+    const timeline = await getClient().v2.userTimeline(userId, {
+      max_results: Math.min(maxResults, 100),
+      "tweet.fields": "public_metrics,created_at",
+      exclude: ["retweets", "replies"],
+    });
+
+    if (!timeline.data?.data) return [];
+
+    return timeline.data.data
+      .map((t) => ({
+        id: t.id,
+        text: t.text.replace(/https:\/\/t\.co\/\w+/g, "").trim(),
+        likes: t.public_metrics?.like_count || 0,
+        createdAt: t.created_at,
+      }))
+      .filter((t) => t.text.length > 15) // skip very short tweets
+      .sort((a, b) => b.likes - a.likes); // most engaging first
+  } catch (error) {
+    console.warn(`[ET Targets] Failed to fetch tweets for @${username}:`, error);
+    return [];
+  }
 }

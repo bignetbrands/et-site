@@ -360,6 +360,30 @@
   .community-btn svg { width: 18px; height: 18px; fill: currentColor; }
   .divider { width: 80%; max-width: 400px; height: 1px; background: linear-gradient(90deg, transparent, var(--panel-border), transparent); margin: 0 auto; }
   footer { padding: 40px 24px; text-align: center; border-top: 1px solid var(--panel-border); }
+
+  .target-section { max-width: 660px; margin: 0 auto; padding: 40px 24px; }
+  .target-desc { font-size: 12px; color: var(--text-dim); line-height: 1.7; margin-bottom: 20px; letter-spacing: 0.5px; }
+  .target-submit-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .target-input { flex: 1; padding: 10px 14px; background: rgba(2,8,2,0.8); border: 1px solid var(--panel-border); color: var(--green); font-family: 'Space Mono', monospace; font-size: 13px; outline: none; letter-spacing: 1px; transition: border-color 0.3s; }
+  .target-input:focus { border-color: var(--green); box-shadow: 0 0 10px var(--green-dim); }
+  .target-input::placeholder { color: #2a4a2a; }
+  .target-submit-btn { padding: 10px 20px; background: rgba(57,255,20,0.08); border: 1px solid rgba(57,255,20,0.4); color: var(--green); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; white-space: nowrap; }
+  .target-submit-btn:hover { background: rgba(57,255,20,0.15); box-shadow: 0 0 15px var(--green-dim); }
+  .target-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .target-msg { font-size: 11px; min-height: 18px; margin-bottom: 16px; letter-spacing: 0.5px; transition: opacity 0.3s; }
+  .target-msg.ok { color: var(--green); }
+  .target-msg.err { color: #ff4444; }
+  .target-queue-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .target-queue-title { font-size: 9px; color: var(--green); letter-spacing: 3px; text-shadow: 0 0 8px var(--green-dim); }
+  .target-queue-hint { font-size: 8px; color: #2a4a2a; letter-spacing: 1px; }
+  .target-queue { display: flex; flex-direction: column; gap: 4px; }
+  .target-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(10,21,10,0.4); border: 1px solid var(--panel-border); cursor: pointer; transition: all 0.3s; }
+  .target-item:hover { border-color: rgba(57,255,20,0.3); background: rgba(57,255,20,0.03); }
+  .target-item-left { display: flex; align-items: center; gap: 10px; }
+  .target-handle { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text); letter-spacing: 0.5px; }
+  .target-forced { font-size: 8px; color: #ffaa00; letter-spacing: 1px; border: 1px solid rgba(255,170,0,0.3); padding: 1px 5px; }
+  .target-votes { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--green); letter-spacing: 1px; min-width: 50px; text-align: right; }
+  .target-empty { text-align: center; padding: 24px; color: #2a4a2a; font-style: italic; font-size: 11px; letter-spacing: 1px; }
   .footer-text { font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
   .footer-text span { color: var(--green); }
   .ticker-wrap { overflow: hidden; white-space: nowrap; background: var(--panel); border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border); padding: 12px 0; }
@@ -740,6 +764,22 @@
       <a href="https://x.com/i/communities/2024687278132769267" target="_blank" class="community-btn"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X Community</a>
     </div>
   </section>
+
+  <section class="target-section" id="targets">
+    <div class="section-header"><span class="section-label">◈ TARGET QUEUE</span><span class="section-line"></span></div>
+    <p class="target-desc">Submit X accounts for ET to interact with. The more votes a target gets, the sooner ET drops in. Community consensus drives the queue.</p>
+    <div class="target-submit-row">
+      <input type="text" id="targetInput" class="target-input" placeholder="@username" maxlength="32" autocomplete="off" spellcheck="false" />
+      <button id="targetSubmitBtn" class="target-submit-btn">SUBMIT TARGET</button>
+    </div>
+    <div id="targetMsg" class="target-msg"></div>
+    <div class="target-queue-header">
+      <span class="target-queue-title">QUEUE</span>
+      <span class="target-queue-hint">tap to vote · more votes = higher priority</span>
+    </div>
+    <div id="targetQueue" class="target-queue"></div>
+  </section>
+
   <footer><p class="footer-text"><span>$ET</span> — the ticker with a built-in dollar sign — og contract on solana — dyor</p></footer>
 </div>
 
@@ -2390,6 +2430,78 @@
     } else { setTimeout(init, 300); }
     window.addEventListener('resize', () => { resize(); buildFace(); });
   })();
+</script>
+
+<script>
+// ======== TARGET QUEUE ========
+(function() {
+  const input = document.getElementById('targetInput');
+  const btn = document.getElementById('targetSubmitBtn');
+  const msg = document.getElementById('targetMsg');
+  const queue = document.getElementById('targetQueue');
+  if (!input || !btn || !queue) return;
+
+  function showMsg(text, ok) {
+    msg.textContent = text;
+    msg.className = 'target-msg ' + (ok ? 'ok' : 'err');
+    setTimeout(() => { msg.textContent = ''; msg.className = 'target-msg'; }, 4000);
+  }
+
+  async function loadQueue() {
+    try {
+      const res = await fetch('/api/targets');
+      const data = await res.json();
+      if (!data.targets || data.targets.length === 0) {
+        queue.innerHTML = '<div class="target-empty">no targets yet — be the first to submit one</div>';
+        return;
+      }
+      queue.innerHTML = data.targets.map(t =>
+        `<div class="target-item" data-handle="${t.handle}" title="Click to vote for @${t.handle}">
+          <div class="target-item-left">
+            <span class="target-handle">@${t.handle}</span>
+            ${t.forced ? '<span class="target-forced">FORCED</span>' : ''}
+          </div>
+          <span class="target-votes">${t.votes} vote${t.votes !== 1 ? 's' : ''}</span>
+        </div>`
+      ).join('');
+      // Click to vote
+      queue.querySelectorAll('.target-item').forEach(el => {
+        el.addEventListener('click', () => submitHandle(el.dataset.handle));
+      });
+    } catch {
+      queue.innerHTML = '<div class="target-empty">failed to load queue</div>';
+    }
+  }
+
+  async function submitHandle(handle) {
+    if (!handle) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle }),
+      });
+      const data = await res.json();
+      if (data.error) { showMsg(data.error, false); }
+      else { showMsg(data.message, true); input.value = ''; loadQueue(); }
+    } catch { showMsg('submission failed — try again', false); }
+    btn.disabled = false;
+  }
+
+  btn.addEventListener('click', () => {
+    const val = input.value.trim();
+    if (!val) { showMsg('enter a handle first', false); return; }
+    submitHandle(val);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') btn.click();
+  });
+
+  loadQueue();
+  // Refresh queue every 30s
+  setInterval(loadQueue, 30000);
+})();
 </script>
 </body>
 </html>

@@ -290,6 +290,58 @@ async function postAndRecord(
 }
 
 /**
+ * Interact with a target account — fetch their tweets, pick one, reply.
+ */
+export async function interactWithTarget(
+  handle: string
+): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; error?: string }> {
+  const { getUserRecentTweets } = await import("./twitter");
+  const { generateTargetInteraction } = await import("./claude");
+  const { resolveTarget } = await import("./store");
+
+  console.log(`[ET Target] Interacting with @${handle}...`);
+
+  try {
+    // 1. Fetch their recent tweets
+    const tweets = await getUserRecentTweets(handle, 10);
+    if (tweets.length === 0) {
+      return { success: false, error: `No recent tweets found for @${handle}` };
+    }
+
+    console.log(`[ET Target] Found ${tweets.length} tweets from @${handle}`);
+
+    // 2. Generate reply via Claude
+    const interaction = await generateTargetInteraction(handle, tweets);
+    if (!interaction) {
+      return { success: false, error: "Failed to generate interaction" };
+    }
+
+    console.log(`[ET Target] Replying to tweet ${interaction.tweetId}: "${interaction.replyText.substring(0, 60)}..."`);
+
+    // 3. Post the reply
+    const replyId = await postReply(interaction.replyText, interaction.tweetId);
+
+    // 4. Mark as interacted
+    await resolveTarget(handle);
+
+    console.log(`[ET Target] Posted reply ${replyId} to @${handle}`);
+
+    return {
+      success: true,
+      tweetId: interaction.tweetId,
+      replyText: interaction.replyText,
+      replyId,
+    };
+  } catch (error) {
+    console.error(`[ET Target] Error interacting with @${handle}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
  * Dry run — generates a tweet without posting.
  * Useful for testing and calibrating the voice.
  */

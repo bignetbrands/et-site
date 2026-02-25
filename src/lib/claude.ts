@@ -140,3 +140,54 @@ export async function generateImageDescription(
 
   return text.trim();
 }
+
+/**
+ * Generate a targeted interaction — pick a tweet and craft a reply.
+ */
+export async function generateTargetInteraction(
+  targetUsername: string,
+  tweets: Array<{ id: string; text: string; likes: number }>
+): Promise<{ tweetId: string; replyText: string } | null> {
+  const { buildTargetInteractionPrompt } = await import("./prompts");
+
+  const response = await getClient().messages.create({
+    model: MODELS.sonnet,
+    max_tokens: 400,
+    system: REPLY_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: buildTargetInteractionPrompt(targetUsername, tweets),
+      },
+    ],
+    temperature: 0.9,
+  });
+
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  // Parse TWEET_ID and REPLY from response
+  const idMatch = text.match(/TWEET_ID:\s*(\d+)/);
+  const replyMatch = text.match(/REPLY:\s*(.+)/s);
+
+  if (!idMatch || !replyMatch) {
+    console.warn("[ET Target] Failed to parse response:", text.substring(0, 200));
+    return null;
+  }
+
+  let replyText = replyMatch[1]
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^(@\w+\s*)+/, "")
+    .trim();
+
+  // Truncate if over 280
+  if (replyText.length > 280) {
+    replyText = replyText.substring(0, 277) + "...";
+  }
+
+  return {
+    tweetId: idMatch[1],
+    replyText,
+  };
+}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { processReplies } from "@/lib/orchestrator";
+import { processReplies, interactWithTarget } from "@/lib/orchestrator";
 import { isKillSwitchActive } from "@/lib/kill-switch";
+import { getNextTarget } from "@/lib/store";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -9,7 +10,8 @@ export const dynamic = "force-dynamic";
  * GET /api/cron/replies
  *
  * Called by Vercel cron every 15 minutes.
- * Fetches new mentions and replies to them in character.
+ * 1. Fetches new mentions and replies to them in character.
+ * 2. Processes one community target if any are queued.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -27,14 +29,25 @@ export async function GET(request: Request) {
       });
     }
 
+    // 1. Process mentions
     const results = await processReplies();
 
     const posted = results.filter((r) => !r.skipped);
     const skipped = results.filter((r) => r.skipped);
 
     console.log(
-      `[ET Replies Cron] Done: ${posted.length} replied, ${skipped.length} skipped`
+      `[ET Replies Cron] Mentions: ${posted.length} replied, ${skipped.length} skipped`
     );
+
+    // 2. Process one community target (25% chance per run to keep it organic)
+    let targetResult = null;
+    if (Math.random() < 0.25) {
+      const nextTarget = await getNextTarget();
+      if (nextTarget) {
+        console.log(`[ET Replies Cron] Processing target: @${nextTarget.handle} (${nextTarget.votes} votes, forced: ${!!nextTarget.forced})`);
+        targetResult = await interactWithTarget(nextTarget.handle);
+      }
+    }
 
     return NextResponse.json({
       processed: results.length,
@@ -48,6 +61,13 @@ export async function GET(request: Request) {
         skipped: r.skipped || undefined,
         skipReason: r.skipReason || undefined,
       })),
+      target: targetResult
+        ? {
+            handle: targetResult.success ? targetResult.replyText?.substring(0, 80) : undefined,
+            success: targetResult.success,
+            error: targetResult.error || undefined,
+          }
+        : null,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

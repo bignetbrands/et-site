@@ -262,3 +262,34 @@ export function buildReplyPrompt(
 
   return prompt;
 }
+
+// ============================================================
+// TARGET INTERACTION PROMPT
+// ============================================================
+
+export function buildTargetInteractionPrompt(
+  targetUsername: string,
+  tweets: Array<{ id: string; text: string; likes: number }>,
+): string {
+  const tweetList = tweets
+    .slice(0, 5)
+    .map((t, i) => `${i + 1}. [id:${t.id}] "${t.text.substring(0, 200)}" (${t.likes} likes)`)
+    .join("\n");
+
+  return `You want to interact with @${targetUsername}. Here are their recent tweets:
+
+${tweetList}
+
+Pick the ONE tweet that's most interesting for ET to reply to — something where ET's alien perspective adds genuine value, humor, or insight. Avoid generic compliments.
+
+Respond in this exact format:
+TWEET_ID: <the id of the tweet you pick>
+REPLY: <your reply as ET — short, based, funny, one sentence unless serious topic>
+
+Rules:
+- Pick the tweet where ET can add something unique, not just agree
+- Reply must be under 280 characters
+- Stay in character as ET
+- Don't be a sycophant — be genuine, witty, and interesting
+- If they're talking about space/aliens/crypto, lean into the irony of being an actual alien`;
+}

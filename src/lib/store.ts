@@ -235,3 +235,207 @@ export async function incrementDailyReplyCount(): Promise<void> {
     }
   }
 }
+
+// ============================================================
+// TARGET ACCOUNTS — Community-driven interaction targets
+// ============================================================
+
+const TARGETS_KEY = "target_accounts";
+const TARGET_INTERACTED_KEY = "target_interacted";
+const TARGET_SUBMIT_RATE_KEY = "target_submit_rate";
+
+export interface TargetAccount {
+  handle: string;        // @username (stored without @)
+  votes: number;         // number of community votes
+  submittedAt: string;   // ISO timestamp of first submission
+  lastVotedAt: string;   // ISO timestamp of last vote
+  forced?: boolean;      // admin-forced (skip consensus)
+}
+
+/**
+ * Submit or upvote a target account.
+ * Returns the updated target and whether this was a new submission.
+ */
+export async function submitTarget(handle: string): Promise<{ target: TargetAccount; isNew: boolean }> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  if (!clean || clean.length > 30) throw new Error("Invalid handle");
+
+  const redis = await getRedis();
+  if (!redis) throw new Error("Redis unavailable");
+
+  const now = new Date().toISOString();
+  const raw = await redis.hGet(TARGETS_KEY, clean);
+
+  if (raw) {
+    // Existing target — upvote
+    const target: TargetAccount = JSON.parse(raw);
+    target.votes += 1;
+    target.lastVotedAt = now;
+    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    return { target, isNew: false };
+  } else {
+    // New target
+    const target: TargetAccount = {
+      handle: clean,
+      votes: 1,
+      submittedAt: now,
+      lastVotedAt: now,
+    };
+    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    return { target, isNew: true };
+  }
+}
+
+/**
+ * Admin force-add a target (goes to front of queue).
+ */
+export async function forceTarget(handle: string): Promise<TargetAccount> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  if (!clean) throw new Error("Invalid handle");
+
+  const redis = await getRedis();
+  if (!redis) throw new Error("Redis unavailable");
+
+  const now = new Date().toISOString();
+  const raw = await redis.hGet(TARGETS_KEY, clean);
+
+  if (raw) {
+    const target: TargetAccount = JSON.parse(raw);
+    target.forced = true;
+    target.lastVotedAt = now;
+    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    return target;
+  } else {
+    const target: TargetAccount = {
+      handle: clean,
+      votes: 0,
+      submittedAt: now,
+      lastVotedAt: now,
+      forced: true,
+    };
+    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    return target;
+  }
+}
+
+/**
+ * Get all targets sorted by priority (forced first, then by votes).
+ */
+export async function getTargets(): Promise<TargetAccount[]> {
+  const redis = await getRedis();
+  if (!redis) return [];
+
+  try {
+    const all = await redis.hGetAll(TARGETS_KEY);
+    const targets: TargetAccount[] = Object.values(all).map((v) => JSON.parse(v));
+
+    // Sort: forced first, then by votes desc, then by oldest submission
+    targets.sort((a, b) => {
+      if (a.forced && !b.forced) return -1;
+      if (!a.forced && b.forced) return 1;
+      if (b.votes !== a.votes) return b.votes - a.votes;
+      return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+    });
+
+    return targets;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get the next target to interact with (highest priority, not yet interacted today).
+ */
+export async function getNextTarget(): Promise<TargetAccount | null> {
+  const targets = await getTargets();
+  const redis = await getRedis();
+  if (!redis || targets.length === 0) return null;
+
+  const today = new Date().toISOString().split("T")[0];
+
+  for (const target of targets) {
+    const interacted = await redis.sIsMember(
+      `${TARGET_INTERACTED_KEY}:${today}`,
+      target.handle
+    );
+    if (!interacted) return target;
+  }
+
+  return null;
+}
+
+/**
+ * Mark a target as interacted with today.
+ */
+export async function markTargetInteracted(handle: string): Promise<void> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  const redis = await getRedis();
+  if (!redis) return;
+
+  const today = new Date().toISOString().split("T")[0];
+  const key = `${TARGET_INTERACTED_KEY}:${today}`;
+  await redis.sAdd(key, clean);
+  await redis.expire(key, 172800); // 48h TTL
+}
+
+/**
+ * Remove a target after successful interaction (if not forced, decrement votes).
+ * Forced targets get removed. Voted targets just get marked interacted.
+ */
+export async function resolveTarget(handle: string): Promise<void> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  const redis = await getRedis();
+  if (!redis) return;
+
+  const raw = await redis.hGet(TARGETS_KEY, clean);
+  if (!raw) return;
+
+  const target: TargetAccount = JSON.parse(raw);
+
+  if (target.forced) {
+    // Remove forced flag, keep if has community votes
+    target.forced = false;
+    if (target.votes <= 0) {
+      await redis.hDel(TARGETS_KEY, clean);
+    } else {
+      await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    }
+  } else {
+    // Decrement votes, remove if 0
+    target.votes = Math.max(0, target.votes - 1);
+    if (target.votes <= 0) {
+      await redis.hDel(TARGETS_KEY, clean);
+    } else {
+      await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    }
+  }
+
+  await markTargetInteracted(clean);
+}
+
+/**
+ * Remove a target entirely (admin action).
+ */
+export async function removeTarget(handle: string): Promise<void> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  const redis = await getRedis();
+  if (!redis) return;
+  await redis.hDel(TARGETS_KEY, clean);
+}
+
+/**
+ * Rate limit community submissions by IP (max 5 per hour).
+ */
+export async function checkSubmitRateLimit(ip: string): Promise<boolean> {
+  const redis = await getRedis();
+  if (!redis) return true; // allow if no redis
+
+  const key = `${TARGET_SUBMIT_RATE_KEY}:${ip}`;
+  try {
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, 3600); // 1 hour window
+    return count <= 5;
+  } catch {
+    return true;
+  }
+}

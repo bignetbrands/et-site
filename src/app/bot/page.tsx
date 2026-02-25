@@ -242,6 +242,91 @@ export default function BotDashboard() {
 
         {/* Pillar Reference */}
         <div style={styles.panel}>
+          <div style={styles.panelTitle}>◈ TARGET QUEUE</div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <input
+              type="text"
+              id="adminTargetInput"
+              placeholder="@username"
+              style={{ ...styles.input, flex: 1, textAlign: "left" }}
+              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminForceBtn")?.click(); }}
+            />
+            <button
+              id="adminForceBtn"
+              onClick={async () => {
+                const inp = document.getElementById("adminTargetInput") as HTMLInputElement;
+                const handle = inp?.value.trim();
+                if (!handle) { addLog("Enter a handle first", "warn"); return; }
+                setLoading("force");
+                addLog(`Force-adding @${handle} to queue...`, "info");
+                try {
+                  const res = await fetch("/api/targets/admin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "force", handle, secret }),
+                  });
+                  const data = await res.json();
+                  if (data.error) addLog(`Error: ${data.error}`, "error");
+                  else { addLog(`✓ @${data.target.handle} forced to front of queue`, "success"); inp.value = ""; }
+                } catch (e) { addLog(`Force failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPrimary}
+            >
+              {loading === "force" ? "..." : "⚡ FORCE"}
+            </button>
+            <button
+              onClick={async () => {
+                const inp = document.getElementById("adminTargetInput") as HTMLInputElement;
+                const handle = inp?.value.trim() || undefined;
+                setLoading("interact");
+                addLog(handle ? `Interacting with @${handle}...` : "Interacting with next target in queue...", "info");
+                try {
+                  const res = await fetch("/api/targets/admin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "interact", handle, secret }),
+                  });
+                  const data = await res.json();
+                  if (data.error) addLog(`Error: ${data.error}`, "error");
+                  else if (data.success) addLog(`✓ Replied to @${data.handle}: "${(data.replyText || "").slice(0, 60)}..."`, "success");
+                  else addLog(`Failed: ${data.error}`, "error");
+                } catch (e) { addLog(`Interact failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPost}
+            >
+              {loading === "interact" ? "..." : "🎯 INTERACT"}
+            </button>
+          </div>
+          <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
+            FORCE: adds to front of queue · INTERACT: replies to their latest tweet now (leave blank for next in queue)
+          </div>
+          <button
+            onClick={async () => {
+              setLoading("loadTargets");
+              try {
+                const res = await fetch("/api/targets");
+                const data = await res.json();
+                if (data.targets?.length > 0) {
+                  addLog(`Target queue (${data.targets.length}):`, "info");
+                  for (const t of data.targets) {
+                    addLog(`  ${t.forced ? "⚡" : "•"} @${t.handle} — ${t.votes} votes${t.forced ? " (FORCED)" : ""}`, t.forced ? "warn" : "info");
+                  }
+                } else addLog("Target queue is empty", "info");
+              } catch (e) { addLog(`Load failed: ${e}`, "error"); }
+              setLoading("");
+            }}
+            disabled={!!loading}
+            style={{ ...styles.btnSmall, ...styles.btnWarn, marginBottom: "0" }}
+          >
+            {loading === "loadTargets" ? "..." : "📋 VIEW QUEUE"}
+          </button>
+        </div>
+
+        <div style={styles.panel}>
           <div style={styles.panelTitle}>◈ REPLY CONTROL</div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
             <button
