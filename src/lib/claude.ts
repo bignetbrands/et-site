@@ -118,10 +118,12 @@ export async function generateReply(
 }
 
 /**
- * Generate an image description for a lore tweet (fed to DALL-E).
+ * Generate an image description for an image-enabled tweet (fed to DALL-E).
+ * Pillar determines the visual style prompt.
  */
 export async function generateImageDescription(
-  tweetText: string
+  tweetText: string,
+  pillar?: ContentPillar
 ): Promise<string> {
   const response = await getClient().messages.create({
     model: MODELS.sonnet,
@@ -129,7 +131,7 @@ export async function generateImageDescription(
     messages: [
       {
         role: "user",
-        content: buildImageDescriptionPrompt(tweetText),
+        content: buildImageDescriptionPrompt(tweetText, pillar),
       },
     ],
     temperature: 0.8,

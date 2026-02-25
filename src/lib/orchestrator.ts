@@ -1,7 +1,7 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply } from "./claude";
-import { generateLoreImage, downloadImage } from "./dalle";
+import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, type Mention } from "./twitter";
 import {
   recordTweet,
@@ -243,17 +243,18 @@ async function postAndRecord(
   let tweetId: string;
   let hasImage = false;
 
-  // 3. If lore tweet, generate image
-  if (shouldGenerateImage && pillar === "personal_lore") {
+  // 3. If image-enabled pillar, generate image
+  if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation")) {
     try {
-      console.log("[ET] Generating lore image...");
+      const label = pillar === "personal_lore" ? "lore" : "observation";
+      console.log(`[ET] Generating ${label} image...`);
 
-      // Generate scene description via Claude
-      const sceneDescription = await generateImageDescription(tweetText);
+      // Generate scene description via Claude (pillar-aware)
+      const sceneDescription = await generateImageDescription(tweetText, pillar);
       console.log(`[ET] Scene: ${sceneDescription}`);
 
-      // Generate image via DALL-E
-      const imageUrl = await generateLoreImage(sceneDescription);
+      // Generate image via DALL-E (pillar-aware style)
+      const imageUrl = await generateImage(sceneDescription, pillar);
 
       // Download image
       const imageBuffer = await downloadImage(imageUrl);
@@ -262,7 +263,7 @@ async function postAndRecord(
       tweetId = await postTweetWithImage(tweetText, imageBuffer);
       hasImage = true;
 
-      console.log(`[ET] Posted lore tweet with image: ${tweetId}`);
+      console.log(`[ET] Posted ${label} tweet with image: ${tweetId}`);
     } catch (imageError) {
       console.error("[ET] Image generation failed, posting text-only:", imageError);
       // Fall back to text-only

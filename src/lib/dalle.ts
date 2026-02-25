@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { LORE_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { LORE_IMAGE_PROMPT_PREFIX, OBSERVATION_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { ContentPillar } from "@/types";
 
 let _openai: OpenAI | null = null;
 
@@ -11,21 +12,28 @@ function getClient(): OpenAI {
 }
 
 /**
- * Generate a lore image using DALL-E 3.
+ * Generate an image using DALL-E 3 for the given pillar.
+ * - personal_lore: Super 8mm film style with ET as subject
+ * - human_observation: Egyptian hieroglyphic + Dalí surrealism
  * Returns the image URL (temporary — must be downloaded before posting).
  */
-export async function generateLoreImage(
-  sceneDescription: string
+export async function generateImage(
+  sceneDescription: string,
+  pillar: ContentPillar = "personal_lore"
 ): Promise<string> {
-  const fullPrompt = `${LORE_IMAGE_PROMPT_PREFIX} ${sceneDescription}`;
+  const prefix = pillar === "human_observation"
+    ? OBSERVATION_IMAGE_PROMPT_PREFIX
+    : LORE_IMAGE_PROMPT_PREFIX;
+
+  const fullPrompt = `${prefix} ${sceneDescription}`;
 
   const response = await getClient().images.generate({
     model: "dall-e-3",
     prompt: fullPrompt,
     n: 1,
-    size: "1792x1024", // Landscape for Twitter cards
+    size: "1024x1024", // Square per character bible
     quality: "hd",
-    style: "natural", // Less "AI-looking" than vivid
+    style: pillar === "human_observation" ? "vivid" : "natural",
   });
 
   const imageUrl = response.data?.[0]?.url;
@@ -35,6 +43,9 @@ export async function generateLoreImage(
 
   return imageUrl;
 }
+
+// Keep backward-compatible alias
+export const generateLoreImage = generateImage;
 
 /**
  * Download an image from URL and return as Buffer.
