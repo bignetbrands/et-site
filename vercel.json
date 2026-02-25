@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/tweet",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/replies",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

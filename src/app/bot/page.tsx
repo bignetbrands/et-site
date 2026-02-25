@@ -242,6 +242,51 @@ export default function BotDashboard() {
 
         {/* Pillar Reference */}
         <div style={styles.panel}>
+          <div style={styles.panelTitle}>◈ REPLY CONTROL</div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
+            <button
+              onClick={async () => {
+                setLoading("replies");
+                addLog("Checking mentions & generating replies...", "info");
+                try {
+                  const res = await fetch("/api/manual/replies", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ secret }),
+                  });
+                  const data = await res.json();
+                  if (data.error) { addLog(`Reply error: ${data.error}`, "error"); setLoading(""); return; }
+                  addLog(`Replies: ${data.replied} posted, ${data.skipped} skipped`, data.replied > 0 ? "success" : "info");
+                  if (data.results) {
+                    for (const r of data.results) {
+                      if (r.skipped) {
+                        addLog(`  ⊘ @${r.authorUsername}: ${r.skipReason}`, "warn");
+                      } else {
+                        addLog(`  ✓ @${r.authorUsername}: "${r.replyText.slice(0, 60)}..."`, "success");
+                      }
+                    }
+                  }
+                } catch (e) {
+                  addLog(`Reply check failed: ${e}`, "error");
+                }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPrimary}
+            >
+              {loading === "replies" ? "PROCESSING..." : "📡 CHECK & REPLY TO MENTIONS"}
+            </button>
+            <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>
+              AUTO: every 15 min · MAX: 5/run · 50/day
+            </span>
+          </div>
+          <div style={{ fontSize: "10px", color: "#4a6a4a", lineHeight: "1.6" }}>
+            Fetches new @etalienx mentions → generates in-character replies via Claude → posts them.
+            Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
+          </div>
+        </div>
+
+        <div style={styles.panel}>
           <div style={styles.panelTitle}>◈ DAILY TARGET REFERENCE</div>
           <div style={styles.targetGrid}>
             {PILLARS.map((p) => {
@@ -266,9 +311,9 @@ export default function BotDashboard() {
 
         {/* Footer */}
         <div style={styles.footer}>
-          <span>cron: hourly at :00</span>
+          <span>tweets: hourly · replies: every 15 min</span>
           <span>·</span>
-          <span>model: sonnet (bulk) / opus (lore)</span>
+          <span>model: sonnet (bulk + replies) / opus (lore)</span>
           <span>·</span>
           <span>images: DALL-E 3 (lore only)</span>
         </div>

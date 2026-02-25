@@ -2,9 +2,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ContentPillar } from "@/types";
 import {
   SYSTEM_PROMPT,
+  REPLY_SYSTEM_PROMPT,
   PILLAR_CONFIGS,
   buildTweetPrompt,
   buildImageDescriptionPrompt,
+  buildReplyPrompt,
 } from "./prompts";
 
 let _anthropic: Anthropic | null = null;
@@ -52,6 +54,42 @@ export async function generateTweet(
     .trim()
     .replace(/^["']|["']$/g, "")
     .trim();
+}
+
+/**
+ * Generate a reply to a mention.
+ */
+export async function generateReply(
+  mentionText: string,
+  authorUsername: string,
+  conversationContext?: string
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: MODELS.sonnet,
+    max_tokens: 300,
+    system: REPLY_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: buildReplyPrompt(mentionText, authorUsername, conversationContext),
+      },
+    ],
+    temperature: 0.9,
+  });
+
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  // Clean up: remove quotes, @mentions at start
+  let cleaned = text
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .trim();
+
+  // Remove leading @mentions that Claude might add despite instructions
+  cleaned = cleaned.replace(/^(@\w+\s*)+/, "").trim();
+
+  return cleaned;
 }
 
 /**

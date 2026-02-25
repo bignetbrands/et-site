@@ -111,3 +111,98 @@ export async function getUnderservedPillars(): Promise<ContentPillar[]> {
     return count < min;
   });
 }
+
+// ============================================================
+// MENTION / REPLY TRACKING
+// ============================================================
+
+const LAST_MENTION_KEY = "last_mention_id";
+const REPLIED_KEY = "replied_mentions";
+const REPLY_COUNT_KEY = "reply_count_daily";
+
+/**
+ * Get the last processed mention ID.
+ */
+export async function getLastMentionId(): Promise<string | null> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      return await redis.get(LAST_MENTION_KEY);
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+/**
+ * Store the last processed mention ID.
+ */
+export async function setLastMentionId(id: string): Promise<void> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      await redis.set(LAST_MENTION_KEY, id);
+    } catch {
+      console.warn("[Redis] Failed to save last mention ID");
+    }
+  }
+}
+
+/**
+ * Check if we already replied to a mention.
+ */
+export async function hasReplied(mentionId: string): Promise<boolean> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      return (await redis.sIsMember(REPLIED_KEY, mentionId)) === true;
+    } catch { /* fall through */ }
+  }
+  return false;
+}
+
+/**
+ * Record that we replied to a mention.
+ */
+export async function recordReply(mentionId: string): Promise<void> {
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      await redis.sAdd(REPLIED_KEY, mentionId);
+      // Expire the set after 7 days to prevent unbounded growth
+      await redis.expire(REPLIED_KEY, 604800);
+    } catch {
+      console.warn("[Redis] Failed to record reply");
+    }
+  }
+}
+
+/**
+ * Get today's reply count (rate limiting).
+ */
+export async function getDailyReplyCount(): Promise<number> {
+  const redis = await getRedis();
+  const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
+  if (redis) {
+    try {
+      const count = await redis.get(key);
+      return count ? parseInt(count, 10) : 0;
+    } catch { /* fall through */ }
+  }
+  return 0;
+}
+
+/**
+ * Increment today's reply count.
+ */
+export async function incrementDailyReplyCount(): Promise<void> {
+  const redis = await getRedis();
+  const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
+  if (redis) {
+    try {
+      await redis.incr(key);
+      await redis.expire(key, 172800); // 48h TTL
+    } catch {
+      console.warn("[Redis] Failed to increment reply count");
+    }
+  }
+}
