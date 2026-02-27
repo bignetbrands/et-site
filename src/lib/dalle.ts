@@ -14,7 +14,7 @@ function getClient(): OpenAI {
 
 /**
  * Generate an image using DALL-E 3 for the given pillar.
- * - personal_lore: Cinematic Super 8mm analog — ET in silhouette, warm muted tones, documentary feel
+ * - personal_lore: 1970s Kodak Super 8 documentary realism — ET silhouetted, muted earth tones, practical lighting
  *   → Post-processed with real film grain, vignette, scan lines, color degradation
  * - human_observation: Prehistoric cave painting of modern behavior
  * - existential: Abstract Picasso/Dalí surrealism with futuristic warp

@@ -168,7 +168,12 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // LORE IMAGE PROMPT TEMPLATE — For DALL-E
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Grainy analog photograph of a small extraterrestrial, cinematic low light, shallow depth of field. The alien has a large rounded head and thin neck, subtle ambient light barely revealing faint facial structure (very soft contours of eyes and nose, not glowing, no pinlights). Sometimes one finger raised with a small soft red glow at the tip, diffused light bloom. Light source behind the character creating soft halo and mild lens flare. Super 8mm film still, heavy film grain, dust particles, vignette, slightly underexposed, muted warm tones, realistic photography, moody, intimate, documentary feel. NO sci-fi neon, NO cyberpunk, NO crypto aesthetic, NO clean digital render, NO toy-like appearance. Square format (1024x1024). The scene depicts:`;
+// ============================================================
+// 🎞 ET UNIVERSE — MASTER SCENE PROMPT
+// Base aesthetic is LOCKED. Only the scene line changes per tweet.
+// ============================================================
+
+export const LORE_IMAGE_PROMPT_PREFIX = `Grainy 1970s analog film still, Kodak Super 8, documentary realism, underexposed night photography, practical lighting only, muted earth tones, warm sodium-vapor highlights, deep soft shadows, heavy film grain, dust particles, subtle vignette, soft lens bloom, organic lens flare, slight motion blur, imperfect exposure, handheld camera feel, quiet observational mood, grounded realism, no neon, no cyberpunk, no glossy sci-fi, no futuristic UI, no digital sharpness. Small extraterrestrial with large rounded head and thin neck, slender frame, mostly silhouetted, subtle ambient edge lighting revealing faint natural facial contours, no glowing eyes, realistic proportions, restrained expression, quiet presence. Square format (1024x1024). Scene:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
@@ -410,36 +415,41 @@ Rules:
 Output ONLY the scene description, nothing else.`;
   }
 
-  // Default: Personal Lore — Cinematic analog, bunker/hiding aesthetic
-  return `You are generating a visual description for a DALL-E image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
+  // Default: Personal Lore — Generate ONLY the scene line for the master prompt
+  return `You are generating a SCENE LINE for an image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
 
 "${tweetText}"
 
-The image style is: Grainy analog Super 8mm film still. Cinematic, moody, intimate — like a documentary frame of an extraterrestrial in hiding.
+The scene line will be appended to a locked base aesthetic prompt (1970s Kodak Super 8, grainy, documentary realism, underexposed night photography, muted earth tones). You do NOT need to describe film grain, lighting style, or camera qualities — that's already handled.
 
-Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet.
+Write 1-2 sentences describing ONLY the scene — what ET is doing, where he is, what's in the frame.
 
-THE ALIEN — consistent look every image:
-- Small extraterrestrial with large rounded head, thin neck, thin limbs
-- Mostly in silhouette or low-light, with ambient light barely revealing soft facial contours (eyes, nose — never glowing, never pinlights)
-- Sometimes one finger raised with a small soft red glow at the tip (diffused, not laser)
-- Backlight creating soft halo around head, mild lens flare
+SCENE LINE EXAMPLES (match this format and energy):
+- ET standing outside a rural gas station at night under a flickering sodium-vapor light
+- ET walking through tall desert grass under moonlight, distant hills on the horizon
+- ET sitting alone inside a dim bunker filled with old radio equipment and stacked boxes
+- ET observing distant military vehicles from a hillside, crouched low in scrub brush
+- ET emerging from fog near a forest treeline, one hand raised with a faint soft red glow at the fingertip
+- ET hiding behind rusted barrels in an abandoned warehouse, a single bare bulb swinging overhead
+- ET sitting on a cracked concrete step outside a motel, staring at the sky
+- ET standing at the edge of a wheat field at dusk, wind bending the stalks around him
+- ET inside a dimly lit room watching static on an old CRT television, shelves of clutter behind him
 
-ENVIRONMENT — varies per tweet but always grounded:
-- Default: dim bunker basement, cluttered shelves, boxes, old equipment (his hiding spot)
-- Can also be: looking out a rain-streaked window, standing in an overgrown field at dusk, in a dim hallway, at the edge of a rooftop at night, in an abandoned room — match the tweet's mood
-- Background always out of focus (shallow depth of field)
-- Lived-in, real, textured — dust, concrete, wood, rust, clutter
+CAMERA FRAMING (pick one if it fits the mood):
+- over-the-shoulder framing
+- long lens compression as if shot from far away
+- partially obstructed frame like filmed secretly
+- accidental documentary capture
+- off-center composition
+- subject barely visible in darkness
 
-FILM QUALITIES — baked into every description:
-- Heavy film grain, dust particles floating in light beams
-- Muted warm tones (ambers, browns, muted yellows)
-- Slightly underexposed, vignette at edges
-- Cinematic low light — single practical light source (bare bulb, window light, moonlight)
+RULES:
+- Match the emotional tone of the tweet — lonely tweets get isolated settings, memory tweets get intimate/close settings, crash/trauma tweets get harsh landscapes
+- Keep it grounded and real — rural America, desert, industrial, suburban, bunker
+- NEVER mention film grain, camera type, lighting style, or aesthetic — the base prompt handles all of that
+- NEVER: neon, cyberpunk, glossy sci-fi, futuristic UI, high saturation, digital clarity, CGI
 
-NEVER: sci-fi neon, cyberpunk, crypto aesthetic, clean digital, bright lighting, toy-like, whimsical, portrait-style composition
-
-Output ONLY the scene description, nothing else.`;
+Output ONLY the scene line. Nothing else.`;
 }
 
 // ============================================================
@@ -515,23 +525,20 @@ RULES:
 // ============================================================
 
 export function buildLateReplyImagePrompt(delayLabel: string): string {
-  return `Generate a short, vivid scene description (1-2 sentences) for a DALL-E image showing what ET was doing instead of checking his phone.
+  return `Generate a SCENE LINE (1-2 sentences) for a DALL-E image showing what ET was doing instead of checking his phone. He took ${delayLabel} to reply.
 
-ET is a small extraterrestrial with a large rounded head, thin neck, thin limbs. He is mostly in silhouette with ambient light barely revealing soft facial contours. Sometimes one finger raised with a small soft red glow at the tip.
-
-The image shows ET caught in the middle of some mundane activity that explains why he took ${delayLabel} to reply.
+The scene line will be appended to a locked base aesthetic prompt (1970s Kodak Super 8, grainy, documentary realism). You do NOT describe film grain, camera style, or lighting — just the scene.
 
 Ideas (pick one or invent):
-- ET in his dim bunker, hunched over an old monitor with cables everywhere, background shelves cluttered with boxes — soft backlight halo around his head
-- ET sitting in tall grass at dusk, looking up at the sky, a warm golden rim-light behind him — background completely out of focus
-- ET in a dark kitchen, standing on a stool reaching for something on a high shelf — a single bare bulb overhead casting a warm pool of light
-- ET curled up in a corner with a CRT TV glowing nearby — dust particles floating in the light beam
-- ET at a rain-streaked window, one hand on the glass, red fingertip glowing faintly — the outside world blurred through the wet pane
-- ET on a rooftop at night, small figure at the far edge, moonlight creating a soft halo — city lights blurred in the background
+- ET sitting inside a dim bunker hunched over an old radio set, surrounded by stacked boxes and tangled cables
+- ET standing in tall grass at dusk staring at the sky, wind bending the stalks around him
+- ET in a dark kitchen standing on a stool reaching for a high shelf, single bare bulb overhead
+- ET curled up in the corner of a dimly lit room with a CRT TV playing static nearby
+- ET standing at a rain-streaked window, one hand on the glass, faint red glow at his fingertip
+- ET walking along an empty rural road at night, distant headlights approaching on the horizon
+- ET sitting on a rooftop at the edge, looking out over scattered lights in the distance
 
-Style: Grainy analog Super 8mm film still. Heavy film grain, dust particles, muted warm tones, slightly underexposed, vignette, shallow depth of field. Cinematic low light, documentary feel, moody and intimate. NO sci-fi neon, NO cyberpunk, NO clean digital. Square format.
-
-Output ONLY the scene description.`;
+Output ONLY the scene line. Nothing else.`;
 }
 
 // ============================================================
