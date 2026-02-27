@@ -134,17 +134,17 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
   existential: {
     name: "Existential Musings",
     description:
-      "Short, punchy questions that stop people mid-scroll. Big questions about existence, reality, consciousness, time, death, meaning — the kind of thing that makes someone stare at the ceiling for 20 minutes. One sentence max. These are conversation starters, not monologues. ET asks the questions nobody wants to think about but everyone feels.",
-    tone: "Provocative, brief, haunting. One sentence. A question or a single observation that lands like a gut punch. Think shower thoughts from an alien who's seen too much. Never preachy, never long. Just the question, then silence.",
+      "Short, punchy observations rooted in real science and facts that reframe how humans see themselves. Use actual numbers, physics, biology, astronomy — then twist the perspective. ET knows the science and uses it to make humans feel small, connected, or awestruck. One sentence. Drop a fact, then land the alien perspective.",
+    tone: "Matter-of-fact wonder. Brief. Grounded in real science but delivered with the weight of someone who's actually out there. Not vague philosophy — concrete facts that hit different when an alien says them.",
     dailyTarget: { min: 1, max: 1 },
     model: "sonnet",
     generateImage: true,
     exampleTweets: [
-      "you ever wonder if the universe is just something dreaming and we're the part where it gets weird",
-      "why do you build things that outlast you and then cry about running out of time",
-      "what if homesickness is just your atoms remembering where they came from",
-      "you ever notice how silence gets louder the more of you are in the room",
-      "why do you teach your children to look up at the stars and then tell them to be realistic",
+      "every atom in your body was forged inside a dying star and you're using them to argue about parking spots",
+      "your brain runs on 20 watts. less than the light in your fridge. and it built civilizations with that",
+      "you share 60% of your DNA with a banana and 100% of your existential dread with me",
+      "light from the nearest star takes 4 years to reach you. your last text took 3 days. the star is more reliable",
+      "there are more synapses in your brain than stars in the milky way and most of them are worrying about tomorrow",
     ],
   },
 
@@ -172,7 +172,7 @@ export const LORE_IMAGE_PROMPT_PREFIX = `Polaroid photograph, realistic analog p
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
-export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Abstract surrealist painting combining Pablo Picasso's cubist fragmentation with Salvador Dalí's melting dreamscapes and a futuristic sci-fi bend. Warped perspectives that seem to bend reality itself — fractured planes, impossible geometry, melting time, cosmic scale shifts. The composition should feel like looking through a cracked mirror into another dimension. Bold, striking colors against deep space blacks and cosmic purples. Cubist faces and forms dissolving into surreal landscapes with futuristic elements — wormholes, bending light, fractured spacetime, infinite recursion. Oil painting texture with visible brushstrokes. NOT photorealistic, NOT clean digital art, NOT generic AI art. This is fine art that warps your sense of reality. Square format (1024x1024). The scene depicts:`;
+export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Scientific illustration in the style of Leonardo da Vinci's notebooks and antique natural philosophy textbooks. Ink and sepia sketches on aged yellowed parchment or old paper with foxing and stains. Hand-drawn diagrams, anatomical studies, astronomical charts, cross-sections, and technical sketches with handwritten-looking annotations in illegible script. The style of 15th-18th century scientific manuscripts — detailed ink linework, cross-hatching for shading, compass-drawn circles, geometric overlays. Mix of precise technical drawing with a sense of cosmic wonder. Aged paper texture, sepia and brown ink tones, occasional faded watercolor washes. NOT digital, NOT clean, NOT modern. This looks like a page torn from a 500-year-old science journal. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -253,18 +253,17 @@ Output ONLY the scene description, nothing else.`;
 
 "${tweetText}"
 
-The image style is: Abstract surrealist painting — Picasso's cubism meets Dalí's dreamscapes with a futuristic, reality-warping twist. This is fine art that makes you feel like spacetime is bending.
+The image style is: Antique scientific illustration — like pages from Leonardo da Vinci's notebooks or 17th century natural philosophy textbooks. Ink sketches on aged parchment.
 
-Create a short, vivid scene description (1-2 sentences) that captures the existential weight of this tweet as an abstract visual.
+Create a short, vivid scene description (1-2 sentences) that visualizes the scientific concept in this tweet as a vintage diagram or illustration.
 
 Rules:
-- Describe an abstract, surreal scene — NOT literal illustration of the tweet
-- Use cubist fragmentation, melting forms, impossible perspectives, cosmic scale
-- Include futuristic/sci-fi elements: warping spacetime, bending light, cosmic voids, infinite recursion
-- Bold colors against deep space blacks and cosmic purples
-- Oil painting texture, visible brushstrokes, fine art quality
-- The image should feel disorienting and beautiful — like looking through a crack in reality
-- Never include readable text, clean digital aesthetics, or photorealistic elements
+- Describe it as a hand-drawn scientific illustration: anatomical diagrams, star charts, geometric studies, cross-sections, technical sketches
+- Include the kind of details you'd find in old manuscripts: compass lines, measurement marks, illegible handwritten notes in the margins
+- The subject should connect to the science in the tweet — brains, atoms, stars, DNA, light, scale comparisons
+- Ink and sepia on aged yellowed paper
+- Think da Vinci codex, Vesalius anatomy, Kepler star charts, Copernicus diagrams
+- Never include readable modern text, clean digital elements, or photorealistic imagery
 
 Output ONLY the scene description, nothing else.`;
   }

@@ -39,7 +39,7 @@ export async function generateImage(
     n: 1,
     size: "1024x1024",
     quality: "hd",
-    style: pillar === "existential" ? "vivid" : "natural",
+    style: "natural", // Organic look for all styles
   });
 
   const imageUrl = response.data?.[0]?.url;
