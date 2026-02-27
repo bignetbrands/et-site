@@ -13,7 +13,7 @@ function getClient(): OpenAI {
 
 /**
  * Generate an image using DALL-E 3 for the given pillar.
- * - personal_lore: Polaroid photograph with ET as subject
+ * - personal_lore: Found footage / classified leak — ET barely visible, grainy, surveillance aesthetic
  * - human_observation: Prehistoric cave painting of modern behavior
  * - existential: Abstract Picasso/Dalí surrealism with futuristic warp
  * Returns the image URL (temporary — must be downloaded before posting).

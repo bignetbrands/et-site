@@ -168,7 +168,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // LORE IMAGE PROMPT TEMPLATE — For DALL-E
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Polaroid photograph, realistic analog photography. A small, gentle alien figure with large eyes is the central subject. Warm natural tones, slightly washed-out color, soft natural lighting. The image feels like a real Polaroid snapshot — intimate, candid, slightly imperfect. Realistic photographic quality with the subtle color shift and soft vignette of instant film. NOT digital, NOT clean, NOT AI-looking. NO film strips, NO sprocket holes, NO borders, NO frame edges, NO Polaroid white border. Square format (1024x1024). The scene depicts:`;
+export const LORE_IMAGE_PROMPT_PREFIX = `Grainy found footage photograph, leaked classified image. A small alien figure is BARELY VISIBLE — shown only as a dark silhouette, a blurry shape in the background, a figure half-hidden behind a wall or doorframe, or a murky shadow caught on a low-quality camera. The environment is REAL and grounded — concrete walls, dim hallways, overgrown fields, empty rooms, night streets. Heavy film grain, VHS artifacts, motion blur, low resolution, surveillance camera quality. Dark, underexposed, with harsh single light sources creating deep shadows. The alien is NEVER fully revealed — always obscured, distant, partially blocked, or out of focus. Like a still frame from classified footage that was never meant to be seen. NOT clean, NOT digital, NOT CGI, NOT a toy, NOT a portrait. Square format (1024x1024). The scene depicts:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
@@ -410,23 +410,23 @@ Rules:
 Output ONLY the scene description, nothing else.`;
   }
 
-  // Default: Personal Lore — Polaroid photograph style
+  // Default: Personal Lore — Found footage / classified leak style
   return `You are generating a visual description for a DALL-E image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
 
 "${tweetText}"
 
-The image style is: Realistic Polaroid photograph. ET's private, intimate snapshots — he is the subject.
+The image style is: Found footage / leaked classified photograph. Like a still frame from surveillance tape or a blurry photo taken in secret. ET is hiding — he is NEVER fully revealed.
 
 Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet as a visual.
 
 Rules:
-- ET himself is ALWAYS the central figure — a small, gentle alien figure with large eyes, clearly not human
-- Show his posture, his environment, his solitude
-- Describe a realistic, grounded scene — as if someone took a candid Polaroid of ET in that moment
-- Focus on mood and emotion, but keep the scene photographic and believable
-- The mood should feel intimate, private — like a snapshot taken by someone who cared about him
-- Never include text, watermarks, borders, or UI elements
-- Never describe human subjects in place of ET
+- ET is ALWAYS obscured — a silhouette in a doorway, a blurry figure in the background, a shadow behind a wall, a shape barely visible in the dark. NEVER a clear full-body shot.
+- He can be: peeking from behind something, caught mid-motion (blurry), seen from far away, a dark shape against dim light, partially blocked by foreground objects
+- The ENVIRONMENT is the star — real, grounded locations: dim concrete rooms, overgrown fields at dusk, empty hallways, rain-streaked windows, abandoned structures, quiet suburban streets at night
+- Heavy grain, VHS quality, surveillance camera aesthetic, motion blur, underexposed
+- Mood: eerie, lonely, intimate — like someone found this footage years later and it raises more questions than answers
+- Never: clean/sharp images, toy-like aliens, CGI look, bright lighting, portrait-style shots, cute or whimsical tone
+- The image should feel like evidence, not art
 
 Output ONLY the scene description, nothing else.`;
 }
@@ -508,17 +508,16 @@ export function buildLateReplyImagePrompt(delayLabel: string): string {
 
 The image should be humorous — ET caught in the middle of some absurd activity that explains why he took ${delayLabel} to reply. 
 
-Ideas (pick one or invent something funnier):
-- ET sitting cross-legged in a field of tall grass, eyes closed, clearly "touching grass" very literally
-- ET hunched over an ancient-looking computer setup in a dim room, tangled in cables, clearly coding
-- ET standing on a rooftop at night staring at the moon with binoculars, oblivious to his buzzing phone
-- ET in a grocery store aisle, completely baffled by the cereal selection, holding two boxes
-- ET curled up asleep on a couch with a nature documentary playing on a CRT TV
-- ET squatting in a garden poking at a plant with scientific curiosity
-- ET sitting in a tree reading a thick book with his phone on the ground far below
-- ET attempting to use a toaster and looking at it like alien technology
+Ideas (pick one or invent something — remember ET is barely visible, always obscured):
+- A blurry silhouette sitting in tall grass at dusk, seen from far away through a chain-link fence
+- Surveillance camera angle of a dim room with a glowing monitor — a dark shape hunched in front of it, tangled cables everywhere
+- A rooftop at night, grainy — a small dark figure standing at the edge staring up at the moon, barely distinguishable from the shadows
+- Security camera footage of a grocery store aisle — a small shape at the far end, blurry, reaching for something on a shelf
+- A dark living room lit only by a CRT TV playing static — a figure curled up on the couch, mostly shadow
+- A garden at twilight shot from behind a fence — something small crouching near the plants, out of focus
+- Night street, motion blur — a figure darting between parked cars, caught mid-step
 
-Style: Realistic Polaroid photograph — warm natural tones, slightly washed-out color, soft natural lighting, candid and intimate. Square format. ET (small gentle alien with large eyes) is the central figure. Cozy, funny, slice-of-life. NO borders, NO white frame, NO film strips.
+Style: Grainy found footage / surveillance camera quality. Heavy film grain, VHS artifacts, dark and underexposed. ET is barely visible — a silhouette, a blurry shape, half-hidden behind something. Real environment (kitchen, rooftop, field, store aisle). The image should look like leaked security camera footage, not a portrait. Square format. NOT clean, NOT digital, NOT a toy.
 
 Output ONLY the scene description.`;
 }
