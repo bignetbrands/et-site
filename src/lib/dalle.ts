@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { LORE_IMAGE_PROMPT_PREFIX, OBSERVATION_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { LORE_IMAGE_PROMPT_PREFIX, OBSERVATION_IMAGE_PROMPT_PREFIX, EXISTENTIAL_IMAGE_PROMPT_PREFIX } from "./prompts";
 import { ContentPillar } from "@/types";
 
 let _openai: OpenAI | null = null;
@@ -13,17 +13,23 @@ function getClient(): OpenAI {
 
 /**
  * Generate an image using DALL-E 3 for the given pillar.
- * - personal_lore: Super 8mm film style with ET as subject
- * - human_observation: Egyptian hieroglyphic + Dalí surrealism
+ * - personal_lore: Polaroid photograph with ET as subject
+ * - human_observation: Prehistoric cave painting of modern behavior
+ * - existential: Abstract Picasso/Dalí surrealism with futuristic warp
  * Returns the image URL (temporary — must be downloaded before posting).
  */
 export async function generateImage(
   sceneDescription: string,
   pillar: ContentPillar = "personal_lore"
 ): Promise<string> {
-  const prefix = pillar === "human_observation"
-    ? OBSERVATION_IMAGE_PROMPT_PREFIX
-    : LORE_IMAGE_PROMPT_PREFIX;
+  let prefix: string;
+  if (pillar === "human_observation") {
+    prefix = OBSERVATION_IMAGE_PROMPT_PREFIX;
+  } else if (pillar === "existential") {
+    prefix = EXISTENTIAL_IMAGE_PROMPT_PREFIX;
+  } else {
+    prefix = LORE_IMAGE_PROMPT_PREFIX;
+  }
 
   const fullPrompt = `${prefix} ${sceneDescription}`;
 
@@ -31,9 +37,9 @@ export async function generateImage(
     model: "dall-e-3",
     prompt: fullPrompt,
     n: 1,
-    size: "1024x1024", // Square per character bible
+    size: "1024x1024",
     quality: "hd",
-    style: "natural", // Natural for both — organic look
+    style: pillar === "existential" ? "vivid" : "natural",
   });
 
   const imageUrl = response.data?.[0]?.url;

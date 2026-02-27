@@ -244,9 +244,9 @@ async function postAndRecord(
   let hasImage = false;
 
   // 3. If image-enabled pillar, generate image
-  if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation")) {
+  if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential")) {
     try {
-      const label = pillar === "personal_lore" ? "lore" : "observation";
+      const label = pillar === "personal_lore" ? "lore" : pillar === "human_observation" ? "observation" : "existential";
       console.log(`[ET] Generating ${label} image...`);
 
       // Generate scene description via Claude (pillar-aware)
@@ -454,7 +454,7 @@ export async function dryRun(
   };
 
   // Generate image preview for image-enabled pillars
-  if (pillar === "personal_lore" || pillar === "human_observation") {
+  if (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential") {
     try {
       const sceneDescription = await generateImageDescription(tweetText, pillar);
       const imageUrl = await generateImage(sceneDescription, pillar);

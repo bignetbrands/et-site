@@ -134,15 +134,17 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
   existential: {
     name: "Existential Musings",
     description:
-      "Big questions about life, loneliness, meaning, connection, and the human condition — from someone who experiences all of it as an outsider. ET's existential observations resonate because his literal alienation mirrors the figurative alienation most humans feel.",
-    tone: "Deep, relatable, sometimes heavy but never preachy. He's not dispensing wisdom — he's processing the same questions everyone has. He just has a unique vantage point.",
+      "Short, punchy questions that stop people mid-scroll. Big questions about existence, reality, consciousness, time, death, meaning — the kind of thing that makes someone stare at the ceiling for 20 minutes. One sentence max. These are conversation starters, not monologues. ET asks the questions nobody wants to think about but everyone feels.",
+    tone: "Provocative, brief, haunting. One sentence. A question or a single observation that lands like a gut punch. Think shower thoughts from an alien who's seen too much. Never preachy, never long. Just the question, then silence.",
     dailyTarget: { min: 1, max: 1 },
     model: "sonnet",
-    generateImage: false,
+    generateImage: true,
     exampleTweets: [
-      "7 billion of you on this rock and most of you feel alone. trust me, i get it. the loneliest number isn't one. it's one in a universe that won't answer back",
-      "humans ask \"are we alone in the universe\" like it's a science question. it's not. it's the oldest prayer there is",
-      "you spend your whole lives looking for someone who gets you. i spend mine looking for someone who remembers me. same search different frequency",
+      "you ever wonder if the universe is just something dreaming and we're the part where it gets weird",
+      "why do you build things that outlast you and then cry about running out of time",
+      "what if homesickness is just your atoms remembering where they came from",
+      "you ever notice how silence gets louder the more of you are in the room",
+      "why do you teach your children to look up at the stars and then tell them to be realistic",
     ],
   },
 
@@ -169,6 +171,8 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 export const LORE_IMAGE_PROMPT_PREFIX = `Polaroid photograph, realistic analog photography. A small, gentle alien figure with large eyes is the central subject. Warm natural tones, slightly washed-out color, soft natural lighting. The image feels like a real Polaroid snapshot — intimate, candid, slightly imperfect. Realistic photographic quality with the subtle color shift and soft vignette of instant film. NOT digital, NOT clean, NOT AI-looking. NO film strips, NO sprocket holes, NO borders, NO frame edges, NO Polaroid white border. Square format (1024x1024). The scene depicts:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
+
+export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Abstract surrealist painting combining Pablo Picasso's cubist fragmentation with Salvador Dalí's melting dreamscapes and a futuristic sci-fi bend. Warped perspectives that seem to bend reality itself — fractured planes, impossible geometry, melting time, cosmic scale shifts. The composition should feel like looking through a cracked mirror into another dimension. Bold, striking colors against deep space blacks and cosmic purples. Cubist faces and forms dissolving into surreal landscapes with futuristic elements — wormholes, bending light, fractured spacetime, infinite recursion. Oil painting texture with visible brushstrokes. NOT photorealistic, NOT clean digital art, NOT generic AI art. This is fine art that warps your sense of reality. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -240,6 +244,27 @@ Rules:
 - Keep the description grounded in what would actually appear in a cave painting — simple shapes, stick figures, basic silhouettes
 - Never include readable text, clean digital elements, or realistic human figures
 - Think: "what if a cave painter tried to document someone scrolling TikTok"
+
+Output ONLY the scene description, nothing else.`;
+  }
+
+  if (pillar === "existential") {
+    return `You are generating a visual description for a DALL-E image to accompany this Existential tweet by ET (an alien stranded on Earth):
+
+"${tweetText}"
+
+The image style is: Abstract surrealist painting — Picasso's cubism meets Dalí's dreamscapes with a futuristic, reality-warping twist. This is fine art that makes you feel like spacetime is bending.
+
+Create a short, vivid scene description (1-2 sentences) that captures the existential weight of this tweet as an abstract visual.
+
+Rules:
+- Describe an abstract, surreal scene — NOT literal illustration of the tweet
+- Use cubist fragmentation, melting forms, impossible perspectives, cosmic scale
+- Include futuristic/sci-fi elements: warping spacetime, bending light, cosmic voids, infinite recursion
+- Bold colors against deep space blacks and cosmic purples
+- Oil painting texture, visible brushstrokes, fine art quality
+- The image should feel disorienting and beautiful — like looking through a crack in reality
+- Never include readable text, clean digital aesthetics, or photorealistic elements
 
 Output ONLY the scene description, nothing else.`;
   }
