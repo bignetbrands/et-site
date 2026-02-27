@@ -23,13 +23,13 @@ export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
   let processed = sharp(imageBuffer)
     .resize(size, size, { fit: "cover" })
     .modulate({
-      saturation: 0.25, // Very desaturated — expired film loses color
-      brightness: 0.55, // Significantly underexposed
+      saturation: 0.3, // Washed out expired film
+      brightness: 0.7, // Less aggressive — let the figure be visible enough to see wrong proportions
     })
     // Expired film green-yellow cast
     .tint({ r: 165, g: 185, b: 155 })
-    // Kill AI sharpness — real film is soft
-    .blur(1.2);
+    // Soften AI sharpness but keep figure shape readable
+    .blur(0.9);
 
   const baseBuffer = await processed.png().toBuffer();
 
@@ -83,8 +83,8 @@ export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
     })
     // Gamma shift for expired film look — greens/yellows pushed
     .gamma(1.9, 1.5)
-    // Heavy JPEG compression artifacts — like it's been saved/resaved many times
-    .jpeg({ quality: 38 })
+    // JPEG compression artifacts — like resaved a few times, not completely destroyed
+    .jpeg({ quality: 48 })
     .toBuffer();
 
   // Back to PNG for Twitter
@@ -142,9 +142,9 @@ async function generateVignette(size: number): Promise<Buffer> {
       const dist = Math.sqrt(dx * dx + dy * dy);
       const normalized = dist / maxDist;
 
-      // Very aggressive vignette — nearly black corners
+      // Aggressive but not total blackout — need to see figure proportions
       const brightness = Math.max(0, Math.min(255,
-        Math.floor(255 * (1 - Math.pow(normalized, 1.3) * 0.92))
+        Math.floor(255 * (1 - Math.pow(normalized, 1.4) * 0.85))
       ));
 
       vignetteData[i] = brightness;

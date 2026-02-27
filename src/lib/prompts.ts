@@ -168,7 +168,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // LORE IMAGE PROMPT TEMPLATE — For DALL-E
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Photograph taken on expired 35mm film stock, circa early 2000s disposable camera. EXTREME film grain — visible grain structure across entire image like ISO 3200 film pushed two stops. Color shift toward sickly green-yellow tint with deep blue shadows. Scratches, dust particles, and chemical stains on the negative. Light leaks bleeding orange and magenta from the edges. Slight lens distortion and chromatic aberration on edges. The atmosphere is THICK — fog, haze, humidity, dust in the air catching light. A small alien figure is BARELY VISIBLE — shown only as a dark silhouette, a blurry shape partially hidden, a murky shadow caught at the edge of frame, or a figure obscured by fog/darkness/objects. The environment is HYPER-REAL and lived-in — cracked concrete, peeling paint, wet asphalt, rusty fences, flickering fluorescent lights, overgrown weeds, stained walls, condensation on windows. Underexposed with harsh single practical light sources (streetlamp, bare bulb, headlights, TV glow) creating pools of light in deep darkness. The alien is NEVER fully revealed — always distant, obscured, half-hidden, or caught in motion blur. This looks like a real photograph someone found in a shoebox. NOT clean, NOT digital, NOT CGI, NOT AI-generated, NOT a toy, NOT a portrait, NOT well-composed. Square format (1024x1024). The scene depicts:`;
+export const LORE_IMAGE_PROMPT_PREFIX = `Photograph taken on expired 35mm film stock, circa early 2000s disposable camera. EXTREME film grain — visible grain structure like ISO 3200 pushed two stops. Sickly green-yellow color shift with deep blue shadows. Scratches, dust particles, chemical stains on the negative. Light leaks bleeding orange and magenta from edges. Chromatic aberration on edges. The atmosphere is THICK — fog, haze, humidity, dust catching light. There is a small figure with DISTINCTLY NON-HUMAN proportions — oversized smooth head, very thin elongated limbs, small childlike stature (3-4 feet tall), no hair — clearly not a human being. The figure is obscured through NATURAL PHOTOGRAPHIC CAUSES only: shallow depth of field (figure out of focus while environment is sharp, or vice versa), motion blur from movement, partially hidden behind real objects (doorframes, furniture, fences, foliage), distance (small in the frame, far from camera), shot through dirty glass or rain-streaked windows, backlit by a light source creating rim-light silhouette with alien head shape visible, caught at the very edge of frame as if photographer didn't notice them, obscured by atmospheric haze or fog. The environment is HYPER-REAL and lived-in — cracked concrete, peeling paint, wet asphalt, rusty fences, flickering fluorescent lights, overgrown weeds, stained walls, condensation on windows. NEVER darken or blacken the figure artificially. The obscurity must look like it happened naturally through the camera or environment. This looks like a real photograph someone found in a shoebox. NOT clean, NOT digital, NOT CGI, NOT a toy, NOT a portrait. Square format (1024x1024). The scene depicts:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
@@ -415,18 +415,27 @@ Output ONLY the scene description, nothing else.`;
 
 "${tweetText}"
 
-The image style is: Real photograph on expired film — like something found in a shoebox or recovered from a classified archive. Grainy, atmospheric, haunting.
+The image style is: Real photograph on expired film. A figure with clearly NON-HUMAN proportions (oversized head, thin limbs, small stature) is partially visible — obscured by NATURAL photographic or environmental causes.
 
-Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet as a visual.
+Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet.
 
-Rules:
-- ET is ALWAYS obscured — a silhouette in a doorway, a blurry figure at the end of a hallway, a shadow behind a rain-streaked window, a shape barely visible in fog. NEVER a clear shot.
-- ATMOSPHERE is everything — describe fog, rain, dust in the air, humidity, haze, breath visible in cold air, light catching particles. The air itself should feel textured.
-- ENVIRONMENT must feel hyper-real and LIVED-IN: cracked walls, wet pavement, flickering lights, rust, peeling paint, overgrown weeds, stained concrete, condensation. Never clean or new.
-- LIGHTING is practical and harsh: a single streetlamp, bare bulb swinging, car headlights through fog, TV glow from another room, moonlight through broken blinds. Deep shadows everywhere.
-- Think about what makes a real photo feel real: imperfect framing, slightly off-center, subject partially cut off, foreground objects slightly out of focus
-- NEVER: clean/sharp images, well-lit scenes, portrait composition, toy-like aliens, bright colors, whimsical or cute tone, CGI aesthetic
-- The image should feel like EVIDENCE — accidental, not composed
+CRITICAL — THE FIGURE MUST READ AS ALIEN, NOT HUMAN:
+- Oversized smooth head, thin elongated limbs, small childlike body (3-4 feet), no hair
+- Even when blurry or partially hidden, the proportions should be clearly wrong for a human
+
+OBSCURITY MUST COME FROM NATURAL CAUSES (pick one or two per image):
+- Shallow depth of field: figure is out of focus while foreground/background is sharp
+- Motion blur: figure caught mid-movement, streaked
+- Partially behind objects: peeking from behind a doorframe, half-hidden by furniture, through fence gaps
+- Distance: figure is small in the frame, far from camera in a large space
+- Through dirty/wet glass: shot through a rain-streaked window or foggy pane
+- Backlighting: light source behind figure creates rim-light outline showing alien head shape
+- Edge of frame: figure at the far edge as if the photographer didn't even notice them
+- Atmospheric: fog, rain, haze naturally softening the figure
+- Foreground obstruction: something closer to camera is sharp and partially blocks the figure
+
+ENVIRONMENT is hyper-real and lived-in: describe specific textures, stains, wear. Real locations.
+NEVER say "darkened", "shadowed figure", "dark silhouette" — the figure should be LIT enough to see the wrong proportions, just obscured by natural camera/environment reasons.
 
 Output ONLY the scene description, nothing else.`;
 }
@@ -504,20 +513,21 @@ RULES:
 // ============================================================
 
 export function buildLateReplyImagePrompt(delayLabel: string): string {
-  return `Generate a short, vivid scene description (1-2 sentences) for a DALL-E image showing what ET (a small, gentle alien with large eyes) was doing instead of checking his phone.
+  return `Generate a short, vivid scene description (1-2 sentences) for a DALL-E image showing what ET was doing instead of checking his phone.
 
-The image should be humorous — ET caught in the middle of some absurd activity that explains why he took ${delayLabel} to reply. 
+ET has DISTINCTLY NON-HUMAN proportions: oversized smooth head, thin elongated limbs, small childlike stature (3-4 feet), no hair. Even partially visible, the proportions are clearly wrong for a human.
 
-Ideas (pick one or invent something — remember ET is barely visible, always obscured):
-- A blurry silhouette sitting in tall grass at dusk, seen from far away through a chain-link fence
-- Surveillance camera angle of a dim room with a glowing monitor — a dark shape hunched in front of it, tangled cables everywhere
-- A rooftop at night, grainy — a small dark figure standing at the edge staring up at the moon, barely distinguishable from the shadows
-- Security camera footage of a grocery store aisle — a small shape at the far end, blurry, reaching for something on a shelf
-- A dark living room lit only by a CRT TV playing static — a figure curled up on the couch, mostly shadow
-- A garden at twilight shot from behind a fence — something small crouching near the plants, out of focus
-- Night street, motion blur — a figure darting between parked cars, caught mid-step
+The image should show ET caught in the middle of some mundane activity that explains why he took ${delayLabel} to reply. He is partially obscured by NATURAL photographic causes (out of focus, behind objects, through glass, motion blur, distance, edge of frame).
 
-Style: Real photograph on expired 35mm film. Extreme grain, green-yellow color shift, scratches and dust on the negative, light leaks from edges. Thick atmosphere — fog, haze, dust in the air. ET is barely visible — a dark silhouette, a blur, half-hidden. Environment is hyper-real and gritty (real kitchen, real rooftop, real field, real store). Underexposed, harsh practical lighting. Looks like a real photo someone accidentally took. NOT clean, NOT digital, NOT a toy, NOT well-composed. Square format.
+Ideas (pick one or invent — figure has alien proportions but is naturally obscured):
+- A figure with an oversized head sitting in tall grass, shot through a chain-link fence with the fence sharp and figure soft (shallow depth of field)
+- A small non-human shape hunched over a glowing monitor, seen through a dirty window — condensation blurring the glass
+- A rooftop at night — a small thin-limbed figure at the far edge staring at the moon, distant and small in the wide frame
+- Grocery store aisle — something short with a big head at the far end reaching for a shelf, caught in motion blur
+- A living room lit by CRT glow — a figure with wrong proportions curled on the couch, foreground lamp shade blocking half the view
+- A garden — something small crouching near plants, shot through a rain-streaked window from inside the house
+
+Style: Real photograph on expired 35mm film. Extreme grain, green-yellow color shift, scratches on negative, light leaks. Thick atmosphere. Environment is hyper-real (real kitchen, real rooftop, real field). NEVER artificially darken the figure — obscurity comes from camera/environment only. Square format.
 
 Output ONLY the scene description.`;
 }
