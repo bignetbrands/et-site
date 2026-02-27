@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { LORE_IMAGE_PROMPT_PREFIX, OBSERVATION_IMAGE_PROMPT_PREFIX, EXISTENTIAL_IMAGE_PROMPT_PREFIX } from "./prompts";
 import { ContentPillar } from "@/types";
+import { applyFilmGrain } from "./film-process";
 
 let _openai: OpenAI | null = null;
 
@@ -14,6 +15,7 @@ function getClient(): OpenAI {
 /**
  * Generate an image using DALL-E 3 for the given pillar.
  * - personal_lore: Found footage / classified leak — ET barely visible, grainy, surveillance aesthetic
+ *   → Post-processed with real film grain, vignette, scan lines, color degradation
  * - human_observation: Prehistoric cave painting of modern behavior
  * - existential: Abstract Picasso/Dalí surrealism with futuristic warp
  * Returns the image URL (temporary — must be downloaded before posting).
@@ -55,13 +57,27 @@ export const generateLoreImage = generateImage;
 
 /**
  * Download an image from URL and return as Buffer.
+ * For personal_lore images, applies film grain post-processing.
  * Needed because DALL-E URLs are temporary and Twitter needs the raw bytes.
  */
-export async function downloadImage(url: string): Promise<Buffer> {
+export async function downloadImage(url: string, pillar?: ContentPillar): Promise<Buffer> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to download image: ${response.status}`);
   }
   const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  let buffer = Buffer.from(arrayBuffer);
+
+  // Apply film grain post-processing to personal_lore images
+  if (pillar === "personal_lore") {
+    try {
+      console.log(`[Film Process] Applying analog artifacts to lore image (${Math.round(buffer.length / 1024)}KB input)`);
+      buffer = await applyFilmGrain(buffer);
+      console.log(`[Film Process] Done (${Math.round(buffer.length / 1024)}KB output)`);
+    } catch (err) {
+      console.warn(`[Film Process] Failed, using original:`, err);
+    }
+  }
+
+  return buffer;
 }

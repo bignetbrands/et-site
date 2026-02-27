@@ -326,7 +326,7 @@ async function processOneMention(mention: Mention, sharedLateExcuse: string | nu
       console.log(`[ET Replies] Late image scene: ${sceneDescription}`);
 
       const imageUrl = await generateImage(sceneDescription, "personal_lore");
-      lateImageBuffer = await downloadImage(imageUrl);
+      lateImageBuffer = await downloadImage(imageUrl, "personal_lore");
       console.log(`[ET Replies] Late image generated: ${Math.round(lateImageBuffer.length / 1024)}KB`);
     } catch (imgErr) {
       console.warn(`[ET Replies] Late image failed, continuing with text:`, imgErr);
@@ -383,7 +383,7 @@ async function postAndRecord(
       console.log(`[ET] DALL-E URL received: ${imageUrl.substring(0, 80)}...`);
 
       // Download image
-      const imageBuffer = await downloadImage(imageUrl);
+      const imageBuffer = await downloadImage(imageUrl, pillar);
       console.log(`[ET] Image downloaded: ${Math.round(imageBuffer.length / 1024)}KB`);
 
       // Post tweet with image
@@ -634,7 +634,21 @@ export async function dryRun(
       const sceneDescription = await generateImageDescription(tweetText, pillar);
       console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
       const imageUrl = await generateImage(sceneDescription, pillar);
-      result.imageUrl = imageUrl;
+
+      // For personal_lore, download and process to show the actual film-treated result
+      if (pillar === "personal_lore") {
+        try {
+          const processedBuffer = await downloadImage(imageUrl, "personal_lore");
+          result.imageUrl = `data:image/png;base64,${processedBuffer.toString("base64")}`;
+          // Also store the raw URL for posting later
+          result.rawImageUrl = imageUrl;
+        } catch (procErr) {
+          console.warn(`[ET Dry Run] Film processing failed, using raw:`, procErr);
+          result.imageUrl = imageUrl;
+        }
+      } else {
+        result.imageUrl = imageUrl;
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[ET Dry Run] Image preview failed (${pillar}): ${errMsg}`);

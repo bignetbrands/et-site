@@ -53,6 +53,7 @@ export async function POST(request: Request) {
         tweet: result.text,
         pillar: result.pillar,
         imageUrl: result.imageUrl || null,
+        rawImageUrl: result.rawImageUrl || result.imageUrl || null,
         charCount: result.text.length,
         timestamp: new Date().toISOString(),
       });
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
         let imageKey: string | undefined;
         if (previewImageUrl) {
           try {
-            const imageBuffer = await downloadImage(previewImageUrl);
+            const imageBuffer = await downloadImage(previewImageUrl, pillar);
             imageKey = await storeScheduledImage(tweetId, imageBuffer);
             console.log(`[ET Schedule] Stored image (${Math.round(imageBuffer.length / 1024)}KB) for ${tweetId}`);
           } catch (e) {
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
 
       if (previewImageUrl) {
         try {
-          const imageBuffer = await downloadImage(previewImageUrl);
+          const imageBuffer = await downloadImage(previewImageUrl, pillar);
           tweetId = await postTweetWithImage(previewText, imageBuffer);
           hasImage = true;
         } catch {

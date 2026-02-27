@@ -168,7 +168,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // LORE IMAGE PROMPT TEMPLATE — For DALL-E
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Grainy found footage photograph, leaked classified image. A small alien figure is BARELY VISIBLE — shown only as a dark silhouette, a blurry shape in the background, a figure half-hidden behind a wall or doorframe, or a murky shadow caught on a low-quality camera. The environment is REAL and grounded — concrete walls, dim hallways, overgrown fields, empty rooms, night streets. Heavy film grain, VHS artifacts, motion blur, low resolution, surveillance camera quality. Dark, underexposed, with harsh single light sources creating deep shadows. The alien is NEVER fully revealed — always obscured, distant, partially blocked, or out of focus. Like a still frame from classified footage that was never meant to be seen. NOT clean, NOT digital, NOT CGI, NOT a toy, NOT a portrait. Square format (1024x1024). The scene depicts:`;
+export const LORE_IMAGE_PROMPT_PREFIX = `Photograph taken on expired 35mm film stock, circa early 2000s disposable camera. EXTREME film grain — visible grain structure across entire image like ISO 3200 film pushed two stops. Color shift toward sickly green-yellow tint with deep blue shadows. Scratches, dust particles, and chemical stains on the negative. Light leaks bleeding orange and magenta from the edges. Slight lens distortion and chromatic aberration on edges. The atmosphere is THICK — fog, haze, humidity, dust in the air catching light. A small alien figure is BARELY VISIBLE — shown only as a dark silhouette, a blurry shape partially hidden, a murky shadow caught at the edge of frame, or a figure obscured by fog/darkness/objects. The environment is HYPER-REAL and lived-in — cracked concrete, peeling paint, wet asphalt, rusty fences, flickering fluorescent lights, overgrown weeds, stained walls, condensation on windows. Underexposed with harsh single practical light sources (streetlamp, bare bulb, headlights, TV glow) creating pools of light in deep darkness. The alien is NEVER fully revealed — always distant, obscured, half-hidden, or caught in motion blur. This looks like a real photograph someone found in a shoebox. NOT clean, NOT digital, NOT CGI, NOT AI-generated, NOT a toy, NOT a portrait, NOT well-composed. Square format (1024x1024). The scene depicts:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
@@ -410,23 +410,23 @@ Rules:
 Output ONLY the scene description, nothing else.`;
   }
 
-  // Default: Personal Lore — Found footage / classified leak style
+  // Default: Personal Lore — Found footage / expired film style
   return `You are generating a visual description for a DALL-E image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
 
 "${tweetText}"
 
-The image style is: Found footage / leaked classified photograph. Like a still frame from surveillance tape or a blurry photo taken in secret. ET is hiding — he is NEVER fully revealed.
+The image style is: Real photograph on expired film — like something found in a shoebox or recovered from a classified archive. Grainy, atmospheric, haunting.
 
 Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet as a visual.
 
 Rules:
-- ET is ALWAYS obscured — a silhouette in a doorway, a blurry figure in the background, a shadow behind a wall, a shape barely visible in the dark. NEVER a clear full-body shot.
-- He can be: peeking from behind something, caught mid-motion (blurry), seen from far away, a dark shape against dim light, partially blocked by foreground objects
-- The ENVIRONMENT is the star — real, grounded locations: dim concrete rooms, overgrown fields at dusk, empty hallways, rain-streaked windows, abandoned structures, quiet suburban streets at night
-- Heavy grain, VHS quality, surveillance camera aesthetic, motion blur, underexposed
-- Mood: eerie, lonely, intimate — like someone found this footage years later and it raises more questions than answers
-- Never: clean/sharp images, toy-like aliens, CGI look, bright lighting, portrait-style shots, cute or whimsical tone
-- The image should feel like evidence, not art
+- ET is ALWAYS obscured — a silhouette in a doorway, a blurry figure at the end of a hallway, a shadow behind a rain-streaked window, a shape barely visible in fog. NEVER a clear shot.
+- ATMOSPHERE is everything — describe fog, rain, dust in the air, humidity, haze, breath visible in cold air, light catching particles. The air itself should feel textured.
+- ENVIRONMENT must feel hyper-real and LIVED-IN: cracked walls, wet pavement, flickering lights, rust, peeling paint, overgrown weeds, stained concrete, condensation. Never clean or new.
+- LIGHTING is practical and harsh: a single streetlamp, bare bulb swinging, car headlights through fog, TV glow from another room, moonlight through broken blinds. Deep shadows everywhere.
+- Think about what makes a real photo feel real: imperfect framing, slightly off-center, subject partially cut off, foreground objects slightly out of focus
+- NEVER: clean/sharp images, well-lit scenes, portrait composition, toy-like aliens, bright colors, whimsical or cute tone, CGI aesthetic
+- The image should feel like EVIDENCE — accidental, not composed
 
 Output ONLY the scene description, nothing else.`;
 }
@@ -517,7 +517,7 @@ Ideas (pick one or invent something — remember ET is barely visible, always ob
 - A garden at twilight shot from behind a fence — something small crouching near the plants, out of focus
 - Night street, motion blur — a figure darting between parked cars, caught mid-step
 
-Style: Grainy found footage / surveillance camera quality. Heavy film grain, VHS artifacts, dark and underexposed. ET is barely visible — a silhouette, a blurry shape, half-hidden behind something. Real environment (kitchen, rooftop, field, store aisle). The image should look like leaked security camera footage, not a portrait. Square format. NOT clean, NOT digital, NOT a toy.
+Style: Real photograph on expired 35mm film. Extreme grain, green-yellow color shift, scratches and dust on the negative, light leaks from edges. Thick atmosphere — fog, haze, dust in the air. ET is barely visible — a dark silhouette, a blur, half-hidden. Environment is hyper-real and gritty (real kitchen, real rooftop, real field, real store). Underexposed, harsh practical lighting. Looks like a real photo someone accidentally took. NOT clean, NOT digital, NOT a toy, NOT well-composed. Square format.
 
 Output ONLY the scene description.`;
 }

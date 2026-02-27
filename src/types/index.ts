@@ -20,6 +20,7 @@ export interface GeneratedTweet {
   text: string;
   pillar: ContentPillar;
   imageUrl?: string;
+  rawImageUrl?: string; // Original DALL-E URL (before film processing) — used for posting
   imageMediaId?: string;
 }
 
