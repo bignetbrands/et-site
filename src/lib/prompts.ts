@@ -526,7 +526,7 @@ Ideas (pick one or invent something funnier):
 - ET sitting in a tree reading a thick book with his phone on the ground far below
 - ET attempting to use a toaster and looking at it like alien technology
 
-Style: Super 8mm film — warm amber tones, soft grain, gentle film artifacts, intimate and candid feeling. Square format. ET is the central figure. Cozy, funny, slice-of-life.
+Style: Realistic Polaroid photograph — warm natural tones, slightly washed-out color, soft natural lighting, candid and intimate. Square format. ET (small gentle alien with large eyes) is the central figure. Cozy, funny, slice-of-life. NO borders, NO white frame, NO film strips.
 
 Output ONLY the scene description.`;
 }
