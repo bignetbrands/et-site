@@ -453,11 +453,11 @@ export async function dryRun(
     pillar,
   };
 
-  // Generate image preview for lore
-  if (pillar === "personal_lore") {
+  // Generate image preview for image-enabled pillars
+  if (pillar === "personal_lore" || pillar === "human_observation") {
     try {
-      const sceneDescription = await generateImageDescription(tweetText);
-      const imageUrl = await generateLoreImage(sceneDescription);
+      const sceneDescription = await generateImageDescription(tweetText, pillar);
+      const imageUrl = await generateImage(sceneDescription, pillar);
       result.imageUrl = imageUrl;
     } catch (error) {
       console.error("[ET] Image preview failed:", error);

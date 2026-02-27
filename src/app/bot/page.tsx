@@ -216,8 +216,34 @@ export default function BotDashboard() {
                 </div>
                 <div style={styles.previewText}>{preview.text}</div>
                 {preview.imageUrl && (
-                  <img src={preview.imageUrl} alt="Lore preview" style={styles.previewImage} />
+                  <img src={preview.imageUrl} alt="Preview" style={styles.previewImage} />
                 )}
+                <button
+                  onClick={async () => {
+                    if (!confirm("Tweet this exact preview to X?")) return;
+                    setLoading("postPreview");
+                    addLog("Posting preview to X...", "info");
+                    try {
+                      const res = await fetch("/api/manual/tweet", {
+                        method: "POST",
+                        headers: authHeaders,
+                        body: JSON.stringify({
+                          pillar: preview.pillar,
+                          text: preview.text,
+                          imageUrl: preview.imageUrl || undefined,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.error) { addLog(`Post failed: ${data.error}`, "error"); }
+                      else { addLog(`✓ Tweeted: "${data.tweet.text.slice(0, 60)}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success"); setPreview(null); }
+                    } catch (e) { addLog(`Post failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnPost, width: "100%", marginTop: "10px" }}
+                >
+                  {loading === "postPreview" ? "POSTING..." : "🚀 TWEET THIS"}
+                </button>
               </div>
             )}
           </div>

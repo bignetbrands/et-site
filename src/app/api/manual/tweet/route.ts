@@ -30,6 +30,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const pillar = body.pillar as ContentPillar;
     const isDryRun = body.dryRun === true;
+    const previewText = body.text as string | undefined;
+    const previewImageUrl = body.imageUrl as string | undefined;
 
     // Validate pillar
     if (!pillar || !VALID_PILLARS.includes(pillar)) {
@@ -55,7 +57,51 @@ export async function POST(request: Request) {
       });
     }
 
-    // Force post
+    // If preview text is provided, post that exact tweet
+    if (previewText) {
+      const { postTweet, postTweetWithImage } = await import("@/lib/twitter");
+      const { downloadImage } = await import("@/lib/dalle");
+      const { recordTweet } = await import("@/lib/store");
+
+      let tweetId: string;
+      let hasImage = false;
+
+      if (previewImageUrl) {
+        try {
+          const imageBuffer = await downloadImage(previewImageUrl);
+          tweetId = await postTweetWithImage(previewText, imageBuffer);
+          hasImage = true;
+        } catch {
+          // Fallback to text-only if image download fails
+          tweetId = await postTweet(previewText);
+        }
+      } else {
+        tweetId = await postTweet(previewText);
+      }
+
+      // Record it
+      await recordTweet({
+        id: tweetId,
+        text: previewText,
+        pillar,
+        postedAt: new Date().toISOString(),
+        hasImage,
+      });
+
+      return NextResponse.json({
+        mode: "posted",
+        tweet: {
+          id: tweetId,
+          text: previewText,
+          pillar,
+          hasImage,
+          charCount: previewText.length,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Force post (generate new)
     const record = await executeTweet(pillar);
 
     if (!record) {
