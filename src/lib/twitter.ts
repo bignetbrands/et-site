@@ -133,12 +133,15 @@ export async function getMentions(
     }
   }
 
-  // Build media key → URL map
+  // Build media key → URL map (photos get full URL, GIFs/videos get preview thumbnail)
   const mediaMap = new Map<string, string>();
   if (timeline.includes?.media) {
     for (const m of timeline.includes.media) {
       if (m.type === "photo" && (m.url || m.preview_image_url)) {
         mediaMap.set(m.media_key, m.url || m.preview_image_url || "");
+      } else if ((m.type === "animated_gif" || m.type === "video") && m.preview_image_url) {
+        // GIFs/videos: use the static preview thumbnail so Claude can "see" it
+        mediaMap.set(m.media_key, m.preview_image_url);
       }
     }
   }
