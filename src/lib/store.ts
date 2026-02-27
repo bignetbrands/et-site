@@ -63,13 +63,113 @@ export async function recordTweet(record: TweetRecord): Promise<void> {
   if (redis) {
     try {
       await redis.set(todayKey(), JSON.stringify(state), { EX: 172800 });
+
+      // Store enriched tweet memory (text + extracted topics + structure)
+      const enriched = extractTweetMeta(record.text, record.pillar);
+      const recentEnriched = await getRecentTweetsEnriched();
+      recentEnriched.unshift(enriched);
+      await redis.set("recent_tweets_v2", JSON.stringify(recentEnriched.slice(0, 200)));
+
+      // Also keep plain text list for backward compat
       const recent = await getRecentTweets();
       recent.unshift(record.text);
-      await redis.set(recentKey(), JSON.stringify(recent.slice(0, 100)));
+      await redis.set(recentKey(), JSON.stringify(recent.slice(0, 200)));
     } catch {
       console.warn("Redis not available — tweet recorded in memory only");
     }
   }
+}
+
+/** Enriched tweet record with extracted metadata for anti-repetition */
+interface EnrichedTweet {
+  text: string;
+  pillar: string;
+  topics: string[];
+  opening: string;
+  structure: string;
+  postedAt: string;
+}
+
+/** Extract topics, structure, and opening pattern from tweet text */
+function extractTweetMeta(text: string, pillar: string): EnrichedTweet {
+  const lower = text.toLowerCase();
+  const words = lower.replace(/[^a-z0-9\s]/g, "").split(/\s+/);
+
+  // Extract topic keywords (nouns/subjects that make the tweet unique)
+  const topicBank = [
+    "human", "humans", "alien", "star", "stars", "universe", "signal", "home",
+    "planet", "lonely", "loneliness", "memory", "crash", "phone", "phones",
+    "dna", "brain", "seti", "boinc", "congress", "disclosure", "chart",
+    "coin", "degen", "coordinate", "telescope", "light", "sun", "moon",
+    "mother", "father", "parent", "sound", "color", "dream", "atom",
+    "galaxy", "radio", "einstein", "government", "ufo", "uap", "area 51",
+    "snooze", "alarm", "coffee", "wifi", "internet", "dog", "cat",
+    "parking", "traffic", "money", "wallet", "ship", "boat", "sky",
+    "ocean", "water", "fire", "earth", "space", "time", "death", "love",
+    "fear", "hope", "faith", "war", "peace", "data", "computer", "code",
+    "music", "art", "photo", "sunset", "sunrise", "night", "silence",
+    "fridge", "banana", "synapses", "photon", "gravity", "quantum",
+  ];
+  const topics = topicBank.filter(t => lower.includes(t));
+
+  // Extract opening pattern (first 3 meaningful words)
+  const opening = words.slice(0, 3).join(" ");
+
+  // Detect structural patterns
+  let structure = "statement";
+  if (lower.includes(" but ") || lower.includes(" yet ")) structure = "contrast (X but Y)";
+  else if (lower.startsWith("every ")) structure = "universal opener (every X)";
+  else if (lower.startsWith("someone ")) structure = "anecdote (someone X)";
+  else if (lower.startsWith("you ") || lower.startsWith("your ")) structure = "direct address (you/your)";
+  else if (lower.startsWith("humans ")) structure = "species observation (humans X)";
+  else if (lower.includes("?")) structure = "question";
+  else if (lower.startsWith("i ") || lower.startsWith("i'")) structure = "first person (I...)";
+  else if (lower.startsWith("the ")) structure = "definite opener (the X)";
+  else if (lower.includes(" and ") && lower.includes(",")) structure = "list/enumeration";
+  else if (lower.match(/^\d/)) structure = "number opener";
+
+  return { text, pillar, topics, opening, structure, postedAt: new Date().toISOString() };
+}
+
+/** Get enriched recent tweets with metadata */
+export async function getRecentTweetsEnriched(): Promise<EnrichedTweet[]> {
+  const redis = await getRedis();
+  if (!redis) return [];
+  try {
+    const raw = await redis.get("recent_tweets_v2");
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+/** Build a structured memory summary for anti-repetition */
+export async function getTweetMemorySummary(): Promise<{
+  recentTexts: string[];
+  topicFrequency: Record<string, number>;
+  usedStructures: string[];
+  usedOpenings: string[];
+}> {
+  const enriched = await getRecentTweetsEnriched();
+  const recent50 = enriched.slice(0, 50);
+
+  // Count topic frequency
+  const topicFreq: Record<string, number> = {};
+  for (const t of recent50) {
+    for (const topic of t.topics) {
+      topicFreq[topic] = (topicFreq[topic] || 0) + 1;
+    }
+  }
+
+  // Collect structures and openings from last 15
+  const recent15 = enriched.slice(0, 15);
+  const structures = [...new Set(recent15.map(t => t.structure))];
+  const openings = [...new Set(recent15.map(t => t.opening))];
+
+  return {
+    recentTexts: enriched.slice(0, 30).map(t => t.text),
+    topicFrequency: topicFreq,
+    usedStructures: structures,
+    usedOpenings: openings,
+  };
 }
 
 export async function getRecentTweets(): Promise<string[]> {

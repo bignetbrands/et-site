@@ -1,6 +1,6 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
-import { generateTweet, generateImageDescription, generateReply, decideIfImageWorthy, generateNewsReaction } from "./claude";
+import { generateTweet, generateImageDescription, generateReply, decideIfImageWorthy, generateNewsReaction, checkSimilarity } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, type Mention } from "./twitter";
 import {
@@ -8,6 +8,7 @@ import {
   getRecentTweets,
   getTopPerformers,
   updateTopPerformers,
+  getTweetMemorySummary,
   getLastMentionId,
   setLastMentionId,
   hasReplied,
@@ -58,9 +59,10 @@ export async function executeTweet(
   console.log(`[ET] Generating ${config.name} tweet...${useTrending ? " (with trending context)" : ""}`);
 
   try {
-    // 1. Get recent tweets + top performers for variety + learning
+    // 1. Get recent tweets + top performers + structured memory
     const recentTweets = await getRecentTweets();
     const topPerformers = await getTopPerformers();
+    const memorySummary = await getTweetMemorySummary();
 
     // 2. Optionally fetch trending topics
     let trendingContext: string[] | undefined;
@@ -74,7 +76,7 @@ export async function executeTweet(
     }
 
     // 3. Generate tweet text via Claude
-    const tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers);
+    let tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary);
 
     if (!tweetText || tweetText.length > 280) {
       console.error(
@@ -83,12 +85,32 @@ export async function executeTweet(
       const retry = await generateTweet(pillar, [
         ...recentTweets,
         "(IMPORTANT: keep under 280 characters)",
-      ], trendingContext, topPerformers);
+      ], trendingContext, topPerformers, memorySummary);
       if (!retry || retry.length > 280) {
         console.error("[ET] Retry also failed. Skipping.");
         return null;
       }
-      return await postAndRecord(retry, pillar, config.generateImage);
+      tweetText = retry;
+    }
+
+    // 4. DEDUP CHECK — verify the tweet is unique enough before posting
+    const similarTo = await checkSimilarity(tweetText, recentTweets);
+    if (similarTo) {
+      console.warn(`[ET] Similarity detected! "${tweetText.substring(0, 60)}..." is too similar to: "${similarTo.substring(0, 60)}..."`);
+      console.log("[ET] Regenerating with explicit exclusion...");
+
+      // Regenerate with the similar tweet explicitly blocked
+      const dedupRetry = await generateTweet(pillar, [
+        ...recentTweets,
+        `(CRITICAL: Your last attempt was too similar to "${similarTo}". Write something COMPLETELY DIFFERENT in topic, structure, and phrasing.)`,
+      ], trendingContext, topPerformers, memorySummary);
+
+      if (dedupRetry && dedupRetry.length <= 280) {
+        tweetText = dedupRetry;
+        console.log(`[ET] Dedup retry succeeded: "${tweetText.substring(0, 60)}..."`);
+      } else {
+        console.warn("[ET] Dedup retry failed, posting original anyway");
+      }
     }
 
     return await postAndRecord(tweetText, pillar, config.generateImage);
@@ -494,6 +516,8 @@ export async function dryRun(
   useTrending: boolean = false
 ): Promise<GeneratedTweet> {
   const recentTweets = await getRecentTweets();
+  const topPerformers = await getTopPerformers();
+  const memorySummary = await getTweetMemorySummary();
 
   let trendingContext: string[] | undefined;
   if (useTrending) {
@@ -502,7 +526,7 @@ export async function dryRun(
     } catch { /* proceed without */ }
   }
 
-  const tweetText = await generateTweet(pillar, recentTweets, trendingContext);
+  const tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary);
 
   const result: GeneratedTweet = {
     text: tweetText,

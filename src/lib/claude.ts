@@ -31,7 +31,12 @@ export async function generateTweet(
   pillar: ContentPillar,
   recentTweets: string[],
   trendingContext?: string[],
-  topPerformers?: string[]
+  topPerformers?: string[],
+  memorySummary?: {
+    topicFrequency: Record<string, number>;
+    usedStructures: string[];
+    usedOpenings: string[];
+  }
 ): Promise<string> {
   const config = PILLAR_CONFIGS[pillar];
   const model = MODELS[config.model];
@@ -43,7 +48,7 @@ export async function generateTweet(
     messages: [
       {
         role: "user",
-        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers),
+        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers, memorySummary),
       },
     ],
     temperature: 0.9,
@@ -56,6 +61,63 @@ export async function generateTweet(
     .trim()
     .replace(/^["']|["']$/g, "")
     .trim();
+}
+
+/**
+ * Check if a generated tweet is too similar to recent tweets.
+ * Returns the similar tweet text if found, null if unique enough.
+ */
+export async function checkSimilarity(
+  newTweet: string,
+  recentTweets: string[]
+): Promise<string | null> {
+  if (recentTweets.length === 0) return null;
+
+  const recent10 = recentTweets.slice(0, 10);
+
+  try {
+    const response = await getClient().messages.create({
+      model: MODELS.sonnet,
+      max_tokens: 200,
+      messages: [
+        {
+          role: "user",
+          content: `You are a deduplication checker. Compare this NEW tweet against the EXISTING tweets below.
+
+NEW TWEET: "${newTweet}"
+
+EXISTING TWEETS:
+${recent10.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
+
+Is the new tweet too similar to ANY existing tweet? Similar means: same core topic/subject, same joke structure, same punchline format, or same observation just reworded.
+
+If TOO SIMILAR, respond: SIMILAR: [paste the existing tweet number and first 50 chars]
+If UNIQUE ENOUGH, respond: UNIQUE
+
+Be strict. If the topic overlaps even partially, it's similar.`,
+        },
+      ],
+      temperature: 0.1,
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+
+    if (text.trim().startsWith("SIMILAR")) {
+      // Extract which tweet it's similar to
+      const matchNum = text.match(/(\d+)/);
+      if (matchNum) {
+        const idx = parseInt(matchNum[1]) - 1;
+        if (idx >= 0 && idx < recent10.length) {
+          return recent10[idx];
+        }
+      }
+      return recent10[0]; // fallback
+    }
+
+    return null; // unique
+  } catch {
+    return null; // if check fails, allow the tweet
+  }
 }
 
 /**

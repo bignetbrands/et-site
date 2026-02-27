@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRecentTweets, getTopPerformers } from "@/lib/store";
+import { getRecentTweets, getTopPerformers, getRecentTweetsEnriched, getTweetMemorySummary } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,10 @@ export async function GET(request: Request) {
 
     // 2. Get top performers
     const topPerformers = await getTopPerformers();
+
+    // 2b. Get structured memory summary
+    const memorySummary = await getTweetMemorySummary();
+    const enrichedTweets = await getRecentTweetsEnriched();
 
     // 3. Fetch from Twitter API
     const { TwitterApi } = await import("twitter-api-v2");
@@ -91,6 +95,14 @@ export async function GET(request: Request) {
       memory: {
         storedCount: storedTweets.length,
         topStored: storedTweets.slice(0, 30),
+        enrichedCount: enrichedTweets.length,
+        memorySummary: {
+          overusedTopics: Object.entries(memorySummary.topicFrequency)
+            .filter(([, count]) => count >= 3)
+            .sort((a, b) => b[1] - a[1]),
+          usedStructures: memorySummary.usedStructures,
+          usedOpenings: memorySummary.usedOpenings,
+        },
       },
       topPerformers: topPerformers.slice(0, 10),
       live: {

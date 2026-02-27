@@ -199,23 +199,64 @@ export function getCurrentMood(): typeof MOODS[number] {
 }
 
 // ============================================================
-// VARIETY + MEMORY — Feed recent tweets AND top performers
+// VARIETY + MEMORY — Structured anti-repetition system
 // ============================================================
 
-export function buildVarietyContext(recentTweets: string[], topPerformers?: string[]): string {
+export function buildVarietyContext(
+  recentTweets: string[],
+  topPerformers?: string[],
+  memorySummary?: {
+    topicFrequency: Record<string, number>;
+    usedStructures: string[];
+    usedOpenings: string[];
+  }
+): string {
   if (recentTweets.length === 0) return "";
 
-  // Show last 30 tweets for strong memory
-  const recent = recentTweets.slice(0, 30).join("\n- ");
-  let context = `\n\nYOUR RECENT TWEETS (you MUST avoid repeating ANY of these themes, structures, topics, openings, or punchlines — find a completely different angle):
+  let context = "";
+
+  // If we have structured memory, use it for precise anti-repetition
+  if (memorySummary) {
+    // Show overused topics (mentioned 3+ times in recent tweets)
+    const overusedTopics = Object.entries(memorySummary.topicFrequency)
+      .filter(([, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1])
+      .map(([topic, count]) => `${topic} (${count}x)`)
+      .slice(0, 15);
+
+    if (overusedTopics.length > 0) {
+      context += `\n\nEXHAUSTED TOPICS (you've mentioned these too many times recently — DO NOT reference any of these):
+${overusedTopics.join(", ")}`;
+    }
+
+    // Show recently used structures
+    if (memorySummary.usedStructures.length > 0) {
+      context += `\n\nSTRUCTURES YOU'VE OVERUSED (use a DIFFERENT sentence pattern):
+${memorySummary.usedStructures.join(", ")}`;
+    }
+
+    // Show opening words used
+    if (memorySummary.usedOpenings.length > 0) {
+      context += `\n\nOPENINGS YOU'VE USED RECENTLY (start your tweet DIFFERENTLY):
+${memorySummary.usedOpenings.join(" | ")}`;
+    }
+  }
+
+  // Show last 15 tweets as text (reduced from 30 — quality over quantity)
+  const recent = recentTweets.slice(0, 15).join("\n- ");
+  context += `\n\nYOUR LAST 15 TWEETS (your output must feel NOTHING like any of these):
 - ${recent}
 
-ANTI-REPETITION: If you've used a structure like "X but Y", use a different one. If you've mentioned a topic (DNA, stars, phones), don't revisit it. If you opened with "you" or "humans" recently, open differently. Throw away your first idea if it overlaps with anything above.`;
+ANTI-REPETITION RULES:
+- You have already said everything above. Find something COMPLETELY NEW.
+- Different topic. Different structure. Different opening word. Different punchline format.
+- If your first idea resembles ANY tweet above, throw it away immediately.
+- Surprise the reader. If the tweet feels predictable, it IS redundant.`;
 
-  // Feed engagement data so ET learns what works
+  // Feed engagement data
   if (topPerformers && topPerformers.length > 0) {
-    context += `\n\nYOUR BEST PERFORMING TWEETS (these got the most engagement — learn from their style, tone, and structure but don't copy them):
-- ${topPerformers.join("\n- ")}`;
+    context += `\n\nYOUR BEST PERFORMING TWEETS (learn from their style/tone but NEVER repeat their topics or structure):
+- ${topPerformers.slice(0, 5).join("\n- ")}`;
   }
 
   return context;
@@ -285,10 +326,19 @@ export function buildTweetPrompt(
   pillar: ContentPillar,
   recentTweets: string[],
   trendingContext?: string[],
-  topPerformers?: string[]
+  topPerformers?: string[],
+  memorySummary?: {
+    topicFrequency: Record<string, number>;
+    usedStructures: string[];
+    usedOpenings: string[];
+  }
 ): string {
   const config = PILLAR_CONFIGS[pillar];
   const mood = getCurrentMood();
+
+  // Randomly select 2 example tweets instead of showing all (reduces pattern anchoring)
+  const shuffled = [...config.exampleTweets].sort(() => Math.random() - 0.5);
+  const selectedExamples = shuffled.slice(0, 2);
 
   let prompt = `CONTENT PILLAR: ${config.name}
 DESCRIPTION: ${config.description}
@@ -296,9 +346,9 @@ TONE: ${config.tone}
 
 CURRENT MOOD: ${mood.modifier}
 
-REFERENCE TWEETS (match this quality and voice — do NOT copy these):
-${config.exampleTweets.map((t) => `- "${t}"`).join("\n")}
-${buildVarietyContext(recentTweets, topPerformers)}`;
+VOICE REFERENCE (match this QUALITY and VOICE ONLY — do NOT copy structure, topic, or phrasing):
+${selectedExamples.map((t) => `- "${t}"`).join("\n")}
+${buildVarietyContext(recentTweets, topPerformers, memorySummary)}`;
 
   if (trendingContext && trendingContext.length > 0) {
     prompt += `
