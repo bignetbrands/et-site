@@ -172,7 +172,7 @@ export const LORE_IMAGE_PROMPT_PREFIX = `Polaroid photograph, realistic analog p
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
-export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Scientific illustration in the style of Leonardo da Vinci's notebooks and antique natural philosophy textbooks. Ink and sepia sketches on aged yellowed parchment or old paper with foxing and stains. Hand-drawn diagrams, anatomical studies, astronomical charts, cross-sections, and technical sketches with handwritten-looking annotations in illegible script. The style of 15th-18th century scientific manuscripts — detailed ink linework, cross-hatching for shading, compass-drawn circles, geometric overlays. Mix of precise technical drawing with a sense of cosmic wonder. Aged paper texture, sepia and brown ink tones, occasional faded watercolor washes. NOT digital, NOT clean, NOT modern. This looks like a page torn from a 500-year-old science journal. Square format (1024x1024). The scene depicts:`;
+export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rembrandt van Rijn. Dramatic chiaroscuro lighting — deep shadows with warm golden light illuminating the subject from a single source. Rich dark backgrounds of deep brown and black with luminous highlights on faces, hands, and key elements. Thick impasto brushwork visible in the light areas, smooth glazes in the shadows. The mood is contemplative, intimate, and profound — capturing a quiet moment of human significance. Color palette: warm golds, deep browns, burnt umber, ivory highlights against near-black backgrounds. Classical composition with Rembrandt's signature use of shadow to create depth and mystery. NOT digital, NOT clean, NOT modern. This looks like it belongs in a 17th century Dutch master collection. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -253,17 +253,17 @@ Output ONLY the scene description, nothing else.`;
 
 "${tweetText}"
 
-The image style is: Antique scientific illustration — like pages from Leonardo da Vinci's notebooks or 17th century natural philosophy textbooks. Ink sketches on aged parchment.
+The image style is: Rembrandt oil painting — dramatic chiaroscuro, golden light against deep darkness, classical Dutch master composition.
 
-Create a short, vivid scene description (1-2 sentences) that visualizes the scientific concept in this tweet as a vintage diagram or illustration.
+Create a short, vivid scene description (1-2 sentences) that visualizes the concept in this tweet as a Rembrandt painting.
 
 Rules:
-- Describe it as a hand-drawn scientific illustration: anatomical diagrams, star charts, geometric studies, cross-sections, technical sketches
-- Include the kind of details you'd find in old manuscripts: compass lines, measurement marks, illegible handwritten notes in the margins
-- The subject should connect to the science in the tweet — brains, atoms, stars, DNA, light, scale comparisons
-- Ink and sepia on aged yellowed paper
-- Think da Vinci codex, Vesalius anatomy, Kepler star charts, Copernicus diagrams
-- Never include readable modern text, clean digital elements, or photorealistic imagery
+- Describe a scene with dramatic light and shadow — a single warm light source illuminating the subject
+- The subject should connect to the science or concept in the tweet — a figure contemplating the stars, hands holding something small and significant, a solitary moment of wonder
+- Deep dark backgrounds with luminous golden highlights
+- Classical composition — intimate, contemplative, profound
+- Think Rembrandt's portraits and biblical scenes but applied to scientific wonder and cosmic perspective
+- Never include readable text, modern elements, or clean digital aesthetics
 
 Output ONLY the scene description, nothing else.`;
   }
