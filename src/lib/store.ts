@@ -439,3 +439,62 @@ export async function checkSubmitRateLimit(ip: string): Promise<boolean> {
     return true;
   }
 }
+
+// ============================================================
+// SCHEDULED TWEETS
+// ============================================================
+
+export interface ScheduledTweet {
+  id: string;
+  text: string;
+  pillar: ContentPillar;
+  imageUrl?: string;
+  scheduledAt: number; // epoch ms
+  createdAt: string;
+}
+
+const SCHEDULED_KEY = "scheduled_tweets";
+
+/**
+ * Schedule a tweet for future posting.
+ */
+export async function scheduletweet(tweet: ScheduledTweet): Promise<void> {
+  const redis = await getRedis();
+  if (!redis) return;
+  await redis.zAdd(SCHEDULED_KEY, {
+    score: tweet.scheduledAt,
+    value: JSON.stringify(tweet),
+  });
+}
+
+/**
+ * Get all due scheduled tweets (scheduledAt <= now).
+ */
+export async function getDueScheduledTweets(): Promise<ScheduledTweet[]> {
+  const redis = await getRedis();
+  if (!redis) return [];
+
+  const now = Date.now();
+  const items = await redis.zRangeByScore(SCHEDULED_KEY, 0, now);
+  return items.map((item) => JSON.parse(item) as ScheduledTweet);
+}
+
+/**
+ * Remove a scheduled tweet after posting.
+ */
+export async function removeScheduledTweet(tweet: ScheduledTweet): Promise<void> {
+  const redis = await getRedis();
+  if (!redis) return;
+  await redis.zRem(SCHEDULED_KEY, JSON.stringify(tweet));
+}
+
+/**
+ * Get all upcoming scheduled tweets.
+ */
+export async function getScheduledTweets(): Promise<ScheduledTweet[]> {
+  const redis = await getRedis();
+  if (!redis) return [];
+
+  const items = await redis.zRangeByScore(SCHEDULED_KEY, 0, "+inf");
+  return items.map((item) => JSON.parse(item) as ScheduledTweet);
+}

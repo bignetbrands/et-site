@@ -31,6 +31,52 @@ export async function GET(request: Request) {
         timestamp: new Date().toISOString(),
       });
     }
+
+    // Check for scheduled tweets first
+    const { getDueScheduledTweets, removeScheduledTweet, recordTweet } = await import("@/lib/store");
+    const { postTweet, postTweetWithImage } = await import("@/lib/twitter");
+    const { downloadImage } = await import("@/lib/dalle");
+
+    const dueTweets = await getDueScheduledTweets();
+    if (dueTweets.length > 0) {
+      const scheduled = dueTweets[0]; // Post one per cron run
+      console.log(`[ET Cron] Posting scheduled tweet: "${scheduled.text.substring(0, 60)}..."`);
+
+      let tweetId: string;
+      let hasImage = false;
+
+      if (scheduled.imageUrl) {
+        try {
+          const imageBuffer = await downloadImage(scheduled.imageUrl);
+          tweetId = await postTweetWithImage(scheduled.text, imageBuffer);
+          hasImage = true;
+        } catch {
+          tweetId = await postTweet(scheduled.text);
+        }
+      } else {
+        tweetId = await postTweet(scheduled.text);
+      }
+
+      await recordTweet({
+        id: tweetId,
+        text: scheduled.text,
+        pillar: scheduled.pillar,
+        postedAt: new Date().toISOString(),
+        hasImage,
+      });
+      await removeScheduledTweet(scheduled);
+
+      console.log(`[ET Cron] Scheduled tweet posted: ${tweetId}`);
+
+      return NextResponse.json({
+        posted: true,
+        scheduled: true,
+        tweet: { id: tweetId, text: scheduled.text, pillar: scheduled.pillar, hasImage },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Normal scheduling
     // Ask the scheduler if we should tweet
     const decision = await shouldTweet();
 

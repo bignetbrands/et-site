@@ -218,32 +218,71 @@ export default function BotDashboard() {
                 {preview.imageUrl && (
                   <img src={preview.imageUrl} alt="Preview" style={styles.previewImage} />
                 )}
-                <button
-                  onClick={async () => {
-                    if (!confirm("Tweet this exact preview to X?")) return;
-                    setLoading("postPreview");
-                    addLog("Posting preview to X...", "info");
-                    try {
-                      const res = await fetch("/api/manual/tweet", {
-                        method: "POST",
-                        headers: authHeaders,
-                        body: JSON.stringify({
-                          pillar: preview.pillar,
-                          text: preview.text,
-                          imageUrl: preview.imageUrl || undefined,
-                        }),
-                      });
-                      const data = await res.json();
-                      if (data.error) { addLog(`Post failed: ${data.error}`, "error"); }
-                      else { addLog(`✓ Tweeted: "${data.tweet.text.slice(0, 60)}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success"); setPreview(null); }
-                    } catch (e) { addLog(`Post failed: ${e}`, "error"); }
-                    setLoading("");
-                  }}
-                  disabled={!!loading}
-                  style={{ ...styles.btnPost, width: "100%", marginTop: "10px" }}
-                >
-                  {loading === "postPreview" ? "POSTING..." : "🚀 TWEET THIS"}
-                </button>
+                <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Tweet this exact preview to X now?")) return;
+                      setLoading("postPreview");
+                      addLog("Posting preview to X...", "info");
+                      try {
+                        const res = await fetch("/api/manual/tweet", {
+                          method: "POST",
+                          headers: authHeaders,
+                          body: JSON.stringify({
+                            pillar: preview.pillar,
+                            text: preview.text,
+                            imageUrl: preview.imageUrl || undefined,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.error) { addLog(`Post failed: ${data.error}`, "error"); }
+                        else { addLog(`✓ Tweeted: "${data.tweet.text.slice(0, 60)}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success"); setPreview(null); }
+                      } catch (e) { addLog(`Post failed: ${e}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={{ ...styles.btnPost, flex: 1 }}
+                  >
+                    {loading === "postPreview" ? "POSTING..." : "🚀 TWEET NOW"}
+                  </button>
+                  <input
+                    type="number"
+                    id="scheduleHours"
+                    placeholder="+hrs"
+                    min="0.25"
+                    step="0.25"
+                    style={{ ...styles.input, width: "60px", textAlign: "center", fontSize: "11px" }}
+                  />
+                  <button
+                    onClick={async () => {
+                      const inp = document.getElementById("scheduleHours") as HTMLInputElement;
+                      const hrs = parseFloat(inp?.value);
+                      if (!hrs || hrs <= 0) { addLog("Enter hours to schedule (e.g. 2)", "warn"); return; }
+                      setLoading("schedule");
+                      addLog(`Scheduling tweet for +${hrs}h...`, "info");
+                      try {
+                        const res = await fetch("/api/manual/tweet", {
+                          method: "POST",
+                          headers: authHeaders,
+                          body: JSON.stringify({
+                            pillar: preview.pillar,
+                            text: preview.text,
+                            imageUrl: preview.imageUrl || undefined,
+                            scheduleHours: hrs,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.error) { addLog(`Schedule failed: ${data.error}`, "error"); }
+                        else { addLog(`✓ Scheduled for ${new Date(data.scheduledFor).toLocaleTimeString()}: "${data.tweet.slice(0, 50)}..."`, "success"); setPreview(null); }
+                      } catch (e) { addLog(`Schedule failed: ${e}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={styles.btnPrimary}
+                  >
+                    {loading === "schedule" ? "..." : "⏰ SCHEDULE"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

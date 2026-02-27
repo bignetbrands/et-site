@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     const isDryRun = body.dryRun === true;
     const previewText = body.text as string | undefined;
     const previewImageUrl = body.imageUrl as string | undefined;
+    const scheduleHours = body.scheduleHours as number | undefined;
 
     // Validate pillar
     if (!pillar || !VALID_PILLARS.includes(pillar)) {
@@ -57,8 +58,36 @@ export async function POST(request: Request) {
       });
     }
 
-    // If preview text is provided, post that exact tweet
+    // If preview text is provided, post or schedule that exact tweet
     if (previewText) {
+      // Schedule for later
+      if (scheduleHours && scheduleHours > 0) {
+        const { scheduletweet } = await import("@/lib/store");
+        const scheduledAt = Date.now() + scheduleHours * 60 * 60 * 1000;
+        const scheduledDate = new Date(scheduledAt);
+
+        await scheduletweet({
+          id: `sched_${Date.now()}`,
+          text: previewText,
+          pillar,
+          imageUrl: previewImageUrl,
+          scheduledAt,
+          createdAt: new Date().toISOString(),
+        });
+
+        return NextResponse.json({
+          mode: "scheduled",
+          scheduledFor: scheduledDate.toISOString(),
+          hoursFromNow: scheduleHours,
+          tweet: previewText,
+          pillar,
+          hasImage: !!previewImageUrl,
+          charCount: previewText.length,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Post immediately
       const { postTweet, postTweetWithImage } = await import("@/lib/twitter");
       const { downloadImage } = await import("@/lib/dalle");
       const { recordTweet } = await import("@/lib/store");
