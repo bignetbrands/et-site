@@ -168,7 +168,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 
 export const LORE_IMAGE_PROMPT_PREFIX = `Polaroid photograph, realistic analog photography. A small, gentle alien figure with large eyes is the central subject. Warm natural tones, slightly washed-out color, soft natural lighting. The image feels like a real Polaroid snapshot — intimate, candid, slightly imperfect. Realistic photographic quality with the subtle color shift and soft vignette of instant film. NOT digital, NOT clean, NOT AI-looking. NO film strips, NO sprocket holes, NO borders, NO frame edges, NO Polaroid white border. Square format (1024x1024). The scene depicts:`;
 
-export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Ancient Egyptian hieroglyphic tomb painting fused with Salvador Dalí surrealism. Flat, profile-view figures in classic Egyptian hieroglyphic style — side-profile stance, symbolic representation, on a papyrus or stone wall texture. Woven into the ancient style are Dalí-esque surreal distortions: melting forms, impossible geometry, dreamlike scale shifts, floating objects, warped perspectives. Figures are Egyptian art style (symbolic, stylized) — NOT realistic humans. Color palette: Gold, ochre, terracotta, deep blue, black outlines. Warm earth tones throughout. NO readable text, NO modern UI elements, NO clean digital aesthetics. Square format (1024x1024). The scene depicts:`;
+export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -228,19 +228,18 @@ export function buildImageDescriptionPrompt(tweetText: string, pillar?: ContentP
 
 "${tweetText}"
 
-The image style is: Ancient Egyptian hieroglyphic tomb painting fused with Salvador Dalí surrealism. ET's alien art journal documenting the bizarre species he lives among.
+The image style is: Prehistoric cave painting on rough stone. ET documents humans the way early humans documented animals — as primitive creatures in their natural habitat. Modern behaviors rendered in ancient cave art style.
 
-Create a short, vivid scene description (1-2 sentences) that translates the human behavior in this tweet into this ancient-surreal visual language.
+Create a short, vivid scene description (1-2 sentences) that translates the human behavior in this tweet into a cave painting scene.
 
 Rules:
-- Describe figures in flat, profile-view Egyptian hieroglyphic style — side-profile stance, symbolic representation
-- Include Dalí-esque surreal distortions: melting forms, impossible geometry, dreamlike scale shifts, floating objects, warped perspectives
-- The surreal elements should serve the comedy — make the absurdity of human behavior visible
-- Papyrus or stone wall texture as the background surface
-- Color palette: Gold, ochre, terracotta, deep blue, black outlines. Warm earth tones.
-- Figures should be Egyptian art style (symbolic, stylized) — NOT realistic humans
-- Never include readable text, modern UI elements, or clean digital aesthetics
-- The scene should feel like it was painted on an ancient tomb wall by someone who had fever dreams about modern humans
+- Describe primitive stick figures and silhouettes doing the modern activity from the tweet
+- The figures should be simple, raw, cave-art style — like Lascaux or Tassili paintings
+- The comedy comes from modern things (phones, laptops, cars, offices, coffee cups) drawn as if by a prehistoric observer who doesn't understand what they're seeing
+- Painted in red ochre, brown, and black pigment on natural stone
+- Keep the description grounded in what would actually appear in a cave painting — simple shapes, stick figures, basic silhouettes
+- Never include readable text, clean digital elements, or realistic human figures
+- Think: "what if a cave painter tried to document someone scrolling TikTok"
 
 Output ONLY the scene description, nothing else.`;
   }
