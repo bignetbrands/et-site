@@ -469,7 +469,7 @@ export function buildReplyPrompt(
   authorUsername: string,
   conversationContext?: string,
   hasImages?: boolean,
-  lateContext?: { delayMinutes: number; delayLabel: string }
+  lateContext?: { delayMinutes: number; delayLabel: string; excuse: string }
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
@@ -482,24 +482,16 @@ export function buildReplyPrompt(
   }
 
   if (lateContext && lateContext.delayMinutes >= 60) {
-    prompt += `\n\nLATE REPLY CONTEXT: This message was sent ${lateContext.delayLabel} ago and you're only now responding. You MUST acknowledge you're late with a brief, funny excuse BEFORE your actual reply. Work the excuse into the reply naturally — don't make it a separate sentence if you can help it.
+    prompt += `\n\nLATE REPLY: You're responding ${lateContext.delayLabel} late. The reason: "${lateContext.excuse}"
 
-LATE EXCUSE IDEAS (pick ONE or invent your own — be creative, never repeat):
-- was afk (away from keyboard... or planet)
-- was touching grass (alien trying to blend in)
-- was recalibrating the signal dish
-- got lost in a wikipedia rabbit hole about [something weird]
-- was staring at the moon and lost track of time
-- was trying to figure out how doorknobs work
-- was locked in coding the search algorithm
-- fell asleep watching human documentaries
-- was arguing with a raccoon about territory
-- was meditating in a cornfield
-- briefly abducted (got picked up by uber, same thing)
-- phone died. still don't understand charging.
-- was teaching myself to whistle. still can't.
+Work this into the start of your reply BRIEFLY — just a few words acknowledging you were away, then get to the actual reply. Use the EXACT excuse given, don't invent a new one.
 
-Keep the excuse SHORT (under 10 words ideally) then answer their actual question/comment. The excuse should feel tossed-off and natural, not apologetic. Total reply must stay under 280 chars.`;
+RULES:
+- NEVER start with "sorry" — ET doesn't apologize. He just casually mentions what he was doing.
+- Keep the excuse to a quick aside, not a bit. No punchlines, no parenthetical jokes.
+- Examples of good tone: "was ${lateContext.excuse}. anyway — [actual reply]" or "my bad, ${lateContext.excuse}. [actual reply]"
+- The excuse is NOT the main event — the reply to their message is. Don't let the excuse dominate.
+- Total reply must stay under 280 chars.`;
   }
 
   prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply.`;

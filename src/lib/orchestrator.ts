@@ -158,6 +158,24 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     const remainingBudget = MAX_REPLIES_PER_DAY - dailyCount;
     let lastProcessedId: string | null = null;
 
+    // Pre-generate ONE shared late excuse for this batch
+    // (ET was doing one thing — same excuse for everyone in this run)
+    let sharedLateExcuse: string | null = null;
+    const oldestMention = toProcess[0];
+    if (oldestMention?.createdAt) {
+      const delayMs = Date.now() - new Date(oldestMention.createdAt).getTime();
+      const delayMinutes = Math.floor(delayMs / 60000);
+      if (delayMinutes >= 60) {
+        try {
+          const { generateLateExcuse } = await import("./claude");
+          sharedLateExcuse = await generateLateExcuse();
+          console.log(`[ET Replies] Shared late excuse for batch: "${sharedLateExcuse}"`);
+        } catch (e) {
+          console.warn("[ET Replies] Failed to generate late excuse:", e);
+        }
+      }
+    }
+
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
         console.log("[ET Replies] Daily budget exhausted during run");
@@ -165,7 +183,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
       }
 
       try {
-        const result = await processOneMention(mention);
+        const result = await processOneMention(mention, sharedLateExcuse);
         results.push(result);
         // Track the highest ID we actually processed (mentions are oldest→newest after reverse)
         lastProcessedId = mention.id;
@@ -209,8 +227,9 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
 /**
  * Process a single mention and generate/post a reply.
+ * @param sharedLateExcuse - Pre-generated excuse shared across all late replies in this batch
  */
-async function processOneMention(mention: Mention): Promise<ReplyResult> {
+async function processOneMention(mention: Mention, sharedLateExcuse: string | null = null): Promise<ReplyResult> {
   const authorUsername = mention.authorUsername || "someone";
 
   // Skip if already replied
@@ -244,9 +263,9 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // Detect reply delay
-  let lateContext: { delayMinutes: number; delayLabel: string } | undefined;
-  if (mention.createdAt) {
+  // Detect reply delay and build late context
+  let lateContext: { delayMinutes: number; delayLabel: string; excuse: string } | undefined;
+  if (mention.createdAt && sharedLateExcuse) {
     const mentionTime = new Date(mention.createdAt).getTime();
     const delayMs = Date.now() - mentionTime;
     const delayMinutes = Math.floor(delayMs / 60000);
@@ -260,8 +279,8 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       } else {
         delayLabel = hours === 1 ? "an hour" : `${hours} hours`;
       }
-      lateContext = { delayMinutes, delayLabel };
-      console.log(`[ET Replies] Late reply detected: ${delayLabel} delay for @${authorUsername}`);
+      lateContext = { delayMinutes, delayLabel, excuse: sharedLateExcuse };
+      console.log(`[ET Replies] Late reply: ${delayLabel} delay for @${authorUsername} (excuse: "${sharedLateExcuse}")`);
     }
   }
 
@@ -298,7 +317,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // For late replies (2+ hours), sometimes attach a "what ET was doing" image (30% chance)
+  // For very late replies (2+ hours), sometimes attach a "what ET was doing" image (30% chance, once per batch)
   let lateImageBuffer: Buffer | null = null;
   if (lateContext && lateContext.delayMinutes >= 120 && Math.random() < 0.3) {
     try {
