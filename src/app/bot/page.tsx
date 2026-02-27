@@ -464,13 +464,46 @@ export default function BotDashboard() {
             >
               {loading === "replies" ? "PROCESSING..." : "📡 CHECK & REPLY TO MENTIONS"}
             </button>
+            <button
+              onClick={async () => {
+                setLoading("catchup");
+                addLog("CATCH-UP: Re-scanning recent mentions (ignoring cursor)...", "info");
+                try {
+                  const res = await fetch("/api/manual/replies", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ secret, catchUp: true }),
+                  });
+                  const data = await res.json();
+                  if (data.error) { addLog(`Catch-up error: ${data.error}`, "error"); setLoading(""); return; }
+                  addLog(`Catch-up: ${data.replied} posted, ${data.skipped} skipped`, data.replied > 0 ? "success" : "info");
+                  if (data.results) {
+                    for (const r of data.results) {
+                      if (r.skipped) {
+                        addLog(`  ⊘ @${r.authorUsername}: ${r.skipReason}`, "warn");
+                      } else {
+                        addLog(`  ✓ @${r.authorUsername}: "${r.replyText.slice(0, 60)}..."`, "success");
+                      }
+                    }
+                  }
+                } catch (e) {
+                  addLog(`Catch-up failed: ${e}`, "error");
+                }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={{ ...styles.btnPrimary, background: "#2a3a2a" }}
+            >
+              {loading === "catchup" ? "CATCHING UP..." : "🔄 CATCH UP MISSED"}
+            </button>
             <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>
-              AUTO: every 15 min · MAX: 5/run · 50/day
+              AUTO: every 15 min · MAX: 10/run · 75/day
             </span>
           </div>
           <div style={{ fontSize: "10px", color: "#4a6a4a", lineHeight: "1.6" }}>
             Fetches new @etalienx mentions → generates in-character replies via Claude → posts them.
             Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
+            <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
           </div>
         </div>
 

@@ -20,8 +20,8 @@ import {
 } from "./store";
 
 // Max replies per cron run & per day
-const MAX_REPLIES_PER_RUN = 5;
-const MAX_REPLIES_PER_DAY = 50;
+const MAX_REPLIES_PER_RUN = 10;
+const MAX_REPLIES_PER_DAY = 75;
 
 /**
  * Strip leading @mentions from text so tweets appear in timeline, not replies.
@@ -124,8 +124,9 @@ export async function executeTweet(
 
 /**
  * Process mentions and reply to them in character.
+ * @param catchUp - If true, fetches recent mentions ignoring the sinceId cursor (for recovering missed replies)
  */
-export async function processReplies(): Promise<ReplyResult[]> {
+export async function processReplies(catchUp: boolean = false): Promise<ReplyResult[]> {
   const results: ReplyResult[] = [];
 
   try {
@@ -136,9 +137,12 @@ export async function processReplies(): Promise<ReplyResult[]> {
       return results;
     }
 
-    // Fetch mentions since last processed
-    const lastId = await getLastMentionId();
-    console.log(`[ET Replies] Fetching mentions since: ${lastId || "beginning"}`);
+    // Fetch mentions — either since last processed, or recent (catch-up mode)
+    let lastId: string | null = null;
+    if (!catchUp) {
+      lastId = await getLastMentionId();
+    }
+    console.log(`[ET Replies] Fetching mentions ${catchUp ? "(CATCH-UP MODE — no cursor)" : `since: ${lastId || "beginning"}`}`);
 
     const { mentions, newestId } = await getMentions(lastId || undefined, 20);
 
@@ -149,9 +153,10 @@ export async function processReplies(): Promise<ReplyResult[]> {
 
     console.log(`[ET Replies] Found ${mentions.length} new mentions`);
 
-    // Process mentions (newest first, but reply to oldest first for natural ordering)
+    // Process mentions (reply to oldest first for natural ordering)
     const toProcess = mentions.reverse().slice(0, MAX_REPLIES_PER_RUN);
     const remainingBudget = MAX_REPLIES_PER_DAY - dailyCount;
+    let lastProcessedId: string | null = null;
 
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
@@ -162,6 +167,8 @@ export async function processReplies(): Promise<ReplyResult[]> {
       try {
         const result = await processOneMention(mention);
         results.push(result);
+        // Track the highest ID we actually processed (mentions are oldest→newest after reverse)
+        lastProcessedId = mention.id;
 
         if (!result.skipped) {
           await incrementDailyReplyCount();
@@ -179,12 +186,19 @@ export async function processReplies(): Promise<ReplyResult[]> {
           skipped: true,
           skipReason: `Error: ${error instanceof Error ? error.message : "unknown"}`,
         });
+        // Still advance past this one so we don't retry broken mentions forever
+        lastProcessedId = mention.id;
       }
     }
 
-    // Update last processed ID
-    if (newestId) {
-      await setLastMentionId(newestId);
+    // CRITICAL: Only advance cursor to last ACTUALLY PROCESSED mention
+    // Not the newest fetched — otherwise unprocessed mentions are lost forever
+    // In catch-up mode, don't advance cursor (these are behind it already)
+    if (lastProcessedId && !catchUp) {
+      await setLastMentionId(lastProcessedId);
+      console.log(`[ET Replies] Cursor advanced to: ${lastProcessedId} (processed ${results.length}/${mentions.length} mentions)`);
+    } else if (catchUp) {
+      console.log(`[ET Replies] Catch-up mode — cursor not advanced (processed ${results.length} mentions)`);
     }
   } catch (error) {
     console.error("[ET Replies] Error in processReplies:", error);

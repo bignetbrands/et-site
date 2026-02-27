@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { secret } = body;
+    const { secret, catchUp } = body;
 
     if (secret !== process.env.ADMIN_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,8 +25,8 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    console.log("[ET Manual] Processing replies...");
-    const results = await processReplies();
+    console.log(`[ET Manual] Processing replies${catchUp ? " (CATCH-UP MODE)" : ""}...`);
+    const results = await processReplies(!!catchUp);
 
     const posted = results.filter((r) => !r.skipped);
     const skipped = results.filter((r) => r.skipped);
