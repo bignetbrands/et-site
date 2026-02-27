@@ -62,15 +62,29 @@ export async function POST(request: Request) {
     if (previewText) {
       // Schedule for later
       if (scheduleHours && scheduleHours > 0) {
-        const { scheduletweet } = await import("@/lib/store");
+        const { scheduletweet, storeScheduledImage } = await import("@/lib/store");
+        const { downloadImage } = await import("@/lib/dalle");
         const scheduledAt = Date.now() + scheduleHours * 60 * 60 * 1000;
         const scheduledDate = new Date(scheduledAt);
+        const tweetId = `sched_${Date.now()}`;
+
+        // Download and store image now (DALL-E URLs expire in ~1hr)
+        let imageKey: string | undefined;
+        if (previewImageUrl) {
+          try {
+            const imageBuffer = await downloadImage(previewImageUrl);
+            imageKey = await storeScheduledImage(tweetId, imageBuffer);
+            console.log(`[ET Schedule] Stored image (${Math.round(imageBuffer.length / 1024)}KB) for ${tweetId}`);
+          } catch (e) {
+            console.error("[ET Schedule] Failed to store image:", e);
+          }
+        }
 
         await scheduletweet({
-          id: `sched_${Date.now()}`,
+          id: tweetId,
           text: previewText,
           pillar,
-          imageUrl: previewImageUrl,
+          imageKey,
           scheduledAt,
           createdAt: new Date().toISOString(),
         });
@@ -81,7 +95,7 @@ export async function POST(request: Request) {
           hoursFromNow: scheduleHours,
           tweet: previewText,
           pillar,
-          hasImage: !!previewImageUrl,
+          hasImage: !!imageKey,
           charCount: previewText.length,
           timestamp: new Date().toISOString(),
         });

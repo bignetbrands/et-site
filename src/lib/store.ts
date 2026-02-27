@@ -448,12 +448,46 @@ export interface ScheduledTweet {
   id: string;
   text: string;
   pillar: ContentPillar;
-  imageUrl?: string;
+  imageKey?: string; // Redis key for stored image data
   scheduledAt: number; // epoch ms
   createdAt: string;
 }
 
 const SCHEDULED_KEY = "scheduled_tweets";
+const SCHEDULED_IMG_PREFIX = "scheduled_img:";
+
+/**
+ * Store image data for a scheduled tweet.
+ */
+export async function storeScheduledImage(id: string, imageBuffer: Buffer): Promise<string> {
+  const redis = await getRedis();
+  if (!redis) throw new Error("Redis not available");
+  const key = `${SCHEDULED_IMG_PREFIX}${id}`;
+  await redis.set(key, imageBuffer.toString("base64"));
+  // Auto-expire after 48h as safety net
+  await redis.expire(key, 48 * 60 * 60);
+  return key;
+}
+
+/**
+ * Retrieve stored image data for a scheduled tweet.
+ */
+export async function getScheduledImage(imageKey: string): Promise<Buffer | null> {
+  const redis = await getRedis();
+  if (!redis) return null;
+  const data = await redis.get(imageKey);
+  if (!data) return null;
+  return Buffer.from(data, "base64");
+}
+
+/**
+ * Delete stored image data after posting.
+ */
+export async function deleteScheduledImage(imageKey: string): Promise<void> {
+  const redis = await getRedis();
+  if (!redis) return;
+  await redis.del(imageKey);
+}
 
 /**
  * Schedule a tweet for future posting.

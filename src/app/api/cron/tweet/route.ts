@@ -33,9 +33,8 @@ export async function GET(request: Request) {
     }
 
     // Check for scheduled tweets first
-    const { getDueScheduledTweets, removeScheduledTweet, recordTweet } = await import("@/lib/store");
+    const { getDueScheduledTweets, removeScheduledTweet, recordTweet, getScheduledImage, deleteScheduledImage } = await import("@/lib/store");
     const { postTweet, postTweetWithImage } = await import("@/lib/twitter");
-    const { downloadImage } = await import("@/lib/dalle");
 
     const dueTweets = await getDueScheduledTweets();
     if (dueTweets.length > 0) {
@@ -45,14 +44,22 @@ export async function GET(request: Request) {
       let tweetId: string;
       let hasImage = false;
 
-      if (scheduled.imageUrl) {
+      if (scheduled.imageKey) {
         try {
-          const imageBuffer = await downloadImage(scheduled.imageUrl);
-          tweetId = await postTweetWithImage(scheduled.text, imageBuffer);
-          hasImage = true;
+          const imageBuffer = await getScheduledImage(scheduled.imageKey);
+          if (imageBuffer) {
+            tweetId = await postTweetWithImage(scheduled.text, imageBuffer);
+            hasImage = true;
+            console.log(`[ET Cron] Posted with stored image (${Math.round(imageBuffer.length / 1024)}KB)`);
+          } else {
+            console.warn("[ET Cron] Stored image not found, posting text-only");
+            tweetId = await postTweet(scheduled.text);
+          }
         } catch {
           tweetId = await postTweet(scheduled.text);
         }
+        // Clean up stored image
+        await deleteScheduledImage(scheduled.imageKey);
       } else {
         tweetId = await postTweet(scheduled.text);
       }
