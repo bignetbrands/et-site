@@ -101,6 +101,31 @@ export async function postTweetWithImage(
 }
 
 /**
+ * Post a reply with an image attached.
+ * Combines reply threading with image upload.
+ */
+export async function postReplyWithImage(
+  text: string,
+  replyToId: string,
+  imageBuffer: Buffer
+): Promise<string> {
+  // Upload media via v1.1
+  const mediaId = await getClient().v1.uploadMedia(imageBuffer, {
+    mimeType: "image/png",
+    target: "tweet",
+  });
+
+  // Post as reply with media
+  const response = await getClient().v2.tweet({
+    text,
+    reply: { in_reply_to_tweet_id: replyToId },
+    media: { media_ids: [mediaId] },
+  });
+
+  return response.data.id;
+}
+
+/**
  * Fetch recent mentions of the authenticated user.
  * Returns mentions since the given ID (exclusive), or the most recent ones.
  */

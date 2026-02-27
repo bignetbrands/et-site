@@ -244,6 +244,27 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
+  // Detect reply delay
+  let lateContext: { delayMinutes: number; delayLabel: string } | undefined;
+  if (mention.createdAt) {
+    const mentionTime = new Date(mention.createdAt).getTime();
+    const delayMs = Date.now() - mentionTime;
+    const delayMinutes = Math.floor(delayMs / 60000);
+
+    if (delayMinutes >= 60) {
+      const hours = Math.floor(delayMinutes / 60);
+      let delayLabel: string;
+      if (hours >= 24) {
+        const days = Math.floor(hours / 24);
+        delayLabel = days === 1 ? "a day" : `${days} days`;
+      } else {
+        delayLabel = hours === 1 ? "an hour" : `${hours} hours`;
+      }
+      lateContext = { delayMinutes, delayLabel };
+      console.log(`[ET Replies] Late reply detected: ${delayLabel} delay for @${authorUsername}`);
+    }
+  }
+
   // Get conversation context if this is a reply to one of our tweets
   let conversationContext: string | undefined;
   if (mention.inReplyToId) {
@@ -253,14 +274,15 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     }
   }
 
-  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}`);
+  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}${lateContext ? ` [LATE: ${lateContext.delayLabel}]` : ""}`);
 
   // Generate the reply
   const replyText = await generateReply(
     mention.text,
     authorUsername,
     conversationContext,
-    mention.imageUrls
+    mention.imageUrls,
+    lateContext
   );
 
   if (!replyText || replyText.length > 280) {
@@ -276,11 +298,33 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // Post the reply
-  const replyId = await postReply(replyText, mention.id);
-  await recordReply(mention.id);
+  // For late replies (2+ hours), sometimes attach a "what ET was doing" image (30% chance)
+  let lateImageBuffer: Buffer | null = null;
+  if (lateContext && lateContext.delayMinutes >= 120 && Math.random() < 0.3) {
+    try {
+      const { generateLateReplyScene } = await import("./claude");
+      const sceneDescription = await generateLateReplyScene(lateContext.delayLabel);
+      console.log(`[ET Replies] Late image scene: ${sceneDescription}`);
 
-  console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}`);
+      const imageUrl = await generateImage(sceneDescription, "personal_lore");
+      lateImageBuffer = await downloadImage(imageUrl);
+      console.log(`[ET Replies] Late image generated: ${Math.round(lateImageBuffer.length / 1024)}KB`);
+    } catch (imgErr) {
+      console.warn(`[ET Replies] Late image failed, continuing with text:`, imgErr);
+    }
+  }
+
+  // Post the reply (with image if we have one)
+  let replyId: string;
+  if (lateImageBuffer) {
+    const { postReplyWithImage } = await import("./twitter");
+    replyId = await postReplyWithImage(replyText, mention.id, lateImageBuffer);
+    console.log(`[ET Replies] Posted reply WITH IMAGE ${replyId} to @${authorUsername} (late: ${lateContext!.delayLabel})`);
+  } else {
+    replyId = await postReply(replyText, mention.id);
+    console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}${lateContext ? ` (late: ${lateContext.delayLabel})` : ""}`);
+  }
+  await recordReply(mention.id);
 
   return {
     mentionId: mention.id,

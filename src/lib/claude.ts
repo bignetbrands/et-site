@@ -128,7 +128,8 @@ export async function generateReply(
   mentionText: string,
   authorUsername: string,
   conversationContext?: string,
-  imageUrls?: string[]
+  imageUrls?: string[],
+  lateContext?: { delayMinutes: number; delayLabel: string }
 ): Promise<string> {
   // Build message content — text + optional images
   const content: Array<{ type: string; source?: Record<string, string>; text?: string }> = [];
@@ -149,7 +150,7 @@ export async function generateReply(
   // Add the text prompt
   content.push({
     type: "text",
-    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0),
+    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, lateContext),
   });
 
   const response = await getClient().messages.create({
@@ -178,6 +179,28 @@ export async function generateReply(
   cleaned = cleaned.replace(/^(@\w+\s*)+/, "").trim();
 
   return cleaned;
+}
+
+/**
+ * Generate a scene description for a "what was ET doing" late reply image.
+ */
+export async function generateLateReplyScene(delayLabel: string): Promise<string> {
+  const { buildLateReplyImagePrompt } = await import("./prompts");
+
+  const response = await getClient().messages.create({
+    model: MODELS.sonnet,
+    max_tokens: 200,
+    messages: [
+      {
+        role: "user",
+        content: buildLateReplyImagePrompt(delayLabel),
+      },
+    ],
+    temperature: 1.0,
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  return text.trim();
 }
 
 /**

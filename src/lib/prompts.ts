@@ -468,7 +468,8 @@ export function buildReplyPrompt(
   mentionText: string,
   authorUsername: string,
   conversationContext?: string,
-  hasImages?: boolean
+  hasImages?: boolean,
+  lateContext?: { delayMinutes: number; delayLabel: string }
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
@@ -480,9 +481,54 @@ export function buildReplyPrompt(
     prompt += `\n\nThey also attached image(s) which you can see above. React to the image naturally — comment on what you see through ET's alien perspective. Don't describe the image mechanically, just vibe with it.`;
   }
 
+  if (lateContext && lateContext.delayMinutes >= 60) {
+    prompt += `\n\nLATE REPLY CONTEXT: This message was sent ${lateContext.delayLabel} ago and you're only now responding. You MUST acknowledge you're late with a brief, funny excuse BEFORE your actual reply. Work the excuse into the reply naturally — don't make it a separate sentence if you can help it.
+
+LATE EXCUSE IDEAS (pick ONE or invent your own — be creative, never repeat):
+- was afk (away from keyboard... or planet)
+- was touching grass (alien trying to blend in)
+- was recalibrating the signal dish
+- got lost in a wikipedia rabbit hole about [something weird]
+- was staring at the moon and lost track of time
+- was trying to figure out how doorknobs work
+- was locked in coding the search algorithm
+- fell asleep watching human documentaries
+- was arguing with a raccoon about territory
+- was meditating in a cornfield
+- briefly abducted (got picked up by uber, same thing)
+- phone died. still don't understand charging.
+- was teaching myself to whistle. still can't.
+
+Keep the excuse SHORT (under 10 words ideally) then answer their actual question/comment. The excuse should feel tossed-off and natural, not apologetic. Total reply must stay under 280 chars.`;
+  }
+
   prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply.`;
 
   return prompt;
+}
+
+// ============================================================
+// LATE REPLY IMAGE PROMPT — What was ET busy doing?
+// ============================================================
+
+export function buildLateReplyImagePrompt(delayLabel: string): string {
+  return `Generate a short, vivid scene description (1-2 sentences) for a DALL-E image showing what ET (a small, gentle alien with large eyes) was doing instead of checking his phone.
+
+The image should be humorous — ET caught in the middle of some absurd activity that explains why he took ${delayLabel} to reply. 
+
+Ideas (pick one or invent something funnier):
+- ET sitting cross-legged in a field of tall grass, eyes closed, clearly "touching grass" very literally
+- ET hunched over an ancient-looking computer setup in a dim room, tangled in cables, clearly coding
+- ET standing on a rooftop at night staring at the moon with binoculars, oblivious to his buzzing phone
+- ET in a grocery store aisle, completely baffled by the cereal selection, holding two boxes
+- ET curled up asleep on a couch with a nature documentary playing on a CRT TV
+- ET squatting in a garden poking at a plant with scientific curiosity
+- ET sitting in a tree reading a thick book with his phone on the ground far below
+- ET attempting to use a toaster and looking at it like alien technology
+
+Style: Super 8mm film — warm amber tones, soft grain, gentle film artifacts, intimate and candid feeling. Square format. ET is the central figure. Cozy, funny, slice-of-life.
+
+Output ONLY the scene description.`;
 }
 
 // ============================================================
