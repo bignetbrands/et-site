@@ -253,10 +253,39 @@ export interface TargetAccount {
 }
 
 /**
- * Submit or upvote a target account.
- * Returns the updated target and whether this was a new submission.
+ * Add a new target account to the queue (starts at 0 votes).
+ * If already exists, returns the existing target.
  */
-export async function submitTarget(handle: string): Promise<{ target: TargetAccount; isNew: boolean }> {
+export async function addTarget(handle: string): Promise<{ target: TargetAccount; isNew: boolean }> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  if (!clean || clean.length > 30) throw new Error("Invalid handle");
+
+  const redis = await getRedis();
+  if (!redis) throw new Error("Redis unavailable");
+
+  const raw = await redis.hGet(TARGETS_KEY, clean);
+
+  if (raw) {
+    // Already in queue
+    return { target: JSON.parse(raw), isNew: false };
+  }
+
+  // New target — starts at 0 votes
+  const now = new Date().toISOString();
+  const target: TargetAccount = {
+    handle: clean,
+    votes: 0,
+    submittedAt: now,
+    lastVotedAt: now,
+  };
+  await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+  return { target, isNew: true };
+}
+
+/**
+ * Upvote an existing target. Creates it if it doesn't exist.
+ */
+export async function voteTarget(handle: string): Promise<TargetAccount> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
   if (!clean || clean.length > 30) throw new Error("Invalid handle");
 
@@ -267,24 +296,28 @@ export async function submitTarget(handle: string): Promise<{ target: TargetAcco
   const raw = await redis.hGet(TARGETS_KEY, clean);
 
   if (raw) {
-    // Existing target — upvote
     const target: TargetAccount = JSON.parse(raw);
     target.votes += 1;
     target.lastVotedAt = now;
     await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
-    return { target, isNew: false };
-  } else {
-    // New target
-    const target: TargetAccount = {
-      handle: clean,
-      votes: 1,
-      submittedAt: now,
-      lastVotedAt: now,
-    };
-    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
-    return { target, isNew: true };
+    return target;
   }
+
+  // Doesn't exist yet — add with 1 vote
+  const target: TargetAccount = {
+    handle: clean,
+    votes: 1,
+    submittedAt: now,
+    lastVotedAt: now,
+  };
+  await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+  return target;
 }
+
+/**
+ * Legacy alias for backward compatibility.
+ */
+export const submitTarget = addTarget;
 
 /**
  * Admin force-add a target (goes to front of queue).
@@ -379,8 +412,8 @@ export async function markTargetInteracted(handle: string): Promise<void> {
 }
 
 /**
- * Remove a target after successful interaction (if not forced, decrement votes).
- * Forced targets get removed. Voted targets just get marked interacted.
+ * Resolve a target after successful interaction.
+ * Forced targets lose forced flag. Voted targets stay in queue (marked interacted today).
  */
 export async function resolveTarget(handle: string): Promise<void> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
@@ -393,22 +426,15 @@ export async function resolveTarget(handle: string): Promise<void> {
   const target: TargetAccount = JSON.parse(raw);
 
   if (target.forced) {
-    // Remove forced flag, keep if has community votes
+    // Remove forced flag, keep in queue
     target.forced = false;
     if (target.votes <= 0) {
       await redis.hDel(TARGETS_KEY, clean);
     } else {
       await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
     }
-  } else {
-    // Decrement votes, remove if 0
-    target.votes = Math.max(0, target.votes - 1);
-    if (target.votes <= 0) {
-      await redis.hDel(TARGETS_KEY, clean);
-    } else {
-      await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
-    }
   }
+  // Voted targets stay — they remain in queue for future interactions
 
   await markTargetInteracted(clean);
 }

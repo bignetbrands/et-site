@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import {
-  submitTarget,
+  addTarget,
+  voteTarget,
   getTargets,
-  checkSubmitRateLimit,
 } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -36,15 +36,17 @@ export async function GET() {
 /**
  * POST /api/targets
  *
- * Community submission — submit or upvote a target handle.
- * Rate limited: 5 submissions per IP per hour.
+ * Community actions:
+ *   action: "submit" (default) — add a new target to the queue
+ *   action: "vote" — upvote an existing target
  *
- * Body: { handle: "@username" }
+ * Body: { handle: "@username", action?: "submit" | "vote" }
  */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const handle = body.handle;
+    const action = body.action || "submit";
 
     if (!handle || typeof handle !== "string") {
       return NextResponse.json(
@@ -71,21 +73,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Rate limit by IP
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-
-    const allowed = await checkSubmitRateLimit(ip);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: "Slow down — max 5 submissions per hour" },
-        { status: 429 }
-      );
+    if (action === "vote") {
+      const target = await voteTarget(clean);
+      return NextResponse.json({
+        success: true,
+        handle: target.handle,
+        votes: target.votes,
+        message: `+1 vote for @${target.handle} (${target.votes} total)`,
+      });
     }
 
-    const { target, isNew } = await submitTarget(clean);
+    // Default: submit
+    const { target, isNew } = await addTarget(clean);
 
     return NextResponse.json({
       success: true,
@@ -94,12 +93,12 @@ export async function POST(request: Request) {
       isNew,
       message: isNew
         ? `@${target.handle} added to the target queue`
-        : `+1 vote for @${target.handle} (${target.votes} total)`,
+        : `@${target.handle} is already in the queue — vote it up!`,
     });
   } catch (error) {
-    console.error("[Targets] Submit error:", error);
+    console.error("[Targets] Error:", error);
     return NextResponse.json(
-      { error: "Failed to submit target" },
+      { error: "Failed to process request" },
       { status: 500 }
     );
   }
