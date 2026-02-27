@@ -547,6 +547,32 @@ export async function markTargetInteracted(handle: string): Promise<void> {
   await redis.expire(key, 172800); // 48h TTL
 }
 
+// ============================================================
+// QUOTED TWEET TRACKING — Prevent quoting the same tweet twice
+// ============================================================
+
+const QUOTED_TWEETS_KEY = "quoted_tweet_ids";
+
+/**
+ * Check if a specific tweet has already been quoted/interacted with.
+ */
+export async function hasQuotedTweet(tweetId: string): Promise<boolean> {
+  const redis = await getRedis();
+  if (!redis) return false;
+  return await redis.sIsMember(QUOTED_TWEETS_KEY, tweetId);
+}
+
+/**
+ * Mark a tweet ID as quoted so we never quote it again.
+ */
+export async function markTweetQuoted(tweetId: string): Promise<void> {
+  const redis = await getRedis();
+  if (!redis) return;
+  await redis.sAdd(QUOTED_TWEETS_KEY, tweetId);
+  // Keep for 30 days
+  await redis.expire(QUOTED_TWEETS_KEY, 2592000);
+}
+
 /**
  * Resolve a target after successful interaction.
  * Forced targets lose forced flag. Voted targets stay in queue (marked interacted today).
@@ -555,6 +581,9 @@ export async function resolveTarget(handle: string): Promise<void> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
   const redis = await getRedis();
   if (!redis) return;
+
+  // ALWAYS mark as interacted today first
+  await markTargetInteracted(clean);
 
   const raw = await redis.hGet(TARGETS_KEY, clean);
   if (!raw) return;

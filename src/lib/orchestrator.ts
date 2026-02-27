@@ -1,6 +1,6 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
-import { generateTweet, generateImageDescription, generateReply, decideIfImageWorthy, generateNewsReaction, checkSimilarity } from "./claude";
+import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, type Mention } from "./twitter";
 import {
@@ -15,6 +15,8 @@ import {
   recordReply,
   getDailyReplyCount,
   incrementDailyReplyCount,
+  hasQuotedTweet,
+  markTweetQuoted,
 } from "./store";
 
 // Max replies per cron run & per day
@@ -286,45 +288,36 @@ async function postAndRecord(
   // Safety: never start a standalone tweet with @
   tweetText = stripLeadingMentions(tweetText);
 
-  // 3. If image-enabled pillar, check if this tweet warrants an image
+  // 3. If pillar is configured for images, ALWAYS generate (pillar config is the authority)
   if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential")) {
-    // Ask Claude if this specific tweet would benefit from an image
-    const imageWorthy = await decideIfImageWorthy(tweetText, pillar);
-    
-    if (imageWorthy) {
-      try {
-        const label = pillar === "personal_lore" ? "lore" : pillar === "human_observation" ? "observation" : "existential";
-        console.log(`[ET] Generating ${label} image...`);
+    try {
+      const label = pillar === "personal_lore" ? "lore" : pillar === "human_observation" ? "observation" : "existential";
+      console.log(`[ET] Generating ${label} image...`);
 
-        // Generate scene description via Claude (pillar-aware)
-        const sceneDescription = await generateImageDescription(tweetText, pillar);
-        console.log(`[ET] Scene: ${sceneDescription}`);
+      // Generate scene description via Claude (pillar-aware)
+      const sceneDescription = await generateImageDescription(tweetText, pillar);
+      console.log(`[ET] Scene: ${sceneDescription}`);
 
-        // Generate image via DALL-E (pillar-aware style)
-        const imageUrl = await generateImage(sceneDescription, pillar);
-        console.log(`[ET] DALL-E URL received: ${imageUrl.substring(0, 80)}...`);
+      // Generate image via DALL-E (pillar-aware style)
+      const imageUrl = await generateImage(sceneDescription, pillar);
+      console.log(`[ET] DALL-E URL received: ${imageUrl.substring(0, 80)}...`);
 
-        // Download image
-        const imageBuffer = await downloadImage(imageUrl);
-        console.log(`[ET] Image downloaded: ${Math.round(imageBuffer.length / 1024)}KB`);
+      // Download image
+      const imageBuffer = await downloadImage(imageUrl);
+      console.log(`[ET] Image downloaded: ${Math.round(imageBuffer.length / 1024)}KB`);
 
-        // Post tweet with image
-        tweetId = await postTweetWithImage(tweetText, imageBuffer);
-        hasImage = true;
+      // Post tweet with image
+      tweetId = await postTweetWithImage(tweetText, imageBuffer);
+      hasImage = true;
 
-        console.log(`[ET] Posted ${label} tweet with image: ${tweetId}`);
-      } catch (imageError) {
-        const errMsg = imageError instanceof Error ? imageError.message : String(imageError);
-        console.error(`[ET] Image generation failed (${pillar}): ${errMsg}`);
-        console.error("[ET] Full error:", imageError);
-        // Fall back to text-only
-        tweetId = await postTweet(tweetText);
-        console.log(`[ET] Posted text-only fallback: ${tweetId}`);
-      }
-    } else {
-      console.log(`[ET] Image skipped — tweet works better as text-only`);
+      console.log(`[ET] Posted ${label} tweet with image: ${tweetId}`);
+    } catch (imageError) {
+      const errMsg = imageError instanceof Error ? imageError.message : String(imageError);
+      console.error(`[ET] Image generation failed (${pillar}): ${errMsg}`);
+      console.error("[ET] Full error:", imageError);
+      // Fall back to text-only
       tweetId = await postTweet(tweetText);
-      console.log(`[ET] Posted tweet: ${tweetId}`);
+      console.log(`[ET] Posted text-only fallback: ${tweetId}`);
     }
   } else {
     // 4. Post text-only tweet
@@ -366,32 +359,51 @@ export async function interactWithTarget(
       return { success: false, error: `No recent tweets found for @${handle}` };
     }
 
-    // 2. Prefer very fresh tweets (under 5 min), fall back to recent
-    const now = Date.now();
-    const fiveMinAgo = now - 5 * 60 * 1000;
-    const freshTweets = tweets.filter(t => t.createdAt && new Date(t.createdAt).getTime() > fiveMinAgo);
-
-    const tweetsToUse = freshTweets.length > 0 ? freshTweets : tweets;
-    if (freshTweets.length > 0) {
-      console.log(`[ET Target] Found ${freshTweets.length} fresh tweet(s) (under 5 min)`);
-    } else {
-      console.log(`[ET Target] No fresh tweets, using ${tweets.length} recent tweets`);
+    // 2. Filter out tweets we've already quoted
+    const unseenTweets: typeof tweets = [];
+    for (const t of tweets) {
+      if (!(await hasQuotedTweet(t.id))) {
+        unseenTweets.push(t);
+      }
     }
 
-    // 3. Generate reaction via Claude
+    if (unseenTweets.length === 0) {
+      return { success: false, error: `All recent tweets from @${handle} already quoted` };
+    }
+
+    // 3. Prefer very fresh tweets (under 5 min), fall back to recent
+    const now = Date.now();
+    const fiveMinAgo = now - 5 * 60 * 1000;
+    const freshTweets = unseenTweets.filter(t => t.createdAt && new Date(t.createdAt).getTime() > fiveMinAgo);
+
+    const tweetsToUse = freshTweets.length > 0 ? freshTweets : unseenTweets;
+    if (freshTweets.length > 0) {
+      console.log(`[ET Target] Found ${freshTweets.length} fresh unseen tweet(s) (under 5 min)`);
+    } else {
+      console.log(`[ET Target] No fresh tweets, using ${unseenTweets.length} unseen recent tweets`);
+    }
+
+    // 4. Generate reaction via Claude
     const interaction = await generateTargetInteraction(handle, tweetsToUse);
     if (!interaction) {
       return { success: false, error: "Failed to generate interaction" };
+    }
+
+    // Double-check the picked tweet wasn't already quoted (Claude might pick wrong one)
+    if (await hasQuotedTweet(interaction.tweetId)) {
+      console.warn(`[ET Target] Claude picked already-quoted tweet ${interaction.tweetId}, skipping`);
+      return { success: false, error: "Selected tweet already quoted" };
     }
 
     // Strip leading @ so it shows in timeline
     const reactionText = stripLeadingMentions(interaction.replyText);
     console.log(`[ET Target] Quote tweeting ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
 
-    // 4. Post as quote tweet (primary method)
+    // 5. Post as quote tweet (primary method)
     try {
       const qtId = await postQuoteTweet(reactionText, interaction.tweetId);
       await resolveTarget(handle);
+      await markTweetQuoted(interaction.tweetId);
       console.log(`[ET Target] Posted quote tweet ${qtId} for @${handle}`);
 
       await recordTweet({
@@ -407,7 +419,7 @@ export async function interactWithTarget(
       const status = qtError?.data?.status || qtError?.code;
       console.warn(`[ET Target] Quote tweet failed (${status}), trying standalone mention+link...`);
 
-      // 5. Fallback: standalone tweet with link (no leading @)
+      // 6. Fallback: standalone tweet with link (no leading @)
       const tweetLink = `https://x.com/${handle}/status/${interaction.tweetId}`;
       const maxTextLen = 280 - 23 - 2;
       let text = reactionText;
@@ -418,6 +430,7 @@ export async function interactWithTarget(
 
       const tweetId = await postTweet(text);
       await resolveTarget(handle);
+      await markTweetQuoted(interaction.tweetId);
       console.log(`[ET Target] Posted standalone mention+link ${tweetId} for @${handle}`);
       return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: tweetId, method: "mention" };
     }
@@ -478,6 +491,7 @@ export async function replyToSpecificTweet(
       try {
         const cleanReply = stripLeadingMentions(replyText);
         const qtId = await postQuoteTweet(cleanReply, tweetId);
+        await markTweetQuoted(tweetId);
         console.log(`[ET Reply] Posted quote tweet ${qtId} for tweet ${tweetId}`);
         return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
       } catch (qtError: any) {
@@ -494,6 +508,7 @@ export async function replyToSpecificTweet(
         const fullTweet = `${trimmedText}\n\n${tweetLink}`;
 
         const mentionId = await postTweet(fullTweet);
+        await markTweetQuoted(tweetId);
         console.log(`[ET Reply] Posted standalone+link ${mentionId}`);
         return { success: true, tweetId, replyText: trimmedText, replyId: mentionId, method: "mention" };
       }
@@ -533,18 +548,13 @@ export async function dryRun(
     pillar,
   };
 
-  // Generate image preview for image-enabled pillars (only if image-worthy)
+  // Generate image preview for image-enabled pillars (always generate — pillar config is authority)
   if (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential") {
     try {
-      const imageWorthy = await decideIfImageWorthy(tweetText, pillar);
-      if (imageWorthy) {
-        const sceneDescription = await generateImageDescription(tweetText, pillar);
-        console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
-        const imageUrl = await generateImage(sceneDescription, pillar);
-        result.imageUrl = imageUrl;
-      } else {
-        console.log(`[ET Dry Run] Image skipped — text-only works better`);
-      }
+      const sceneDescription = await generateImageDescription(tweetText, pillar);
+      console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
+      const imageUrl = await generateImage(sceneDescription, pillar);
+      result.imageUrl = imageUrl;
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[ET Dry Run] Image preview failed (${pillar}): ${errMsg}`);
@@ -576,11 +586,30 @@ export async function reactToNews(): Promise<{
 
     console.log(`[ET News] Found ${newsItems.length} news items, picking best one...`);
 
+    // 1b. Filter out already-quoted tweets
+    const unseenNews: typeof newsItems = [];
+    for (const item of newsItems) {
+      if (!(await hasQuotedTweet(item.id))) {
+        unseenNews.push(item);
+      }
+    }
+
+    if (unseenNews.length === 0) {
+      console.log("[ET News] All news tweets already quoted");
+      return { success: false, error: "All news already quoted" };
+    }
+
     // 2. Have Claude pick one and generate reaction
-    const reaction = await generateNewsReaction(newsItems);
+    const reaction = await generateNewsReaction(unseenNews);
     if (!reaction) {
       console.log("[ET News] Failed to generate reaction");
       return { success: false, error: "Failed to generate reaction" };
+    }
+
+    // Double-check the picked tweet wasn't already quoted
+    if (await hasQuotedTweet(reaction.tweetId)) {
+      console.warn(`[ET News] Claude picked already-quoted tweet ${reaction.tweetId}, skipping`);
+      return { success: false, error: "Selected news tweet already quoted" };
     }
 
     console.log(`[ET News] Reacting to tweet ${reaction.tweetId}: "${reaction.reactionText.substring(0, 60)}..."`);
@@ -591,6 +620,7 @@ export async function reactToNews(): Promise<{
     // 3. Try quote tweet first
     try {
       const tweetId = await postQuoteTweet(reactionText, reaction.tweetId);
+      await markTweetQuoted(reaction.tweetId);
       console.log(`[ET News] Quote tweeted: ${tweetId}`);
 
       await recordTweet({
@@ -607,7 +637,7 @@ export async function reactToNews(): Promise<{
     }
 
     // 4. Fallback: standalone tweet with link
-    const sourceItem = newsItems.find(n => n.id === reaction.tweetId);
+    const sourceItem = unseenNews.find(n => n.id === reaction.tweetId);
     const author = sourceItem?.author || "unknown";
     const linkUrl = `https://x.com/${author}/status/${reaction.tweetId}`;
 
@@ -620,6 +650,7 @@ export async function reactToNews(): Promise<{
     text = `${text}\n\n${linkUrl}`;
 
     const tweetId = await postTweet(text);
+    await markTweetQuoted(reaction.tweetId);
     console.log(`[ET News] Posted mention+link: ${tweetId}`);
 
     await recordTweet({
