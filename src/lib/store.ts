@@ -65,7 +65,7 @@ export async function recordTweet(record: TweetRecord): Promise<void> {
       await redis.set(todayKey(), JSON.stringify(state), { EX: 172800 });
       const recent = await getRecentTweets();
       recent.unshift(record.text);
-      await redis.set(recentKey(), JSON.stringify(recent.slice(0, 50)));
+      await redis.set(recentKey(), JSON.stringify(recent.slice(0, 100)));
     } catch {
       console.warn("Redis not available — tweet recorded in memory only");
     }
@@ -81,6 +81,42 @@ export async function getRecentTweets(): Promise<string[]> {
     } catch { /* fall through */ }
   }
   return [];
+}
+
+// ============================================================
+// ENGAGEMENT LEARNING — Track top performers
+// ============================================================
+
+const TOP_PERFORMERS_KEY = "top_performers";
+
+/**
+ * Store top performing tweets (updated periodically by fetching own metrics).
+ */
+export async function updateTopPerformers(tweets: Array<{ text: string; likes: number; retweets: number }>): Promise<void> {
+  const redis = await getRedis();
+  if (!redis) return;
+
+  // Keep top 15 by engagement score
+  const sorted = tweets
+    .map(t => ({ text: t.text, score: t.likes + t.retweets * 3 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 15);
+
+  await redis.set(TOP_PERFORMERS_KEY, JSON.stringify(sorted), { EX: 604800 }); // 7 day TTL
+}
+
+/**
+ * Get top performing tweet texts for feeding into prompts.
+ */
+export async function getTopPerformers(): Promise<string[]> {
+  const redis = await getRedis();
+  if (!redis) return [];
+  try {
+    const raw = await redis.get(TOP_PERFORMERS_KEY);
+    if (!raw) return [];
+    const items = JSON.parse(raw) as Array<{ text: string; score: number }>;
+    return items.map(i => i.text);
+  } catch { return []; }
 }
 
 export async function getTodayTweetCount(): Promise<number> {

@@ -30,7 +30,8 @@ const MODELS = {
 export async function generateTweet(
   pillar: ContentPillar,
   recentTweets: string[],
-  trendingContext?: string[]
+  trendingContext?: string[],
+  topPerformers?: string[]
 ): Promise<string> {
   const config = PILLAR_CONFIGS[pillar];
   const model = MODELS[config.model];
@@ -42,7 +43,7 @@ export async function generateTweet(
     messages: [
       {
         role: "user",
-        content: buildTweetPrompt(pillar, recentTweets, trendingContext),
+        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers),
       },
     ],
     temperature: 0.9,
@@ -51,7 +52,6 @@ export async function generateTweet(
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
 
-  // Clean up: remove quotes if Claude wrapped the tweet in them
   return text
     .trim()
     .replace(/^["']|["']$/g, "")
@@ -169,9 +169,47 @@ export async function decideIfImageWorthy(
 
     return text.trim().toLowerCase().startsWith("yes");
   } catch {
-    // Default to yes if the decision call fails
     return true;
   }
+}
+
+/**
+ * Generate a reaction to a trending news tweet.
+ * Returns the tweet ID to quote and the reaction text.
+ */
+export async function generateNewsReaction(
+  newsItems: Array<{ text: string; id: string; author: string; likes: number }>
+): Promise<{ tweetId: string; reactionText: string } | null> {
+  const { buildNewsReactionPrompt } = await import("./prompts");
+
+  const response = await getClient().messages.create({
+    model: MODELS.sonnet,
+    max_tokens: 400,
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: buildNewsReactionPrompt(newsItems),
+      },
+    ],
+    temperature: 0.85,
+  });
+
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  const tweetIdMatch = text.match(/TWEET_ID:\s*(\d+)/);
+  const reactionMatch = text.match(/REACTION:\s*([\s\S]+)/);
+
+  if (!tweetIdMatch || !reactionMatch) return null;
+
+  let reactionText = reactionMatch[1].trim().replace(/^["']|["']$/g, "").trim();
+  if (reactionText.length > 280) reactionText = reactionText.substring(0, 277) + "...";
+
+  return {
+    tweetId: tweetIdMatch[1],
+    reactionText,
+  };
 }
 
 /**

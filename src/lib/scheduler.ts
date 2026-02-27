@@ -30,7 +30,7 @@ const GAP_RANGES: Record<string, { min: number; max: number }> = {
 };
 
 // Chance of a trending/reactive tweet instead of pillar tweet
-const TRENDING_CHANCE = 0.25; // 25% of tweets reference current topics
+const TRENDING_CHANCE = 0.50; // 50% of tweets reference current topics
 
 // ============================================================
 // TIME HELPERS

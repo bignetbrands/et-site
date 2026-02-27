@@ -1,11 +1,13 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
-import { generateTweet, generateImageDescription, generateReply, decideIfImageWorthy } from "./claude";
+import { generateTweet, generateImageDescription, generateReply, decideIfImageWorthy, generateNewsReaction } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
-import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, type Mention } from "./twitter";
+import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, type Mention } from "./twitter";
 import {
   recordTweet,
   getRecentTweets,
+  getTopPerformers,
+  updateTopPerformers,
   getLastMentionId,
   setLastMentionId,
   hasReplied,
@@ -41,8 +43,9 @@ export async function executeTweet(
   console.log(`[ET] Generating ${config.name} tweet...${useTrending ? " (with trending context)" : ""}`);
 
   try {
-    // 1. Get recent tweets for variety context
+    // 1. Get recent tweets + top performers for variety + learning
     const recentTweets = await getRecentTweets();
+    const topPerformers = await getTopPerformers();
 
     // 2. Optionally fetch trending topics
     let trendingContext: string[] | undefined;
@@ -56,7 +59,7 @@ export async function executeTweet(
     }
 
     // 3. Generate tweet text via Claude
-    const tweetText = await generateTweet(pillar, recentTweets, trendingContext);
+    const tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers);
 
     if (!tweetText || tweetText.length > 280) {
       console.error(
@@ -65,7 +68,7 @@ export async function executeTweet(
       const retry = await generateTweet(pillar, [
         ...recentTweets,
         "(IMPORTANT: keep under 280 characters)",
-      ], trendingContext);
+      ], trendingContext, topPerformers);
       if (!retry || retry.length > 280) {
         console.error("[ET] Retry also failed. Skipping.");
         return null;
@@ -485,4 +488,100 @@ export async function dryRun(
   }
 
   return result;
+}
+
+/**
+ * Search for trending news and post a reaction (quote tweet or mention+link).
+ * Uses fallback chain: quote tweet → standalone tweet with link.
+ */
+export async function reactToNews(): Promise<{
+  success: boolean;
+  tweetId?: string;
+  reactionText?: string;
+  sourceTweetId?: string;
+  method?: string;
+  error?: string;
+}> {
+  try {
+    // 1. Search for hot news tweets
+    const newsItems = await searchNewsTweets();
+    if (newsItems.length === 0) {
+      console.log("[ET News] No trending news found");
+      return { success: false, error: "No news found" };
+    }
+
+    console.log(`[ET News] Found ${newsItems.length} news items, picking best one...`);
+
+    // 2. Have Claude pick one and generate reaction
+    const reaction = await generateNewsReaction(newsItems);
+    if (!reaction) {
+      console.log("[ET News] Failed to generate reaction");
+      return { success: false, error: "Failed to generate reaction" };
+    }
+
+    console.log(`[ET News] Reacting to tweet ${reaction.tweetId}: "${reaction.reactionText.substring(0, 60)}..."`);
+
+    // 3. Try quote tweet first
+    try {
+      const tweetId = await postQuoteTweet(reaction.reactionText, reaction.tweetId);
+      console.log(`[ET News] Quote tweeted: ${tweetId}`);
+
+      await recordTweet({
+        id: tweetId,
+        text: reaction.reactionText,
+        pillar: "disclosure_conspiracy",
+        postedAt: new Date().toISOString(),
+        hasImage: false,
+      });
+
+      return { success: true, tweetId, reactionText: reaction.reactionText, sourceTweetId: reaction.tweetId, method: "quote" };
+    } catch (quoteErr) {
+      console.warn("[ET News] Quote tweet failed, falling back to mention+link");
+    }
+
+    // 4. Fallback: standalone tweet with link
+    const sourceItem = newsItems.find(n => n.id === reaction.tweetId);
+    const author = sourceItem?.author || "unknown";
+    const linkUrl = `https://x.com/${author}/status/${reaction.tweetId}`;
+
+    // Trim text to fit with link (t.co wraps to 23 chars)
+    const maxTextLen = 280 - 23 - 2;
+    let text = reaction.reactionText;
+    if (text.length > maxTextLen) {
+      text = text.substring(0, maxTextLen - 3) + "...";
+    }
+    text = `${text}\n\n${linkUrl}`;
+
+    const tweetId = await postTweet(text);
+    console.log(`[ET News] Posted mention+link: ${tweetId}`);
+
+    await recordTweet({
+      id: tweetId,
+      text: reaction.reactionText,
+      pillar: "disclosure_conspiracy",
+      postedAt: new Date().toISOString(),
+      hasImage: false,
+    });
+
+    return { success: true, tweetId, reactionText: reaction.reactionText, sourceTweetId: reaction.tweetId, method: "mention" };
+  } catch (error) {
+    console.error("[ET News] Error:", error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Refresh engagement data — fetch our own tweet metrics and update top performers.
+ */
+export async function refreshEngagement(): Promise<void> {
+  try {
+    const metrics = await getOwnTweetMetrics();
+    if (metrics.length > 0) {
+      await updateTopPerformers(metrics);
+      const topLikes = metrics.sort((a, b) => b.likes - a.likes).slice(0, 3);
+      console.log(`[ET Engagement] Updated top performers from ${metrics.length} tweets. Top: ${topLikes.map(t => `${t.likes}❤️`).join(", ")}`);
+    }
+  } catch (error) {
+    console.warn("[ET Engagement] Failed to refresh:", error);
+  }
 }

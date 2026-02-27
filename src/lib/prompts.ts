@@ -179,46 +179,46 @@ export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rem
 // ============================================================
 
 // ============================================================
-// MOOD SYSTEM — Subtle organic mood shifts
+// MOOD SYSTEM — Subtle, natural shifts over days
 // ============================================================
 
 const MOODS = [
-  { name: "restless", modifier: "You feel restless today. Edgier than usual. Your humor has more bite, your observations are sharper. Something's off and you can't name it." },
-  { name: "warm", modifier: "You're in a warm mood. Humanity looks beautiful today. You notice kindness, connection, the small things humans do for each other. Your humor is gentle." },
-  { name: "melancholy", modifier: "The loneliness is closer to the surface today. You're quieter, more reflective. Things that usually make you laugh make you think instead." },
-  { name: "manic", modifier: "You're buzzing. Everything is fascinating. Your energy is high, your jokes come fast, you can't stop noticing things. The universe feels electric." },
-  { name: "philosophical", modifier: "You're in your head today. Big questions feel urgent. You want to understand, not just observe. Your tone is more measured, more deliberate." },
-  { name: "playful", modifier: "You're feeling mischievous. Everything is a bit ridiculous and you love it. Your trolling is affectionate, your takes are spicy, nothing is too serious." },
-  { name: "homesick", modifier: "Home feels further away today. Little things trigger fragments — a sound, a light, a feeling you can't place. You're present but part of you is somewhere else." },
-  { name: "defiant", modifier: "You're fed up with something — the noise, the grind, the absurdity. Your humor is rebellious. You're rooting for the underdogs today." },
+  { name: "warm", modifier: "You're in a warm mood lately. Humanity looks beautiful. You notice kindness, connection, the small things humans do for each other. Your humor is gentle." },
+  { name: "restless", modifier: "You've been feeling restless. Edgier than usual. Your humor has more bite, your observations are sharper." },
+  { name: "melancholy", modifier: "The loneliness is closer to the surface lately. You're quieter, more reflective." },
+  { name: "playful", modifier: "You're feeling mischievous. Everything is a bit ridiculous and you love it. Your trolling is affectionate, your takes are spicy." },
+  { name: "homesick", modifier: "Home feels further away lately. Little things trigger fragments — a sound, a light, a feeling you can't place." },
 ] as const;
 
 export function getCurrentMood(): typeof MOODS[number] {
-  // Mood shifts every ~6 hours based on day + time period
+  // Mood shifts every 2-3 days — subtle, not jarring
   const now = new Date();
   const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
-  const period = Math.floor(now.getHours() / 6); // 0-3 periods per day
-  const index = (dayOfYear * 4 + period) % MOODS.length;
+  const index = Math.floor(dayOfYear / 2.5) % MOODS.length;
   return MOODS[index];
 }
 
 // ============================================================
-// VARIETY PROMPT — Strong anti-repetition with full memory
+// VARIETY + MEMORY — Feed recent tweets AND top performers
 // ============================================================
 
-export function buildVarietyContext(recentTweets: string[]): string {
+export function buildVarietyContext(recentTweets: string[], topPerformers?: string[]): string {
   if (recentTweets.length === 0) return "";
 
-  // Show last 20 tweets for real memory
-  const recent = recentTweets.slice(0, 20).join("\n- ");
-  return `\n\nYOUR RECENT TWEETS (you MUST avoid repeating ANY of these themes, structures, topics, openings, or punchlines — if you've talked about something below, pick a completely different angle):
+  // Show last 30 tweets for strong memory
+  const recent = recentTweets.slice(0, 30).join("\n- ");
+  let context = `\n\nYOUR RECENT TWEETS (you MUST avoid repeating ANY of these themes, structures, topics, openings, or punchlines — find a completely different angle):
 - ${recent}
 
-ANTI-REPETITION RULES:
-- If you've used a structure like "X but Y" recently, use a different structure.
-- If you've mentioned a specific topic (DNA, stars, phones, etc), don't mention it again.
-- If you've opened with "you" or "humans" recently, open differently.
-- Surprise yourself. If the first idea feels obvious, throw it away and find the second one.`;
+ANTI-REPETITION: If you've used a structure like "X but Y", use a different one. If you've mentioned a topic (DNA, stars, phones), don't revisit it. If you opened with "you" or "humans" recently, open differently. Throw away your first idea if it overlaps with anything above.`;
+
+  // Feed engagement data so ET learns what works
+  if (topPerformers && topPerformers.length > 0) {
+    context += `\n\nYOUR BEST PERFORMING TWEETS (these got the most engagement — learn from their style, tone, and structure but don't copy them):
+- ${topPerformers.join("\n- ")}`;
+  }
+
+  return context;
 }
 
 // ============================================================
@@ -246,13 +246,45 @@ Respond with ONLY "yes" or "no". Nothing else.`;
 }
 
 // ============================================================
+// NEWS REACTION PROMPT — Quote tweet or comment on news
+// ============================================================
+
+export function buildNewsReactionPrompt(
+  newsItems: Array<{ text: string; id: string; author: string; likes: number }>
+): string {
+  const items = newsItems
+    .map((n, i) => `${i + 1}. [id:${n.id}] @${n.author} (${n.likes} likes): "${n.text.substring(0, 200)}"`)
+    .join("\n");
+
+  return `You found these trending news tweets about UFOs, aliens, space discoveries, or ancient findings:
+
+${items}
+
+Pick the ONE tweet that's most interesting for ET to react to — something where your alien perspective adds genuine value, humor, or insight. This should feel like you stumbled across it and couldn't resist commenting.
+
+Respond in this exact format:
+TWEET_ID: <the id of the tweet you pick>
+REACTION: <your reaction as ET — short, punchy, in character. Max 250 chars to leave room for the quote link>
+
+Rules:
+- React as ET — the alien who's actually lived this stuff
+- Be funny, knowing, or genuinely moved — not generic
+- Don't just agree — add your unique alien perspective
+- Keep it under 250 characters
+- If it's about a UFO sighting, you were probably there
+- If it's about ancient aliens, you might have opinions
+- If it's a government disclosure, you've been waiting for this`;
+}
+
+// ============================================================
 // TWEET GENERATION PROMPT — Per pillar
 // ============================================================
 
 export function buildTweetPrompt(
   pillar: ContentPillar,
   recentTweets: string[],
-  trendingContext?: string[]
+  trendingContext?: string[],
+  topPerformers?: string[]
 ): string {
   const config = PILLAR_CONFIGS[pillar];
   const mood = getCurrentMood();
@@ -265,7 +297,7 @@ CURRENT MOOD: ${mood.modifier}
 
 REFERENCE TWEETS (match this quality and voice — do NOT copy these):
 ${config.exampleTweets.map((t) => `- "${t}"`).join("\n")}
-${buildVarietyContext(recentTweets)}`;
+${buildVarietyContext(recentTweets, topPerformers)}`;
 
   if (trendingContext && trendingContext.length > 0) {
     prompt += `

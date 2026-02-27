@@ -297,3 +297,110 @@ export async function getUserRecentTweets(
     return [];
   }
 }
+
+/**
+ * Search for trending news tweets about UFOs, aliens, space discoveries, ancient findings.
+ * Returns high-engagement tweets with links that ET can quote tweet or react to.
+ */
+export async function searchNewsTweets(): Promise<Array<{
+  id: string;
+  text: string;
+  author: string;
+  likes: number;
+  retweets: number;
+  hasLink: boolean;
+}>> {
+  const queries = [
+    "UFO sighting OR UAP footage OR alien discovery -is:retweet lang:en has:links",
+    "UFO OR UAP congress OR disclosure hearing -is:retweet lang:en",
+    "ancient discovery OR archaeological find OR ancient civilization -is:retweet lang:en has:links",
+    "SETI signal OR exoplanet discovery OR radio telescope -is:retweet lang:en",
+    "alien OR extraterrestrial evidence -from:NASA OR -from:Reuters OR -from:AP -is:retweet lang:en",
+  ];
+
+  // Pick 2 random queries
+  const shuffled = queries.sort(() => Math.random() - 0.5);
+  const toSearch = shuffled.slice(0, 2);
+
+  const results: Array<{
+    id: string;
+    text: string;
+    author: string;
+    likes: number;
+    retweets: number;
+    hasLink: boolean;
+  }> = [];
+
+  for (const query of toSearch) {
+    try {
+      const searchResults = await getClient().v2.search(query, {
+        max_results: 10,
+        sort_order: "relevancy",
+        "tweet.fields": "public_metrics,created_at,entities",
+        expansions: "author_id",
+        "user.fields": "username",
+      });
+
+      if (searchResults.data?.data) {
+        const users = new Map<string, string>();
+        if (searchResults.includes?.users) {
+          for (const u of searchResults.includes.users) {
+            users.set(u.id, u.username);
+          }
+        }
+
+        for (const t of searchResults.data.data) {
+          const likes = t.public_metrics?.like_count || 0;
+          const retweets = t.public_metrics?.retweet_count || 0;
+          if (likes >= 20 && t.text.length > 40) {
+            results.push({
+              id: t.id,
+              text: t.text.replace(/https:\/\/t\.co\/\w+/g, "").trim(),
+              author: users.get(t.author_id || "") || "unknown",
+              likes,
+              retweets,
+              hasLink: !!(t.entities?.urls?.length),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`[ET News] Search failed:`, error);
+    }
+  }
+
+  // Sort by engagement
+  return results
+    .sort((a, b) => (b.likes + b.retweets * 3) - (a.likes + a.retweets * 3))
+    .slice(0, 8);
+}
+
+/**
+ * Fetch ET's own recent tweets with engagement metrics for learning.
+ */
+export async function getOwnTweetMetrics(): Promise<Array<{
+  text: string;
+  likes: number;
+  retweets: number;
+}>> {
+  try {
+    const results = await getClient().v2.search("from:etalienx -is:retweet -is:reply", {
+      max_results: 50,
+      "tweet.fields": "public_metrics,created_at",
+      sort_order: "recency",
+    });
+
+    if (!results.data?.data) return [];
+
+    return results.data.data
+      .map(t => ({
+        text: t.text.replace(/https:\/\/t\.co\/\w+/g, "").trim(),
+        likes: t.public_metrics?.like_count || 0,
+        retweets: t.public_metrics?.retweet_count || 0,
+      }))
+      .filter(t => t.text.length > 15);
+  } catch (error) {
+    console.warn("[ET Metrics] Failed to fetch own tweets:", error);
+    return [];
+  }
+}

@@ -84,6 +84,27 @@ export async function GET(request: Request) {
     }
 
     // Normal scheduling
+    // Periodically refresh engagement data (~once per hour, 15min cron = 25% chance)
+    if (Math.random() < 0.25) {
+      const { refreshEngagement } = await import("@/lib/orchestrator");
+      await refreshEngagement();
+    }
+
+    // 20% chance to react to news instead of normal tweet
+    if (Math.random() < 0.20) {
+      const { reactToNews } = await import("@/lib/orchestrator");
+      const newsResult = await reactToNews();
+      if (newsResult.success) {
+        return NextResponse.json({
+          posted: true,
+          newsReaction: true,
+          tweet: { id: newsResult.tweetId, text: newsResult.reactionText, method: newsResult.method },
+          timestamp: new Date().toISOString(),
+        });
+      }
+      // If news reaction failed, fall through to normal tweet
+    }
+
     // Ask the scheduler if we should tweet
     const decision = await shouldTweet();
 
