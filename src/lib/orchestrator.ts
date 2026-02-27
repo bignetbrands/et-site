@@ -213,8 +213,11 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   }
 
   // Skip very short/empty mentions (just tagging with no substance)
+  // But NEVER skip CA/contract address requests — these need a response
   const textWithoutMentions = mention.text.replace(/@\w+/g, "").trim();
-  if (textWithoutMentions.length < 3) {
+  const isCARequest = /^(ca|contract|address|ca\?|CA)\??$/i.test(textWithoutMentions);
+  
+  if (textWithoutMentions.length < 2 && !isCARequest) {
     await recordReply(mention.id); // Mark as processed so we don't retry
     return {
       mentionId: mention.id,
