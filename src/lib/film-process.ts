@@ -1,34 +1,34 @@
 import sharp from "sharp";
 
 /**
- * Apply AGGRESSIVE analog film artifacts to a DALL-E image.
+ * Apply cinematic Super 8mm film artifacts to a DALL-E image.
  * Transforms clean AI output into something that looks like
- * a real photograph on expired 35mm film found in a shoebox.
+ * a real analog film still — warm, grainy, intimate, documentary feel.
  *
  * Pipeline:
- * 1. Desaturate + expired film color shift (green-yellow cast)
- * 2. Darken / underexpose significantly
- * 3. Heavy film grain (coarse, visible structure)
+ * 1. Desaturate + warm amber/brown tint (Super 8mm color)
+ * 2. Slightly underexpose
+ * 3. Heavy film grain (coarse, with color variation)
  * 4. Dust & scratches overlay
- * 5. Light leak (orange/magenta bleed from random edge)
- * 6. Heavy vignette (dark corners)
+ * 5. Warm light leak (amber/orange bleed from random edge)
+ * 6. Heavy vignette (dark edges)
  * 7. Scan lines (subtle)
  * 8. Soft focus (kill AI sharpness)
- * 9. Low-quality JPEG compression artifacts
+ * 9. JPEG compression artifacts
  */
 export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
   const size = 1024;
 
-  // --- STEP 1: Base image — heavy desaturation, underexpose, expired film color ---
+  // --- STEP 1: Base image — desaturate, warm tint, slight underexpose ---
   let processed = sharp(imageBuffer)
     .resize(size, size, { fit: "cover" })
     .modulate({
-      saturation: 0.3, // Washed out expired film
-      brightness: 0.7, // Less aggressive — let the figure be visible enough to see wrong proportions
+      saturation: 0.4, // Muted but not dead — warm film retains some color
+      brightness: 0.75, // Slightly underexposed, cinematic
     })
-    // Expired film green-yellow cast
-    .tint({ r: 165, g: 185, b: 155 })
-    // Soften AI sharpness but keep figure shape readable
+    // Warm muted tint — amber/brown, like Super 8mm film stock
+    .tint({ r: 200, g: 180, b: 155 })
+    // Soften AI sharpness
     .blur(0.9);
 
   const baseBuffer = await processed.png().toBuffer();
@@ -55,11 +55,11 @@ export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
         blend: "screen",
         opacity: 0.3,
       },
-      // Light leak (orange/magenta edge bleed)
+      // Light leak (warm amber edge bleed — subtle)
       {
         input: lightLeakBuffer,
         blend: "screen",
-        opacity: 0.35,
+        opacity: 0.2,
       },
       // Vignette (very dark edges)
       {
@@ -81,8 +81,8 @@ export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
     .modulate({
       brightness: 0.9,
     })
-    // Gamma shift for expired film look — greens/yellows pushed
-    .gamma(1.9, 1.5)
+    // Warm gamma — push amber/brown tones
+    .gamma(1.6, 1.8)
     // JPEG compression artifacts — like resaved a few times, not completely destroyed
     .jpeg({ quality: 48 })
     .toBuffer();
@@ -266,10 +266,10 @@ async function generateLightLeak(size: number): Promise<Buffer> {
   // Pick random edge and color
   const edge = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
   const colors = [
-    { r: 255, g: 120, b: 30 },  // warm orange
-    { r: 220, g: 60, b: 120 },  // magenta/pink
-    { r: 255, g: 160, b: 20 },  // amber
-    { r: 180, g: 80, b: 160 },  // purple-pink
+    { r: 255, g: 140, b: 40 },  // warm orange
+    { r: 240, g: 180, b: 60 },  // golden amber
+    { r: 255, g: 120, b: 50 },  // deep warm orange
+    { r: 220, g: 160, b: 80 },  // muted gold
   ];
   const color = colors[Math.floor(Math.random() * colors.length)];
   const leakDepth = 0.15 + Math.random() * 0.2; // How far the leak extends (15-35%)

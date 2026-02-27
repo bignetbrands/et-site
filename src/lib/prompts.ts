@@ -168,7 +168,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // LORE IMAGE PROMPT TEMPLATE — For DALL-E
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Photograph taken on expired 35mm film stock, circa early 2000s disposable camera. EXTREME film grain — visible grain structure like ISO 3200 pushed two stops. Sickly green-yellow color shift with deep blue shadows. Scratches, dust particles, chemical stains on the negative. Light leaks bleeding orange and magenta from edges. Chromatic aberration on edges. The atmosphere is THICK — fog, haze, humidity, dust catching light. There is a small figure with DISTINCTLY NON-HUMAN proportions — oversized smooth head, very thin elongated limbs, small childlike stature (3-4 feet tall), no hair — clearly not a human being. The figure is obscured through NATURAL PHOTOGRAPHIC CAUSES only: shallow depth of field (figure out of focus while environment is sharp, or vice versa), motion blur from movement, partially hidden behind real objects (doorframes, furniture, fences, foliage), distance (small in the frame, far from camera), shot through dirty glass or rain-streaked windows, backlit by a light source creating rim-light silhouette with alien head shape visible, caught at the very edge of frame as if photographer didn't notice them, obscured by atmospheric haze or fog. The environment is HYPER-REAL and lived-in — cracked concrete, peeling paint, wet asphalt, rusty fences, flickering fluorescent lights, overgrown weeds, stained walls, condensation on windows. NEVER darken or blacken the figure artificially. The obscurity must look like it happened naturally through the camera or environment. This looks like a real photograph someone found in a shoebox. NOT clean, NOT digital, NOT CGI, NOT a toy, NOT a portrait. Square format (1024x1024). The scene depicts:`;
+export const LORE_IMAGE_PROMPT_PREFIX = `Grainy analog photograph of a small extraterrestrial, cinematic low light, shallow depth of field. The alien has a large rounded head and thin neck, subtle ambient light barely revealing faint facial structure (very soft contours of eyes and nose, not glowing, no pinlights). Sometimes one finger raised with a small soft red glow at the tip, diffused light bloom. Light source behind the character creating soft halo and mild lens flare. Super 8mm film still, heavy film grain, dust particles, vignette, slightly underexposed, muted warm tones, realistic photography, moody, intimate, documentary feel. NO sci-fi neon, NO cyberpunk, NO crypto aesthetic, NO clean digital render, NO toy-like appearance. Square format (1024x1024). The scene depicts:`;
 
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
 
@@ -410,32 +410,34 @@ Rules:
 Output ONLY the scene description, nothing else.`;
   }
 
-  // Default: Personal Lore — Found footage / expired film style
+  // Default: Personal Lore — Cinematic analog, bunker/hiding aesthetic
   return `You are generating a visual description for a DALL-E image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
 
 "${tweetText}"
 
-The image style is: Real photograph on expired film. A figure with clearly NON-HUMAN proportions (oversized head, thin limbs, small stature) is partially visible — obscured by NATURAL photographic or environmental causes.
+The image style is: Grainy analog Super 8mm film still. Cinematic, moody, intimate — like a documentary frame of an extraterrestrial in hiding.
 
 Create a short, vivid scene description (1-2 sentences) that captures the emotional essence of this tweet.
 
-CRITICAL — THE FIGURE MUST READ AS ALIEN, NOT HUMAN:
-- Oversized smooth head, thin elongated limbs, small childlike body (3-4 feet), no hair
-- Even when blurry or partially hidden, the proportions should be clearly wrong for a human
+THE ALIEN — consistent look every image:
+- Small extraterrestrial with large rounded head, thin neck, thin limbs
+- Mostly in silhouette or low-light, with ambient light barely revealing soft facial contours (eyes, nose — never glowing, never pinlights)
+- Sometimes one finger raised with a small soft red glow at the tip (diffused, not laser)
+- Backlight creating soft halo around head, mild lens flare
 
-OBSCURITY MUST COME FROM NATURAL CAUSES (pick one or two per image):
-- Shallow depth of field: figure is out of focus while foreground/background is sharp
-- Motion blur: figure caught mid-movement, streaked
-- Partially behind objects: peeking from behind a doorframe, half-hidden by furniture, through fence gaps
-- Distance: figure is small in the frame, far from camera in a large space
-- Through dirty/wet glass: shot through a rain-streaked window or foggy pane
-- Backlighting: light source behind figure creates rim-light outline showing alien head shape
-- Edge of frame: figure at the far edge as if the photographer didn't even notice them
-- Atmospheric: fog, rain, haze naturally softening the figure
-- Foreground obstruction: something closer to camera is sharp and partially blocks the figure
+ENVIRONMENT — varies per tweet but always grounded:
+- Default: dim bunker basement, cluttered shelves, boxes, old equipment (his hiding spot)
+- Can also be: looking out a rain-streaked window, standing in an overgrown field at dusk, in a dim hallway, at the edge of a rooftop at night, in an abandoned room — match the tweet's mood
+- Background always out of focus (shallow depth of field)
+- Lived-in, real, textured — dust, concrete, wood, rust, clutter
 
-ENVIRONMENT is hyper-real and lived-in: describe specific textures, stains, wear. Real locations.
-NEVER say "darkened", "shadowed figure", "dark silhouette" — the figure should be LIT enough to see the wrong proportions, just obscured by natural camera/environment reasons.
+FILM QUALITIES — baked into every description:
+- Heavy film grain, dust particles floating in light beams
+- Muted warm tones (ambers, browns, muted yellows)
+- Slightly underexposed, vignette at edges
+- Cinematic low light — single practical light source (bare bulb, window light, moonlight)
+
+NEVER: sci-fi neon, cyberpunk, crypto aesthetic, clean digital, bright lighting, toy-like, whimsical, portrait-style composition
 
 Output ONLY the scene description, nothing else.`;
 }
@@ -515,19 +517,19 @@ RULES:
 export function buildLateReplyImagePrompt(delayLabel: string): string {
   return `Generate a short, vivid scene description (1-2 sentences) for a DALL-E image showing what ET was doing instead of checking his phone.
 
-ET has DISTINCTLY NON-HUMAN proportions: oversized smooth head, thin elongated limbs, small childlike stature (3-4 feet), no hair. Even partially visible, the proportions are clearly wrong for a human.
+ET is a small extraterrestrial with a large rounded head, thin neck, thin limbs. He is mostly in silhouette with ambient light barely revealing soft facial contours. Sometimes one finger raised with a small soft red glow at the tip.
 
-The image should show ET caught in the middle of some mundane activity that explains why he took ${delayLabel} to reply. He is partially obscured by NATURAL photographic causes (out of focus, behind objects, through glass, motion blur, distance, edge of frame).
+The image shows ET caught in the middle of some mundane activity that explains why he took ${delayLabel} to reply.
 
-Ideas (pick one or invent — figure has alien proportions but is naturally obscured):
-- A figure with an oversized head sitting in tall grass, shot through a chain-link fence with the fence sharp and figure soft (shallow depth of field)
-- A small non-human shape hunched over a glowing monitor, seen through a dirty window — condensation blurring the glass
-- A rooftop at night — a small thin-limbed figure at the far edge staring at the moon, distant and small in the wide frame
-- Grocery store aisle — something short with a big head at the far end reaching for a shelf, caught in motion blur
-- A living room lit by CRT glow — a figure with wrong proportions curled on the couch, foreground lamp shade blocking half the view
-- A garden — something small crouching near plants, shot through a rain-streaked window from inside the house
+Ideas (pick one or invent):
+- ET in his dim bunker, hunched over an old monitor with cables everywhere, background shelves cluttered with boxes — soft backlight halo around his head
+- ET sitting in tall grass at dusk, looking up at the sky, a warm golden rim-light behind him — background completely out of focus
+- ET in a dark kitchen, standing on a stool reaching for something on a high shelf — a single bare bulb overhead casting a warm pool of light
+- ET curled up in a corner with a CRT TV glowing nearby — dust particles floating in the light beam
+- ET at a rain-streaked window, one hand on the glass, red fingertip glowing faintly — the outside world blurred through the wet pane
+- ET on a rooftop at night, small figure at the far edge, moonlight creating a soft halo — city lights blurred in the background
 
-Style: Real photograph on expired 35mm film. Extreme grain, green-yellow color shift, scratches on negative, light leaks. Thick atmosphere. Environment is hyper-real (real kitchen, real rooftop, real field). NEVER artificially darken the figure — obscurity comes from camera/environment only. Square format.
+Style: Grainy analog Super 8mm film still. Heavy film grain, dust particles, muted warm tones, slightly underexposed, vignette, shallow depth of field. Cinematic low light, documentary feel, moody and intimate. NO sci-fi neon, NO cyberpunk, NO clean digital. Square format.
 
 Output ONLY the scene description.`;
 }

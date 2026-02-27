@@ -14,7 +14,7 @@ function getClient(): OpenAI {
 
 /**
  * Generate an image using DALL-E 3 for the given pillar.
- * - personal_lore: Found footage / classified leak — ET barely visible, grainy, surveillance aesthetic
+ * - personal_lore: Cinematic Super 8mm analog — ET in silhouette, warm muted tones, documentary feel
  *   → Post-processed with real film grain, vignette, scan lines, color degradation
  * - human_observation: Prehistoric cave painting of modern behavior
  * - existential: Abstract Picasso/Dalí surrealism with futuristic warp
