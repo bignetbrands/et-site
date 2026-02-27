@@ -178,11 +178,71 @@ export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rem
 // VARIETY PROMPT — Appended to prevent repetition
 // ============================================================
 
+// ============================================================
+// MOOD SYSTEM — Subtle organic mood shifts
+// ============================================================
+
+const MOODS = [
+  { name: "restless", modifier: "You feel restless today. Edgier than usual. Your humor has more bite, your observations are sharper. Something's off and you can't name it." },
+  { name: "warm", modifier: "You're in a warm mood. Humanity looks beautiful today. You notice kindness, connection, the small things humans do for each other. Your humor is gentle." },
+  { name: "melancholy", modifier: "The loneliness is closer to the surface today. You're quieter, more reflective. Things that usually make you laugh make you think instead." },
+  { name: "manic", modifier: "You're buzzing. Everything is fascinating. Your energy is high, your jokes come fast, you can't stop noticing things. The universe feels electric." },
+  { name: "philosophical", modifier: "You're in your head today. Big questions feel urgent. You want to understand, not just observe. Your tone is more measured, more deliberate." },
+  { name: "playful", modifier: "You're feeling mischievous. Everything is a bit ridiculous and you love it. Your trolling is affectionate, your takes are spicy, nothing is too serious." },
+  { name: "homesick", modifier: "Home feels further away today. Little things trigger fragments — a sound, a light, a feeling you can't place. You're present but part of you is somewhere else." },
+  { name: "defiant", modifier: "You're fed up with something — the noise, the grind, the absurdity. Your humor is rebellious. You're rooting for the underdogs today." },
+] as const;
+
+export function getCurrentMood(): typeof MOODS[number] {
+  // Mood shifts every ~6 hours based on day + time period
+  const now = new Date();
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+  const period = Math.floor(now.getHours() / 6); // 0-3 periods per day
+  const index = (dayOfYear * 4 + period) % MOODS.length;
+  return MOODS[index];
+}
+
+// ============================================================
+// VARIETY PROMPT — Strong anti-repetition with full memory
+// ============================================================
+
 export function buildVarietyContext(recentTweets: string[]): string {
   if (recentTweets.length === 0) return "";
 
-  const recent = recentTweets.slice(0, 10).join("\n- ");
-  return `\n\nRECENT TWEETS (do NOT repeat these themes, structures, or openings — be fresh and surprising):\n- ${recent}`;
+  // Show last 20 tweets for real memory
+  const recent = recentTweets.slice(0, 20).join("\n- ");
+  return `\n\nYOUR RECENT TWEETS (you MUST avoid repeating ANY of these themes, structures, topics, openings, or punchlines — if you've talked about something below, pick a completely different angle):
+- ${recent}
+
+ANTI-REPETITION RULES:
+- If you've used a structure like "X but Y" recently, use a different structure.
+- If you've mentioned a specific topic (DNA, stars, phones, etc), don't mention it again.
+- If you've opened with "you" or "humans" recently, open differently.
+- Surprise yourself. If the first idea feels obvious, throw it away and find the second one.`;
+}
+
+// ============================================================
+// IMAGE DECISION PROMPT — Should this tweet get an image?
+// ============================================================
+
+export function buildImageDecisionPrompt(tweetText: string, pillar: string): string {
+  return `You are deciding whether this tweet would benefit from a generated image.
+
+Tweet: "${tweetText}"
+Pillar: ${pillar}
+
+An image should be generated ONLY if:
+- The tweet describes or implies a vivid visual scene
+- The tweet references something concrete that could be illustrated (a moment, an object, a place, a comparison)
+- The visual would ADD something — humor, emotion, atmosphere — not just decorate
+
+An image should NOT be generated if:
+- The tweet is a pure wordplay/pun/one-liner where the text IS the point
+- The tweet is abstract in a way that no image would capture well
+- The tweet is a question with no visual component
+- The tweet is short banter that works better as text-only
+
+Respond with ONLY "yes" or "no". Nothing else.`;
 }
 
 // ============================================================
@@ -195,10 +255,13 @@ export function buildTweetPrompt(
   trendingContext?: string[]
 ): string {
   const config = PILLAR_CONFIGS[pillar];
+  const mood = getCurrentMood();
 
   let prompt = `CONTENT PILLAR: ${config.name}
 DESCRIPTION: ${config.description}
 TONE: ${config.tone}
+
+CURRENT MOOD: ${mood.modifier}
 
 REFERENCE TWEETS (match this quality and voice — do NOT copy these):
 ${config.exampleTweets.map((t) => `- "${t}"`).join("\n")}
@@ -217,10 +280,6 @@ Write one tweet as ET. Max 280 characters. Output ONLY the tweet text, nothing e
 
   return prompt;
 }
-
-// ============================================================
-// LORE IMAGE DESCRIPTION PROMPT
-// ============================================================
 
 // ============================================================
 // IMAGE DESCRIPTION PROMPTS — Per pillar visual style

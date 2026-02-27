@@ -1,6 +1,6 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
-import { generateTweet, generateImageDescription, generateReply } from "./claude";
+import { generateTweet, generateImageDescription, generateReply, decideIfImageWorthy } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, type Mention } from "./twitter";
 import {
@@ -243,32 +243,45 @@ async function postAndRecord(
   let tweetId: string;
   let hasImage = false;
 
-  // 3. If image-enabled pillar, generate image
+  // 3. If image-enabled pillar, check if this tweet warrants an image
   if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential")) {
-    try {
-      const label = pillar === "personal_lore" ? "lore" : pillar === "human_observation" ? "observation" : "existential";
-      console.log(`[ET] Generating ${label} image...`);
+    // Ask Claude if this specific tweet would benefit from an image
+    const imageWorthy = await decideIfImageWorthy(tweetText, pillar);
+    
+    if (imageWorthy) {
+      try {
+        const label = pillar === "personal_lore" ? "lore" : pillar === "human_observation" ? "observation" : "existential";
+        console.log(`[ET] Generating ${label} image...`);
 
-      // Generate scene description via Claude (pillar-aware)
-      const sceneDescription = await generateImageDescription(tweetText, pillar);
-      console.log(`[ET] Scene: ${sceneDescription}`);
+        // Generate scene description via Claude (pillar-aware)
+        const sceneDescription = await generateImageDescription(tweetText, pillar);
+        console.log(`[ET] Scene: ${sceneDescription}`);
 
-      // Generate image via DALL-E (pillar-aware style)
-      const imageUrl = await generateImage(sceneDescription, pillar);
+        // Generate image via DALL-E (pillar-aware style)
+        const imageUrl = await generateImage(sceneDescription, pillar);
+        console.log(`[ET] DALL-E URL received: ${imageUrl.substring(0, 80)}...`);
 
-      // Download image
-      const imageBuffer = await downloadImage(imageUrl);
+        // Download image
+        const imageBuffer = await downloadImage(imageUrl);
+        console.log(`[ET] Image downloaded: ${Math.round(imageBuffer.length / 1024)}KB`);
 
-      // Post tweet with image
-      tweetId = await postTweetWithImage(tweetText, imageBuffer);
-      hasImage = true;
+        // Post tweet with image
+        tweetId = await postTweetWithImage(tweetText, imageBuffer);
+        hasImage = true;
 
-      console.log(`[ET] Posted ${label} tweet with image: ${tweetId}`);
-    } catch (imageError) {
-      console.error("[ET] Image generation failed, posting text-only:", imageError);
-      // Fall back to text-only
+        console.log(`[ET] Posted ${label} tweet with image: ${tweetId}`);
+      } catch (imageError) {
+        const errMsg = imageError instanceof Error ? imageError.message : String(imageError);
+        console.error(`[ET] Image generation failed (${pillar}): ${errMsg}`);
+        console.error("[ET] Full error:", imageError);
+        // Fall back to text-only
+        tweetId = await postTweet(tweetText);
+        console.log(`[ET] Posted text-only fallback: ${tweetId}`);
+      }
+    } else {
+      console.log(`[ET] Image skipped — tweet works better as text-only`);
       tweetId = await postTweet(tweetText);
-      console.log(`[ET] Posted text-only fallback: ${tweetId}`);
+      console.log(`[ET] Posted tweet: ${tweetId}`);
     }
   } else {
     // 4. Post text-only tweet
@@ -453,14 +466,21 @@ export async function dryRun(
     pillar,
   };
 
-  // Generate image preview for image-enabled pillars
+  // Generate image preview for image-enabled pillars (only if image-worthy)
   if (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential") {
     try {
-      const sceneDescription = await generateImageDescription(tweetText, pillar);
-      const imageUrl = await generateImage(sceneDescription, pillar);
-      result.imageUrl = imageUrl;
+      const imageWorthy = await decideIfImageWorthy(tweetText, pillar);
+      if (imageWorthy) {
+        const sceneDescription = await generateImageDescription(tweetText, pillar);
+        console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
+        const imageUrl = await generateImage(sceneDescription, pillar);
+        result.imageUrl = imageUrl;
+      } else {
+        console.log(`[ET Dry Run] Image skipped — text-only works better`);
+      }
     } catch (error) {
-      console.error("[ET] Image preview failed:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[ET Dry Run] Image preview failed (${pillar}): ${errMsg}`);
     }
   }
 

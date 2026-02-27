@@ -6,6 +6,7 @@ import {
   PILLAR_CONFIGS,
   buildTweetPrompt,
   buildImageDescriptionPrompt,
+  buildImageDecisionPrompt,
   buildReplyPrompt,
 } from "./prompts";
 
@@ -141,6 +142,36 @@ export async function generateImageDescription(
     response.content[0].type === "text" ? response.content[0].text : "";
 
   return text.trim();
+}
+
+/**
+ * Decide whether a tweet would benefit from a generated image.
+ */
+export async function decideIfImageWorthy(
+  tweetText: string,
+  pillar: ContentPillar
+): Promise<boolean> {
+  try {
+    const response = await getClient().messages.create({
+      model: MODELS.sonnet,
+      max_tokens: 10,
+      messages: [
+        {
+          role: "user",
+          content: buildImageDecisionPrompt(tweetText, pillar),
+        },
+      ],
+      temperature: 0.3,
+    });
+
+    const text =
+      response.content[0].type === "text" ? response.content[0].text : "";
+
+    return text.trim().toLowerCase().startsWith("yes");
+  } catch {
+    // Default to yes if the decision call fails
+    return true;
+  }
 }
 
 /**
