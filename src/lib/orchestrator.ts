@@ -20,6 +20,21 @@ import {
 const MAX_REPLIES_PER_RUN = 5;
 const MAX_REPLIES_PER_DAY = 50;
 
+/**
+ * Strip leading @mentions from text so tweets appear in timeline, not replies.
+ * Replies (postReply) are fine with @ since they're threaded.
+ * But standalone tweets and quote tweets must NOT start with @.
+ */
+function stripLeadingMentions(text: string): string {
+  // Remove all leading @username patterns
+  let cleaned = text.replace(/^(\s*@\w+\s*)+/, "").trim();
+  // If stripping removed everything, return original without the leading @
+  if (!cleaned && text.trim()) {
+    cleaned = text.trim().replace(/^@/, "");
+  }
+  return cleaned;
+}
+
 export interface ReplyResult {
   mentionId: string;
   mentionText: string;
@@ -246,6 +261,9 @@ async function postAndRecord(
   let tweetId: string;
   let hasImage = false;
 
+  // Safety: never start a standalone tweet with @
+  tweetText = stripLeadingMentions(tweetText);
+
   // 3. If image-enabled pillar, check if this tweet warrants an image
   if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential")) {
     // Ask Claude if this specific tweet would benefit from an image
@@ -307,57 +325,79 @@ async function postAndRecord(
 }
 
 /**
- * Interact with a target account — fetch their tweets, pick one, reply.
+ * Interact with a target account — find a fresh tweet and quote tweet it.
+ * Prefers tweets under 5 minutes old so readers get full context via quote.
  */
 export async function interactWithTarget(
   handle: string
-): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; error?: string }> {
+): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; method?: string; error?: string }> {
   const { getUserRecentTweets } = await import("./twitter");
   const { generateTargetInteraction } = await import("./claude");
   const { resolveTarget } = await import("./store");
 
-  console.log(`[ET Target] Interacting with @${handle}...`);
+  console.log(`[ET Target] Looking for fresh tweets from @${handle}...`);
 
   try {
-    // 1. Fetch their recent tweets
+    // 1. Fetch their recent tweets (sorted by recency)
     const tweets = await getUserRecentTweets(handle, 10);
     if (tweets.length === 0) {
       return { success: false, error: `No recent tweets found for @${handle}` };
     }
 
-    console.log(`[ET Target] Found ${tweets.length} tweets from @${handle}`);
+    // 2. Prefer very fresh tweets (under 5 min), fall back to recent
+    const now = Date.now();
+    const fiveMinAgo = now - 5 * 60 * 1000;
+    const freshTweets = tweets.filter(t => t.createdAt && new Date(t.createdAt).getTime() > fiveMinAgo);
 
-    // 2. Generate reply via Claude
-    const interaction = await generateTargetInteraction(handle, tweets);
+    const tweetsToUse = freshTweets.length > 0 ? freshTweets : tweets;
+    if (freshTweets.length > 0) {
+      console.log(`[ET Target] Found ${freshTweets.length} fresh tweet(s) (under 5 min)`);
+    } else {
+      console.log(`[ET Target] No fresh tweets, using ${tweets.length} recent tweets`);
+    }
+
+    // 3. Generate reaction via Claude
+    const interaction = await generateTargetInteraction(handle, tweetsToUse);
     if (!interaction) {
       return { success: false, error: "Failed to generate interaction" };
     }
 
-    console.log(`[ET Target] Replying to tweet ${interaction.tweetId}: "${interaction.replyText.substring(0, 60)}..."`);
+    // Strip leading @ so it shows in timeline
+    const reactionText = stripLeadingMentions(interaction.replyText);
+    console.log(`[ET Target] Quote tweeting ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
 
-    // 3. Try posting as reply first
+    // 4. Post as quote tweet (primary method)
     try {
-      const replyId = await postReply(interaction.replyText, interaction.tweetId);
+      const qtId = await postQuoteTweet(reactionText, interaction.tweetId);
       await resolveTarget(handle);
-      console.log(`[ET Target] Posted reply ${replyId} to @${handle}`);
-      return { success: true, tweetId: interaction.tweetId, replyText: interaction.replyText, replyId };
-    } catch (replyError: any) {
-      const code = replyError?.code || replyError?.data?.status || replyError?.status;
-      console.warn(`[ET Target] Reply failed (${code}), falling back to standalone mention...`);
+      console.log(`[ET Target] Posted quote tweet ${qtId} for @${handle}`);
 
-      // 4. Fallback: post as a standalone tweet mentioning them
-      const mentionText = `@${handle} ${interaction.replyText}`;
-      const truncated = mentionText.length > 280 ? mentionText.substring(0, 277) + "..." : mentionText;
+      await recordTweet({
+        id: qtId,
+        text: reactionText,
+        pillar: "human_observation",
+        postedAt: new Date().toISOString(),
+        hasImage: false,
+      });
 
-      try {
-        const tweetId = await postTweet(truncated);
-        await resolveTarget(handle);
-        console.log(`[ET Target] Posted mention tweet ${tweetId} to @${handle}`);
-        return { success: true, tweetId: interaction.tweetId, replyText: truncated, replyId: tweetId };
-      } catch (mentionError) {
-        console.error(`[ET Target] Mention fallback also failed:`, mentionError);
-        throw mentionError;
+      return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: qtId, method: "quote" };
+    } catch (qtError: any) {
+      const status = qtError?.data?.status || qtError?.code;
+      console.warn(`[ET Target] Quote tweet failed (${status}), trying standalone mention+link...`);
+
+      // 5. Fallback: standalone tweet with link (no leading @)
+      const tweetLink = `https://x.com/${handle}/status/${interaction.tweetId}`;
+      const maxTextLen = 280 - 23 - 2;
+      let text = reactionText;
+      if (text.length > maxTextLen) {
+        text = text.substring(0, maxTextLen - 3) + "...";
       }
+      text = `${text}\n\n${tweetLink}`;
+
+      const tweetId = await postTweet(text);
+      await resolveTarget(handle);
+      console.log(`[ET Target] Posted standalone mention+link ${tweetId} for @${handle}`);
+      return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: tweetId, method: "mention" };
     }
   } catch (error) {
     console.error(`[ET Target] Error interacting with @${handle}:`, error);
@@ -412,27 +452,27 @@ export async function replyToSpecificTweet(
       const status = replyError?.data?.status || replyError?.code;
       console.warn(`[ET Reply] Direct reply failed (${status}), trying quote tweet...`);
 
-      // 4. Fallback: quote tweet
+      // 4. Fallback: quote tweet (strip leading @ so it shows in timeline)
       try {
-        const qtId = await postQuoteTweet(replyText, tweetId);
+        const cleanReply = stripLeadingMentions(replyText);
+        const qtId = await postQuoteTweet(cleanReply, tweetId);
         console.log(`[ET Reply] Posted quote tweet ${qtId} for tweet ${tweetId}`);
-        return { success: true, tweetId, replyText, replyId: qtId, method: "quote" };
+        return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
       } catch (qtError: any) {
         const qtStatus = qtError?.data?.status || qtError?.code;
-        console.warn(`[ET Reply] Quote tweet failed (${qtStatus}), posting as standalone mention...`);
+        console.warn(`[ET Reply] Quote tweet failed (${qtStatus}), posting as standalone+link...`);
 
-        // 5. Final fallback: standalone tweet with @mention + link
+        // 5. Final fallback: standalone tweet with link (no leading @)
         const tweetLink = `https://x.com/${author}/status/${tweetId}`;
-        // Twitter wraps all URLs to 23 chars via t.co
-        const maxTextLen = 280 - 23 - 2; // 23 for t.co link, 2 for "\n\n"
-        const mentionText = `@${author} ${replyText}`;
-        const trimmedText = mentionText.length > maxTextLen
-          ? mentionText.substring(0, maxTextLen - 3) + "..."
-          : mentionText;
+        const maxTextLen = 280 - 23 - 2;
+        const cleanReply = stripLeadingMentions(replyText);
+        const trimmedText = cleanReply.length > maxTextLen
+          ? cleanReply.substring(0, maxTextLen - 3) + "..."
+          : cleanReply;
         const fullTweet = `${trimmedText}\n\n${tweetLink}`;
 
         const mentionId = await postTweet(fullTweet);
-        console.log(`[ET Reply] Posted standalone mention ${mentionId} to @${author}`);
+        console.log(`[ET Reply] Posted standalone+link ${mentionId}`);
         return { success: true, tweetId, replyText: trimmedText, replyId: mentionId, method: "mention" };
       }
     }
@@ -521,20 +561,23 @@ export async function reactToNews(): Promise<{
 
     console.log(`[ET News] Reacting to tweet ${reaction.tweetId}: "${reaction.reactionText.substring(0, 60)}..."`);
 
+    // Strip leading @ so it shows in timeline
+    const reactionText = stripLeadingMentions(reaction.reactionText);
+
     // 3. Try quote tweet first
     try {
-      const tweetId = await postQuoteTweet(reaction.reactionText, reaction.tweetId);
+      const tweetId = await postQuoteTweet(reactionText, reaction.tweetId);
       console.log(`[ET News] Quote tweeted: ${tweetId}`);
 
       await recordTweet({
         id: tweetId,
-        text: reaction.reactionText,
+        text: reactionText,
         pillar: "disclosure_conspiracy",
         postedAt: new Date().toISOString(),
         hasImage: false,
       });
 
-      return { success: true, tweetId, reactionText: reaction.reactionText, sourceTweetId: reaction.tweetId, method: "quote" };
+      return { success: true, tweetId, reactionText, sourceTweetId: reaction.tweetId, method: "quote" };
     } catch (quoteErr) {
       console.warn("[ET News] Quote tweet failed, falling back to mention+link");
     }
@@ -546,7 +589,7 @@ export async function reactToNews(): Promise<{
 
     // Trim text to fit with link (t.co wraps to 23 chars)
     const maxTextLen = 280 - 23 - 2;
-    let text = reaction.reactionText;
+    let text = reactionText;
     if (text.length > maxTextLen) {
       text = text.substring(0, maxTextLen - 3) + "...";
     }
@@ -557,13 +600,13 @@ export async function reactToNews(): Promise<{
 
     await recordTweet({
       id: tweetId,
-      text: reaction.reactionText,
+      text: reactionText,
       pillar: "disclosure_conspiracy",
       postedAt: new Date().toISOString(),
       hasImage: false,
     });
 
-    return { success: true, tweetId, reactionText: reaction.reactionText, sourceTweetId: reaction.tweetId, method: "mention" };
+    return { success: true, tweetId, reactionText, sourceTweetId: reaction.tweetId, method: "mention" };
   } catch (error) {
     console.error("[ET News] Error:", error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };

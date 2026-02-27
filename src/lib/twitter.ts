@@ -290,8 +290,8 @@ export async function getUserRecentTweets(
         likes: t.public_metrics?.like_count || 0,
         createdAt: t.created_at,
       }))
-      .filter((t) => t.text.length > 15)
-      .sort((a, b) => b.likes - a.likes);
+      .filter((t) => t.text.length > 15);
+      // Already sorted by recency from search API (sort_order: "recency")
   } catch (error) {
     console.warn(`[ET Targets] Failed to fetch tweets for @${username}:`, error);
     return [];
