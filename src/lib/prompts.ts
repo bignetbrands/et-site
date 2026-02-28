@@ -399,21 +399,29 @@ Output ONLY the scene description, nothing else.`;
   }
 
   if (pillar === "existential") {
-    return `You are generating a visual description for a DALL-E image to accompany this Existential tweet by ET (an alien stranded on Earth):
+    return `You are generating a visual description for a DALL-E image to accompany this Existential tweet by ET:
 
 "${tweetText}"
 
 The image style is: Rembrandt oil painting — dramatic chiaroscuro, golden light against deep darkness, classical Dutch master composition.
 
-Create a short, vivid scene description (1-2 sentences) that visualizes the concept in this tweet as a Rembrandt painting.
+Create a short, vivid scene description (1-2 sentences) that DIRECTLY ILLUSTRATES the specific concept, fact, or metaphor in this tweet.
+
+CRITICAL — THE IMAGE MUST MATCH THE TWEET:
+- If the tweet is about atoms from dying stars → paint a figure made of stardust, or a supernova with a tiny human silhouette
+- If the tweet is about DNA shared with bananas → paint a figure holding a banana with both glowing the same golden light
+- If the tweet is about brain synapses vs stars → paint a brain that looks like a galaxy, or a skull with stars inside
+- If the tweet is about light traveling from stars → paint a beam of light crossing a vast dark canvas toward a small figure
+- If the tweet is about the age of the universe → paint something that captures deep time visually
+
+The painting should make someone look at it and IMMEDIATELY know what tweet it goes with. If you could swap this image onto a different existential tweet and it would still work, you've failed — it needs to be specific.
 
 Rules:
-- Describe a scene with dramatic light and shadow — a single warm light source illuminating the subject
-- The subject should connect to the science or concept in the tweet — a figure contemplating the stars, hands holding something small and significant, a solitary moment of wonder
-- Deep dark backgrounds with luminous golden highlights
-- Classical composition — intimate, contemplative, profound
-- Think Rembrandt's portraits and biblical scenes but applied to scientific wonder and cosmic perspective
-- Never include readable text, modern elements, or clean digital aesthetics
+- Deep dark backgrounds with luminous golden highlights from a single warm light source
+- Classical Rembrandt composition — intimate, dramatic, profound
+- Translate the LITERAL science/concept into visual metaphor (atoms = glowing particles, DNA = intertwined strands, neurons = branching light, etc.)
+- Never generic "person looking at sky" or "hands reaching toward light" — those fit any tweet and therefore fit none
+- Never readable text, modern elements, or clean digital aesthetics
 
 Output ONLY the scene description, nothing else.`;
   }
