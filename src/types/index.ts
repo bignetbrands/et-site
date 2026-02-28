@@ -42,5 +42,6 @@ export interface SchedulerDecision {
   shouldTweet: boolean;
   pillar?: ContentPillar;
   useTrending?: boolean;
+  useRiddle?: boolean;
   reason: string;
 }

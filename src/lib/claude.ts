@@ -36,7 +36,8 @@ export async function generateTweet(
     topicFrequency: Record<string, number>;
     usedStructures: string[];
     usedOpenings: string[];
-  }
+  },
+  useRiddle?: boolean
 ): Promise<string> {
   const config = PILLAR_CONFIGS[pillar];
   const model = MODELS[config.model];
@@ -48,7 +49,7 @@ export async function generateTweet(
     messages: [
       {
         role: "user",
-        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers, memorySummary),
+        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers, memorySummary, useRiddle),
       },
     ],
     temperature: 0.9,

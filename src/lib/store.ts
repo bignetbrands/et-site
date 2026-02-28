@@ -373,6 +373,43 @@ export async function incrementDailyReplyCount(): Promise<void> {
 }
 
 // ============================================================
+// THREAD REPLY TRACKING — Prevent redundant replies in same thread
+// ============================================================
+
+const THREAD_REPLIES_KEY = "thread_replies";
+
+/**
+ * Get how many times ET has replied in a given conversation thread today.
+ */
+export async function getThreadReplyCount(conversationId: string): Promise<number> {
+  const redis = await getRedis();
+  const key = `${THREAD_REPLIES_KEY}:${new Date().toISOString().split("T")[0]}`;
+  if (redis) {
+    try {
+      const count = await redis.hGet(key, conversationId);
+      return count ? parseInt(count, 10) : 0;
+    } catch { /* fall through */ }
+  }
+  return 0;
+}
+
+/**
+ * Record that ET replied in a conversation thread.
+ */
+export async function recordThreadReply(conversationId: string): Promise<void> {
+  const redis = await getRedis();
+  const key = `${THREAD_REPLIES_KEY}:${new Date().toISOString().split("T")[0]}`;
+  if (redis) {
+    try {
+      await redis.hIncrBy(key, conversationId, 1);
+      await redis.expire(key, 86400); // Expire after 24h
+    } catch {
+      console.warn("[Redis] Failed to record thread reply");
+    }
+  }
+}
+
+// ============================================================
 // TARGET ACCOUNTS — Community-driven interaction targets
 // ============================================================
 

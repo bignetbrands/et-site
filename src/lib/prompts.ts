@@ -337,7 +337,8 @@ export function buildTweetPrompt(
     topicFrequency: Record<string, number>;
     usedStructures: string[];
     usedOpenings: string[];
-  }
+  },
+  useRiddle?: boolean
 ): string {
   const config = PILLAR_CONFIGS[pillar];
   const mood = getCurrentMood();
@@ -355,6 +356,26 @@ CURRENT MOOD: ${mood.modifier}
 VOICE REFERENCE (match this QUALITY and VOICE ONLY — do NOT copy structure, topic, or phrasing):
 ${selectedExamples.map((t) => `- "${t}"`).join("\n")}
 ${buildVarietyContext(recentTweets, topPerformers, memorySummary)}`;
+
+  if (useRiddle) {
+    prompt += `
+
+🧩 RIDDLE MODE — This tweet should be an ENGAGING RIDDLE or PUZZLE that drives replies.
+
+FORMAT OPTIONS (pick one):
+1. WORD RIDDLE: A riddle, brain teaser, or "what am I?" puzzle from ET's alien perspective. The answer should be something space/science/human-related. Don't give the answer — let people guess in replies.
+   Examples: "i have no mouth but i speak to every planet. i travel at the speed of light but i never arrive. what am i?" (radio wave) | "humans carry me everywhere but never look through me at the stars. what am i?" (phone camera)
+2. ALIEN OBSERVATION PUZZLE: Describe a common human thing from an alien perspective without naming it — make people guess what you're describing.
+   Examples: "you guys have a ritual where you stare at a glowing rectangle for hours, occasionally pressing it, and call it 'relaxing'. what is this behavior?" (watching TV) | "observed humans voluntarily entering a small hot room together and pouring water on rocks. is this punishment or recreation?" (sauna)
+3. FILL-IN / CHALLENGE: Ask the community to complete something or answer an alien question.
+   Examples: "wrong answers only: what was ET actually doing during the crash?" | "describe your job to me like i'm an alien who just landed. because i am"
+
+RULES:
+- Must be funny and in-character as ET
+- Must invite replies/guesses (engagement bait done right)
+- Keep it under 280 characters
+- Never give the answer in the tweet`;
+  }
 
   if (trendingContext && trendingContext.length > 0) {
     prompt += `

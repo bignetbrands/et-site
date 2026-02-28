@@ -119,7 +119,7 @@ export async function GET(request: Request) {
     }
 
     // Execute the tweet
-    const record = await executeTweet(decision.pillar, decision.useTrending);
+    const record = await executeTweet(decision.pillar, decision.useTrending, decision.useRiddle);
 
     if (!record) {
       return NextResponse.json({

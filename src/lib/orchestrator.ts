@@ -17,6 +17,8 @@ import {
   incrementDailyReplyCount,
   hasQuotedTweet,
   markTweetQuoted,
+  getThreadReplyCount,
+  recordThreadReply,
 } from "./store";
 
 // Max replies per cron run & per day
@@ -54,11 +56,12 @@ export interface ReplyResult {
  */
 export async function executeTweet(
   pillar: ContentPillar,
-  useTrending: boolean = false
+  useTrending: boolean = false,
+  useRiddle: boolean = false
 ): Promise<TweetRecord | null> {
   const config = PILLAR_CONFIGS[pillar];
 
-  console.log(`[ET] Generating ${config.name} tweet...${useTrending ? " (with trending context)" : ""}`);
+  console.log(`[ET] Generating ${config.name} tweet...${useTrending ? " (with trending context)" : ""}${useRiddle ? " (RIDDLE)" : ""}`);
 
   try {
     // 1. Get recent tweets + top performers + structured memory
@@ -78,7 +81,7 @@ export async function executeTweet(
     }
 
     // 3. Generate tweet text via Claude
-    let tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary);
+    let tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary, useRiddle);
 
     if (!tweetText || tweetText.length > 280) {
       console.error(
@@ -87,7 +90,7 @@ export async function executeTweet(
       const retry = await generateTweet(pillar, [
         ...recentTweets,
         "(IMPORTANT: keep under 280 characters)",
-      ], trendingContext, topPerformers, memorySummary);
+      ], trendingContext, topPerformers, memorySummary, useRiddle);
       if (!retry || retry.length > 280) {
         console.error("[ET] Retry also failed. Skipping.");
         return null;
@@ -105,7 +108,7 @@ export async function executeTweet(
       const dedupRetry = await generateTweet(pillar, [
         ...recentTweets,
         `(CRITICAL: Your last attempt was too similar to "${similarTo}". Write something COMPLETELY DIFFERENT in topic, structure, and phrasing.)`,
-      ], trendingContext, topPerformers, memorySummary);
+      ], trendingContext, topPerformers, memorySummary, useRiddle);
 
       if (dedupRetry && dedupRetry.length <= 280) {
         tweetText = dedupRetry;
@@ -115,7 +118,7 @@ export async function executeTweet(
       }
     }
 
-    return await postAndRecord(tweetText, pillar, config.generateImage);
+    return await postAndRecord(tweetText, pillar, config.generateImage || useRiddle);
   } catch (error) {
     console.error(`[ET] Error in executeTweet:`, error);
     return null;
@@ -158,6 +161,10 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     const remainingBudget = MAX_REPLIES_PER_DAY - dailyCount;
     let lastProcessedId: string | null = null;
 
+    // Thread dedup — track how many replies per conversation in this batch
+    const batchThreadReplies = new Map<string, number>();
+    const MAX_REPLIES_PER_THREAD = 2; // Max 2 replies per thread per day
+
     // Pre-generate ONE shared late excuse for this batch
     // (ET was doing one thing — same excuse for everyone in this run)
     let sharedLateExcuse: string | null = null;
@@ -182,6 +189,29 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
         break;
       }
 
+      // THREAD DEDUP — skip if we've already replied enough in this conversation
+      if (mention.conversationId) {
+        const batchCount = batchThreadReplies.get(mention.conversationId) || 0;
+        const todayCount_thread = await getThreadReplyCount(mention.conversationId);
+        const totalInThread = batchCount + todayCount_thread;
+
+        if (totalInThread >= MAX_REPLIES_PER_THREAD) {
+          console.log(`[ET Replies] Thread dedup — skipping @${mention.authorUsername || "?"} in conversation ${mention.conversationId} (already ${totalInThread} replies in thread)`);
+          await recordReply(mention.id); // Mark as processed so we don't retry
+          lastProcessedId = mention.id;
+          results.push({
+            mentionId: mention.id,
+            mentionText: mention.text,
+            authorUsername: mention.authorUsername || "someone",
+            replyText: "",
+            replyId: "",
+            skipped: true,
+            skipReason: `Thread dedup (${totalInThread}/${MAX_REPLIES_PER_THREAD} replies in this thread)`,
+          });
+          continue;
+        }
+      }
+
       try {
         const result = await processOneMention(mention, sharedLateExcuse);
         results.push(result);
@@ -190,6 +220,16 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
         if (!result.skipped) {
           await incrementDailyReplyCount();
+
+          // Record thread reply for dedup
+          if (mention.conversationId) {
+            await recordThreadReply(mention.conversationId);
+            batchThreadReplies.set(
+              mention.conversationId,
+              (batchThreadReplies.get(mention.conversationId) || 0) + 1
+            );
+          }
+
           // Small delay between replies to avoid rate limits
           await new Promise((r) => setTimeout(r, 2000));
         }

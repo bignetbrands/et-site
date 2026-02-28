@@ -14,9 +14,16 @@ import {
 // SCHEDULE CONFIG — Organic, human-like timing
 // ============================================================
 
-// ET's "active hours"
+// ET's "active hours" (UTC)
 const ACTIVE_START_HOUR = 9; // 9 AM UTC
 const ACTIVE_END_HOUR = 3; // 3 AM UTC (next day)
+
+// Quiet hours — WITHIN active hours, ET goes silent during low-engagement periods
+// These are UTC hours where shouldTweet() returns false (no new tweets, replies still process)
+// Based on crypto Twitter engagement patterns (US-centric audience):
+//   - 6-8 AM ET (11-13 UTC): Too early, low scroll rates
+//   - 2-4 PM ET (19-21 UTC): Work grind, meetings, low engagement
+const QUIET_HOURS_UTC: number[] = [11, 12, 19, 20];
 
 const DAILY_TWEET_TARGET = { min: 7, max: 10 };
 
@@ -32,6 +39,9 @@ const GAP_RANGES: Record<string, { min: number; max: number }> = {
 // Chance of a trending/reactive tweet instead of pillar tweet
 const TRENDING_CHANCE = 0.50; // 50% of tweets reference current topics
 
+// Chance of a riddle/puzzle tweet for engagement
+const RIDDLE_CHANCE = 0.15; // ~15% of tweets are riddles, puzzles, or "what am I looking at" image challenges
+
 // ============================================================
 // TIME HELPERS
 // ============================================================
@@ -46,6 +56,11 @@ function isActiveHour(): boolean {
     return hour >= ACTIVE_START_HOUR && hour < ACTIVE_END_HOUR;
   }
   return hour >= ACTIVE_START_HOUR || hour < ACTIVE_END_HOUR;
+}
+
+function isQuietHour(): boolean {
+  const hour = getCurrentHourUTC();
+  return QUIET_HOURS_UTC.includes(hour);
 }
 
 function getTimeOfDay(): "morning" | "afternoon" | "evening" | "latenight" {
@@ -162,6 +177,14 @@ export async function shouldTweet(): Promise<SchedulerDecision> {
     };
   }
 
+  // Check quiet hours — ET takes breaks during low-engagement windows
+  if (isQuietHour()) {
+    return {
+      shouldTweet: false,
+      reason: `Quiet hour (${getCurrentHourUTC()}:00 UTC) — low engagement window, ET is lurking`,
+    };
+  }
+
   // Check daily limit
   const todayCount = await getTodayTweetCount();
   if (todayCount >= DAILY_TWEET_TARGET.max) {
@@ -193,6 +216,7 @@ export async function shouldTweet(): Promise<SchedulerDecision> {
 
   // Pick a pillar
   const useTrending = Math.random() < TRENDING_CHANCE;
+  const useRiddle = !useTrending && Math.random() < RIDDLE_CHANCE; // Riddles don't combine with trending
   const pillar = await selectPillar();
 
   if (!pillar) {
@@ -207,12 +231,14 @@ export async function shouldTweet(): Promise<SchedulerDecision> {
   await setNextTweetTime(now + gap * 60000);
 
   const timeOfDay = getTimeOfDay();
+  const flags = [useTrending ? "trending" : "", useRiddle ? "riddle" : ""].filter(Boolean).join(", ");
   return {
     shouldTweet: true,
     pillar,
-    useTrending: useTrending,
+    useTrending,
+    useRiddle,
     reason: catchUp
-      ? `Catch-up — ${tweetsNeeded} needed, ${hoursLeft}h left. Pillar: ${pillar}${useTrending ? " (trending)" : ""}. Next in ~${gap}m`
-      : `${timeOfDay} tweet — #${todayCount + 1} today, pillar: ${pillar}${useTrending ? " (trending)" : ""}. Next in ~${gap}m`,
+      ? `Catch-up — ${tweetsNeeded} needed, ${hoursLeft}h left. Pillar: ${pillar}${flags ? ` (${flags})` : ""}. Next in ~${gap}m`
+      : `${timeOfDay} tweet — #${todayCount + 1} today, pillar: ${pillar}${flags ? ` (${flags})` : ""}. Next in ~${gap}m`,
   };
 }
