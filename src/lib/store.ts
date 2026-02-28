@@ -1,6 +1,7 @@
 import { createClient, type RedisClientType } from "redis";
 import { ContentPillar, TweetRecord, DailyState } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
+import { debug, debugWarn, critical } from "./debug";
 
 const ALL_PILLARS: ContentPillar[] = [
   "human_observation",
@@ -18,11 +19,11 @@ async function getRedis(): Promise<RedisClientType | null> {
   if (_client && _client.isOpen) return _client;
   try {
     _client = createClient({ url: process.env.REDIS_URL });
-    _client.on("error", (err: Error) => console.error("[Redis] Error:", err));
+    _client.on("error", (err: Error) => debugWarn("[Redis] Error:", err));
     await _client.connect();
     return _client;
   } catch (e) {
-    console.warn("[Redis] Connection failed:", e);
+    debugWarn("[Redis] Connection failed:", e);
     return null;
   }
 }
@@ -42,7 +43,7 @@ export async function getDailyState(): Promise<DailyState> {
     try {
       const raw = await redis.get(todayKey());
       if (raw) return JSON.parse(raw);
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   const fresh: DailyState = {
     date: new Date().toISOString().split("T")[0],
@@ -74,8 +75,8 @@ export async function recordTweet(record: TweetRecord): Promise<void> {
       const recent = await getRecentTweets();
       recent.unshift(record.text);
       await redis.set(recentKey(), JSON.stringify(recent.slice(0, 200)));
-    } catch {
-      console.warn("Redis not available — tweet recorded in memory only");
+    } catch (e) {
+      critical("recordTweet Redis write FAILED — dedup may miss this tweet:", e);
     }
   }
 }
@@ -138,7 +139,7 @@ export async function getRecentTweetsEnriched(): Promise<EnrichedTweet[]> {
   try {
     const raw = await redis.get("recent_tweets_v2");
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  } catch (e) { debugWarn("Redis read failed:", e); return []; }
 }
 
 /** Build a structured memory summary for anti-repetition */
@@ -178,7 +179,7 @@ export async function getRecentTweets(): Promise<string[]> {
     try {
       const raw = await redis.get(recentKey());
       return raw ? JSON.parse(raw) : [];
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return [];
 }
@@ -216,7 +217,7 @@ export async function getTopPerformers(): Promise<string[]> {
     if (!raw) return [];
     const items = JSON.parse(raw) as Array<{ text: string; score: number }>;
     return items.map(i => i.text);
-  } catch { return []; }
+  } catch (e) { debugWarn("Redis read failed:", e); return []; }
 }
 
 export async function getTodayTweetCount(): Promise<number> {
@@ -266,7 +267,7 @@ export async function getNextTweetTime(): Promise<number | null> {
     try {
       const val = await redis.get(NEXT_TWEET_KEY);
       return val ? parseInt(val, 10) : null;
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return null;
 }
@@ -279,9 +280,7 @@ export async function setNextTweetTime(epochMs: number): Promise<void> {
   if (redis) {
     try {
       await redis.set(NEXT_TWEET_KEY, epochMs.toString(), { EX: 86400 });
-    } catch {
-      console.warn("[Redis] Failed to save next tweet time");
-    }
+    } catch (e) { debugWarn("Redis setNextTweetTime failed:", e); }
   }
 }
 
@@ -293,7 +292,7 @@ export async function getLastMentionId(): Promise<string | null> {
   if (redis) {
     try {
       return await redis.get(LAST_MENTION_KEY);
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return null;
 }
@@ -306,9 +305,7 @@ export async function setLastMentionId(id: string): Promise<void> {
   if (redis) {
     try {
       await redis.set(LAST_MENTION_KEY, id);
-    } catch {
-      console.warn("[Redis] Failed to save last mention ID");
-    }
+    } catch (e) { debugWarn("Redis setLastMentionId failed:", e); }
   }
 }
 
@@ -320,7 +317,7 @@ export async function hasReplied(mentionId: string): Promise<boolean> {
   if (redis) {
     try {
       return (await redis.sIsMember(REPLIED_KEY, mentionId)) === true;
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return false;
 }
@@ -335,9 +332,7 @@ export async function recordReply(mentionId: string): Promise<void> {
       await redis.sAdd(REPLIED_KEY, mentionId);
       // Expire the set after 7 days to prevent unbounded growth
       await redis.expire(REPLIED_KEY, 604800);
-    } catch {
-      console.warn("[Redis] Failed to record reply");
-    }
+    } catch (e) { debugWarn("Redis markReplied failed:", e); }
   }
 }
 
@@ -351,7 +346,7 @@ export async function getDailyReplyCount(): Promise<number> {
     try {
       const count = await redis.get(key);
       return count ? parseInt(count, 10) : 0;
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return 0;
 }
@@ -366,9 +361,7 @@ export async function incrementDailyReplyCount(): Promise<void> {
     try {
       await redis.incr(key);
       await redis.expire(key, 172800); // 48h TTL
-    } catch {
-      console.warn("[Redis] Failed to increment reply count");
-    }
+    } catch (e) { debugWarn("Redis recordReplyCount failed:", e); }
   }
 }
 
@@ -388,7 +381,7 @@ export async function getThreadReplyCount(conversationId: string): Promise<numbe
     try {
       const count = await redis.hGet(key, conversationId);
       return count ? parseInt(count, 10) : 0;
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return 0;
 }
@@ -403,9 +396,7 @@ export async function recordThreadReply(conversationId: string): Promise<void> {
     try {
       await redis.hIncrBy(key, conversationId, 1);
       await redis.expire(key, 86400); // Expire after 24h
-    } catch {
-      console.warn("[Redis] Failed to record thread reply");
-    }
+    } catch (e) { debugWarn("Redis recordThreadReply failed:", e); }
   }
 }
 
@@ -426,7 +417,7 @@ export async function getUserInteractionCount(username: string): Promise<number>
     try {
       const count = await redis.hGet(key, username.toLowerCase());
       return count ? parseInt(count, 10) : 0;
-    } catch { /* fall through */ }
+    } catch (e) { debugWarn("Redis read failed:", e); }
   }
   return 0;
 }
@@ -441,9 +432,7 @@ export async function recordUserInteraction(username: string): Promise<void> {
     try {
       await redis.hIncrBy(key, username.toLowerCase(), 1);
       await redis.expire(key, 86400);
-    } catch {
-      console.warn("[Redis] Failed to record user interaction");
-    }
+    } catch (e) { debugWarn("Redis recordUserInteraction failed:", e); }
   }
 }
 
@@ -590,7 +579,7 @@ export async function getTargets(): Promise<TargetAccount[]> {
     });
 
     return targets;
-  } catch {
+  } catch (e) { debugWarn("Redis getTargets failed:", e);
     return [];
   }
 }
@@ -709,7 +698,7 @@ export async function checkSubmitRateLimit(ip: string): Promise<boolean> {
     const count = await redis.incr(key);
     if (count === 1) await redis.expire(key, 3600); // 1 hour window
     return count <= 5;
-  } catch {
+  } catch (e) { debugWarn("Redis checkSubmitRateLimit failed:", e);
     return true;
   }
 }

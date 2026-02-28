@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ContentPillar } from "@/types";
+import { debug, debugWarn, critical } from "./debug";
 import {
   SYSTEM_PROMPT,
   REPLY_SYSTEM_PROMPT,
@@ -121,7 +122,8 @@ Be strict. If the topic overlaps even partially, it's similar.`,
     }
 
     return null; // unique
-  } catch {
+  } catch (e) {
+    critical("checkSimilarity FAILED — dedup bypassed, tweet allowed through:", e);
     return null; // if check fails, allow the tweet
   }
 }
@@ -312,7 +314,8 @@ export async function decideIfImageWorthy(
       response.content[0].type === "text" ? response.content[0].text : "";
 
     return text.trim().toLowerCase().startsWith("yes");
-  } catch {
+  } catch (e) {
+    debugWarn("decideIfImageWorthy failed, defaulting to true:", e);
     return true;
   }
 }

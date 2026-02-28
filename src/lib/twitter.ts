@@ -125,6 +125,16 @@ export async function postReplyWithImage(
   return response.data.id;
 }
 
+// Cache our own user ID — never changes, no need to fetch every 15 minutes
+let _cachedUserId: string | null = null;
+
+async function getOwnUserId(): Promise<string> {
+  if (_cachedUserId) return _cachedUserId;
+  const me = await getClient().v2.me();
+  _cachedUserId = me.data.id;
+  return _cachedUserId;
+}
+
 /**
  * Fetch recent mentions of the authenticated user.
  * Returns mentions since the given ID (exclusive), or the most recent ones.
@@ -133,9 +143,7 @@ export async function getMentions(
   sinceId?: string,
   maxResults: number = 20
 ): Promise<{ mentions: Mention[]; newestId?: string }> {
-  // Get our own user ID first
-  const me = await getClient().v2.me();
-  const userId = me.data.id;
+  const userId = await getOwnUserId();
 
   const params: Record<string, unknown> = {
     max_results: Math.min(maxResults, 100),

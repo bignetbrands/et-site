@@ -1,4 +1,5 @@
 import { createClient, type RedisClientType } from "redis";
+import { debugWarn } from "./debug";
 
 const KILL_SWITCH_KEY = "et:kill_switch";
 
@@ -9,11 +10,11 @@ async function getRedis(): Promise<RedisClientType | null> {
   if (_client && _client.isOpen) return _client;
   try {
     _client = createClient({ url: process.env.REDIS_URL });
-    _client.on("error", (err: Error) => console.error("[Redis] Error:", err));
+    _client.on("error", (err: Error) => debugWarn("[Redis KillSwitch] Error:", err));
     await _client.connect();
     return _client;
   } catch (e) {
-    console.warn("[Redis] Connection failed:", e);
+    debugWarn("[Redis KillSwitch] Connection failed:", e);
     return null;
   }
 }
@@ -24,7 +25,8 @@ export async function isKillSwitchActive(): Promise<boolean> {
   try {
     const val = await redis.get(KILL_SWITCH_KEY);
     return val === "true";
-  } catch {
+  } catch (e) {
+    debugWarn("Kill switch read failed:", e);
     return false;
   }
 }
