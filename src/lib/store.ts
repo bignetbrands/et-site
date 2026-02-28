@@ -410,6 +410,52 @@ export async function recordThreadReply(conversationId: string): Promise<void> {
 }
 
 // ============================================================
+// PER-USER INTERACTION TRACKING — Prevent over-engaging any single user
+// ============================================================
+
+const USER_INTERACTIONS_KEY = "user_interactions";
+const MAX_INTERACTIONS_PER_USER_PER_DAY = 2;
+
+/**
+ * Get how many times ET has interacted with a given user today (replies + quote tweets + any engagement).
+ */
+export async function getUserInteractionCount(username: string): Promise<number> {
+  const redis = await getRedis();
+  const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;
+  if (redis) {
+    try {
+      const count = await redis.hGet(key, username.toLowerCase());
+      return count ? parseInt(count, 10) : 0;
+    } catch { /* fall through */ }
+  }
+  return 0;
+}
+
+/**
+ * Record an interaction with a user (reply, quote tweet, etc.).
+ */
+export async function recordUserInteraction(username: string): Promise<void> {
+  const redis = await getRedis();
+  const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;
+  if (redis) {
+    try {
+      await redis.hIncrBy(key, username.toLowerCase(), 1);
+      await redis.expire(key, 86400);
+    } catch {
+      console.warn("[Redis] Failed to record user interaction");
+    }
+  }
+}
+
+/**
+ * Check if ET has hit the daily interaction limit with a user.
+ */
+export async function hasHitUserLimit(username: string): Promise<boolean> {
+  const count = await getUserInteractionCount(username);
+  return count >= MAX_INTERACTIONS_PER_USER_PER_DAY;
+}
+
+// ============================================================
 // TARGET ACCOUNTS — Community-driven interaction targets
 // ============================================================
 

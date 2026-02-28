@@ -19,6 +19,8 @@ import {
   markTweetQuoted,
   getThreadReplyCount,
   recordThreadReply,
+  hasHitUserLimit,
+  recordUserInteraction,
 } from "./store";
 
 // Max replies per cron run & per day
@@ -189,6 +191,27 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
         break;
       }
 
+      // PER-USER LIMIT — skip if we've already engaged this user enough today
+      const mentionAuthor = mention.authorUsername || "";
+      if (mentionAuthor) {
+        const userLimitHit = await hasHitUserLimit(mentionAuthor);
+        if (userLimitHit) {
+          console.log(`[ET Replies] User limit — skipping @${mentionAuthor} (already 2+ interactions today)`);
+          await recordReply(mention.id);
+          lastProcessedId = mention.id;
+          results.push({
+            mentionId: mention.id,
+            mentionText: mention.text,
+            authorUsername: mentionAuthor,
+            replyText: "",
+            replyId: "",
+            skipped: true,
+            skipReason: `User limit (already interacted with @${mentionAuthor} today)`,
+          });
+          continue;
+        }
+      }
+
       // THREAD DEDUP — skip if we've already replied enough in this conversation
       if (mention.conversationId) {
         const batchCount = batchThreadReplies.get(mention.conversationId) || 0;
@@ -228,6 +251,11 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
               mention.conversationId,
               (batchThreadReplies.get(mention.conversationId) || 0) + 1
             );
+          }
+
+          // Record per-user interaction
+          if (mention.authorUsername) {
+            await recordUserInteraction(mention.authorUsername);
           }
 
           // Small delay between replies to avoid rate limits
@@ -470,6 +498,12 @@ export async function interactWithTarget(
   const { generateTargetInteraction } = await import("./claude");
   const { resolveTarget } = await import("./store");
 
+  // Check per-user daily limit before doing any work
+  if (await hasHitUserLimit(handle)) {
+    console.log(`[ET Target] Skipping @${handle} — already interacted 2+ times today`);
+    return { success: false, error: `Already interacted with @${handle} today (daily limit)` };
+  }
+
   console.log(`[ET Target] Looking for fresh tweets from @${handle}...`);
 
   try {
@@ -524,6 +558,7 @@ export async function interactWithTarget(
       const qtId = await postQuoteTweet(reactionText, interaction.tweetId);
       await resolveTarget(handle);
       await markTweetQuoted(interaction.tweetId);
+      await recordUserInteraction(handle);
       console.log(`[ET Target] Posted quote tweet ${qtId} for @${handle}`);
 
       await recordTweet({
@@ -551,6 +586,7 @@ export async function interactWithTarget(
       const tweetId = await postTweet(text);
       await resolveTarget(handle);
       await markTweetQuoted(interaction.tweetId);
+      await recordUserInteraction(handle);
       console.log(`[ET Target] Posted standalone mention+link ${tweetId} for @${handle}`);
       return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: tweetId, method: "mention" };
     }
@@ -720,12 +756,15 @@ export async function reactToNews(): Promise<{
 
     console.log(`[ET News] Found ${newsItems.length} news items, picking best one...`);
 
-    // 1b. Filter out already-quoted tweets
+    // 1b. Filter out already-quoted tweets AND authors we've already interacted with today
     const unseenNews: typeof newsItems = [];
     for (const item of newsItems) {
-      if (!(await hasQuotedTweet(item.id))) {
-        unseenNews.push(item);
+      if (await hasQuotedTweet(item.id)) continue;
+      if (item.author && await hasHitUserLimit(item.author)) {
+        console.log(`[ET News] Skipping news from @${item.author} — already interacted today`);
+        continue;
       }
+      unseenNews.push(item);
     }
 
     if (unseenNews.length === 0) {
@@ -755,6 +794,8 @@ export async function reactToNews(): Promise<{
     try {
       const tweetId = await postQuoteTweet(reactionText, reaction.tweetId);
       await markTweetQuoted(reaction.tweetId);
+      const newsAuthor = unseenNews.find(n => n.id === reaction.tweetId)?.author;
+      if (newsAuthor) await recordUserInteraction(newsAuthor);
       console.log(`[ET News] Quote tweeted: ${tweetId}`);
 
       await recordTweet({
@@ -785,6 +826,7 @@ export async function reactToNews(): Promise<{
 
     const tweetId = await postTweet(text);
     await markTweetQuoted(reaction.tweetId);
+    if (author !== "unknown") await recordUserInteraction(author);
     console.log(`[ET News] Posted mention+link: ${tweetId}`);
 
     await recordTweet({
