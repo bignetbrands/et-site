@@ -1,29 +1,11 @@
-import { createClient, type RedisClientType } from "redis";
+import { kv } from "@vercel/kv";
 import { debugWarn } from "./debug";
 
 const KILL_SWITCH_KEY = "et:kill_switch";
 
-let _client: RedisClientType | null = null;
-
-async function getRedis(): Promise<RedisClientType | null> {
-  if (!process.env.REDIS_URL) return null;
-  if (_client && _client.isOpen) return _client;
-  try {
-    _client = createClient({ url: process.env.REDIS_URL });
-    _client.on("error", (err: Error) => debugWarn("[Redis KillSwitch] Error:", err));
-    await _client.connect();
-    return _client;
-  } catch (e) {
-    debugWarn("[Redis KillSwitch] Connection failed:", e);
-    return null;
-  }
-}
-
 export async function isKillSwitchActive(): Promise<boolean> {
-  const redis = await getRedis();
-  if (!redis) return false;
   try {
-    const val = await redis.get(KILL_SWITCH_KEY);
+    const val = await kv.get<string>(KILL_SWITCH_KEY);
     return val === "true";
   } catch (e) {
     debugWarn("Kill switch read failed:", e);
@@ -32,10 +14,7 @@ export async function isKillSwitchActive(): Promise<boolean> {
 }
 
 export async function setKillSwitch(enabled: boolean): Promise<void> {
-  const redis = await getRedis();
-  if (redis) {
-    await redis.set(KILL_SWITCH_KEY, String(enabled));
-  }
+  await kv.set(KILL_SWITCH_KEY, String(enabled));
 }
 
 export async function getKillSwitch(): Promise<boolean> {

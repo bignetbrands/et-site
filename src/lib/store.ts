@@ -1,7 +1,22 @@
-import { createClient, type RedisClientType } from "redis";
+import { kv } from "@vercel/kv";
 import { ContentPillar, TweetRecord, DailyState } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 import { debug, debugWarn, critical } from "./debug";
+
+/**
+ * MIGRATION: node-redis (TCP) → @vercel/kv (HTTP/Upstash)
+ * 
+ * Key differences:
+ * - No connection management — kv is HTTP-based, always available
+ * - kv auto-serializes/deserializes JSON — no JSON.stringify/parse on get/set
+ * - Method names are lowercase: hget, hset, sadd, sismember, etc.
+ * - hset takes object: kv.hset(key, { field: value })
+ * - sismember returns 0|1 not boolean
+ * - zadd uses { score, member } not { score, value }
+ * - zRangeByScore → kv.zrange(key, min, max, { byScore: true })
+ * - hgetall returns null (not {}) when key doesn't exist
+ * - set TTL: { ex: seconds } (lowercase)
+ */
 
 const ALL_PILLARS: ContentPillar[] = [
   "human_observation",
@@ -11,22 +26,6 @@ const ALL_PILLARS: ContentPillar[] = [
   "existential",
   "disclosure_conspiracy",
 ];
-
-let _client: RedisClientType | null = null;
-
-async function getRedis(): Promise<RedisClientType | null> {
-  if (!process.env.REDIS_URL) return null;
-  if (_client && _client.isOpen) return _client;
-  try {
-    _client = createClient({ url: process.env.REDIS_URL });
-    _client.on("error", (err: Error) => debugWarn("[Redis] Error:", err));
-    await _client.connect();
-    return _client;
-  } catch (e) {
-    debugWarn("[Redis] Connection failed:", e);
-    return null;
-  }
-}
 
 function todayKey(): string {
   const now = new Date();
@@ -38,13 +37,11 @@ function recentKey(): string {
 }
 
 export async function getDailyState(): Promise<DailyState> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      const raw = await redis.get(todayKey());
-      if (raw) return JSON.parse(raw);
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
+  try {
+    const state = await kv.get<DailyState>(todayKey());
+    if (state) return state;
+  } catch (e) { debugWarn("KV getDailyState failed:", e); }
+
   const fresh: DailyState = {
     date: new Date().toISOString().split("T")[0],
     tweets: [],
@@ -60,24 +57,21 @@ export async function recordTweet(record: TweetRecord): Promise<void> {
   state.tweets.push(record);
   state.pillarCounts[record.pillar] = (state.pillarCounts[record.pillar] || 0) + 1;
 
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      await redis.set(todayKey(), JSON.stringify(state), { EX: 172800 });
+  try {
+    await kv.set(todayKey(), state, { ex: 172800 });
 
-      // Store enriched tweet memory (text + extracted topics + structure)
-      const enriched = extractTweetMeta(record.text, record.pillar);
-      const recentEnriched = await getRecentTweetsEnriched();
-      recentEnriched.unshift(enriched);
-      await redis.set("recent_tweets_v2", JSON.stringify(recentEnriched.slice(0, 200)));
+    // Store enriched tweet memory
+    const enriched = extractTweetMeta(record.text, record.pillar);
+    const recentEnriched = await getRecentTweetsEnriched();
+    recentEnriched.unshift(enriched);
+    await kv.set("recent_tweets_v2", recentEnriched.slice(0, 200));
 
-      // Also keep plain text list for backward compat
-      const recent = await getRecentTweets();
-      recent.unshift(record.text);
-      await redis.set(recentKey(), JSON.stringify(recent.slice(0, 200)));
-    } catch (e) {
-      critical("recordTweet Redis write FAILED — dedup may miss this tweet:", e);
-    }
+    // Also keep plain text list for backward compat
+    const recent = await getRecentTweets();
+    recent.unshift(record.text);
+    await kv.set(recentKey(), recent.slice(0, 200));
+  } catch (e) {
+    critical("recordTweet KV write FAILED — dedup may miss this tweet:", e);
   }
 }
 
@@ -96,7 +90,6 @@ function extractTweetMeta(text: string, pillar: string): EnrichedTweet {
   const lower = text.toLowerCase();
   const words = lower.replace(/[^a-z0-9\s]/g, "").split(/\s+/);
 
-  // Extract topic keywords (nouns/subjects that make the tweet unique)
   const topicBank = [
     "human", "humans", "alien", "star", "stars", "universe", "signal", "home",
     "planet", "lonely", "loneliness", "memory", "crash", "phone", "phones",
@@ -112,11 +105,8 @@ function extractTweetMeta(text: string, pillar: string): EnrichedTweet {
     "fridge", "banana", "synapses", "photon", "gravity", "quantum",
   ];
   const topics = topicBank.filter(t => lower.includes(t));
-
-  // Extract opening pattern (first 3 meaningful words)
   const opening = words.slice(0, 3).join(" ");
 
-  // Detect structural patterns
   let structure = "statement";
   if (lower.includes(" but ") || lower.includes(" yet ")) structure = "contrast (X but Y)";
   else if (lower.startsWith("every ")) structure = "universal opener (every X)";
@@ -134,12 +124,10 @@ function extractTweetMeta(text: string, pillar: string): EnrichedTweet {
 
 /** Get enriched recent tweets with metadata */
 export async function getRecentTweetsEnriched(): Promise<EnrichedTweet[]> {
-  const redis = await getRedis();
-  if (!redis) return [];
   try {
-    const raw = await redis.get("recent_tweets_v2");
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) { debugWarn("Redis read failed:", e); return []; }
+    const data = await kv.get<EnrichedTweet[]>("recent_tweets_v2");
+    return data ?? [];
+  } catch (e) { debugWarn("KV read failed:", e); return []; }
 }
 
 /** Build a structured memory summary for anti-repetition */
@@ -152,7 +140,6 @@ export async function getTweetMemorySummary(): Promise<{
   const enriched = await getRecentTweetsEnriched();
   const recent50 = enriched.slice(0, 50);
 
-  // Count topic frequency
   const topicFreq: Record<string, number> = {};
   for (const t of recent50) {
     for (const topic of t.topics) {
@@ -160,7 +147,6 @@ export async function getTweetMemorySummary(): Promise<{
     }
   }
 
-  // Collect structures and openings from last 15
   const recent15 = enriched.slice(0, 15);
   const structures = [...new Set(recent15.map(t => t.structure))];
   const openings = [...new Set(recent15.map(t => t.opening))];
@@ -174,50 +160,34 @@ export async function getTweetMemorySummary(): Promise<{
 }
 
 export async function getRecentTweets(): Promise<string[]> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      const raw = await redis.get(recentKey());
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return [];
+  try {
+    const data = await kv.get<string[]>(recentKey());
+    return data ?? [];
+  } catch (e) { debugWarn("KV read failed:", e); return []; }
 }
 
 // ============================================================
-// ENGAGEMENT LEARNING — Track top performers
+// ENGAGEMENT LEARNING
 // ============================================================
 
 const TOP_PERFORMERS_KEY = "top_performers";
 
-/**
- * Store top performing tweets (updated periodically by fetching own metrics).
- */
 export async function updateTopPerformers(tweets: Array<{ text: string; likes: number; retweets: number }>): Promise<void> {
-  const redis = await getRedis();
-  if (!redis) return;
+  try {
+    const sorted = tweets
+      .map(t => ({ text: t.text, score: t.likes + t.retweets * 3 }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15);
 
-  // Keep top 15 by engagement score
-  const sorted = tweets
-    .map(t => ({ text: t.text, score: t.likes + t.retweets * 3 }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 15);
-
-  await redis.set(TOP_PERFORMERS_KEY, JSON.stringify(sorted), { EX: 604800 }); // 7 day TTL
+    await kv.set(TOP_PERFORMERS_KEY, sorted, { ex: 604800 });
+  } catch (e) { debugWarn("KV updateTopPerformers failed:", e); }
 }
 
-/**
- * Get top performing tweet texts for feeding into prompts.
- */
 export async function getTopPerformers(): Promise<string[]> {
-  const redis = await getRedis();
-  if (!redis) return [];
   try {
-    const raw = await redis.get(TOP_PERFORMERS_KEY);
-    if (!raw) return [];
-    const items = JSON.parse(raw) as Array<{ text: string; score: number }>;
-    return items.map(i => i.text);
-  } catch (e) { debugWarn("Redis read failed:", e); return []; }
+    const items = await kv.get<Array<{ text: string; score: number }>>(TOP_PERFORMERS_KEY);
+    return items ? items.map(i => i.text) : [];
+  } catch (e) { debugWarn("KV read failed:", e); return []; }
 }
 
 export async function getTodayTweetCount(): Promise<number> {
@@ -258,194 +228,114 @@ const REPLIED_KEY = "replied_mentions";
 const REPLY_COUNT_KEY = "reply_count_daily";
 const NEXT_TWEET_KEY = "next_tweet_time";
 
-/**
- * Get the scheduled next tweet time (epoch ms).
- */
 export async function getNextTweetTime(): Promise<number | null> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      const val = await redis.get(NEXT_TWEET_KEY);
-      return val ? parseInt(val, 10) : null;
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return null;
+  try {
+    const val = await kv.get<number>(NEXT_TWEET_KEY);
+    return val ?? null;
+  } catch (e) { debugWarn("KV read failed:", e); return null; }
 }
 
-/**
- * Set the next scheduled tweet time (epoch ms).
- */
 export async function setNextTweetTime(epochMs: number): Promise<void> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      await redis.set(NEXT_TWEET_KEY, epochMs.toString(), { EX: 86400 });
-    } catch (e) { debugWarn("Redis setNextTweetTime failed:", e); }
-  }
+  try {
+    await kv.set(NEXT_TWEET_KEY, epochMs, { ex: 86400 });
+  } catch (e) { debugWarn("KV setNextTweetTime failed:", e); }
 }
 
-/**
- * Get the last processed mention ID.
- */
 export async function getLastMentionId(): Promise<string | null> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      return await redis.get(LAST_MENTION_KEY);
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return null;
+  try {
+    const val = await kv.get<string>(LAST_MENTION_KEY);
+    return val ?? null;
+  } catch (e) { debugWarn("KV read failed:", e); return null; }
 }
 
-/**
- * Store the last processed mention ID.
- */
 export async function setLastMentionId(id: string): Promise<void> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      await redis.set(LAST_MENTION_KEY, id);
-    } catch (e) { debugWarn("Redis setLastMentionId failed:", e); }
-  }
+  try {
+    await kv.set(LAST_MENTION_KEY, id);
+  } catch (e) { debugWarn("KV setLastMentionId failed:", e); }
 }
 
-/**
- * Check if we already replied to a mention.
- */
 export async function hasReplied(mentionId: string): Promise<boolean> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      return (await redis.sIsMember(REPLIED_KEY, mentionId)) === true;
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return false;
+  try {
+    const result = await kv.sismember(REPLIED_KEY, mentionId);
+    return result === 1;
+  } catch (e) { debugWarn("KV read failed:", e); return false; }
 }
 
-/**
- * Record that we replied to a mention.
- */
 export async function recordReply(mentionId: string): Promise<void> {
-  const redis = await getRedis();
-  if (redis) {
-    try {
-      await redis.sAdd(REPLIED_KEY, mentionId);
-      // Expire the set after 7 days to prevent unbounded growth
-      await redis.expire(REPLIED_KEY, 604800);
-    } catch (e) { debugWarn("Redis markReplied failed:", e); }
-  }
+  try {
+    await kv.sadd(REPLIED_KEY, mentionId);
+    await kv.expire(REPLIED_KEY, 604800);
+  } catch (e) { debugWarn("KV markReplied failed:", e); }
 }
 
-/**
- * Get today's reply count (rate limiting).
- */
 export async function getDailyReplyCount(): Promise<number> {
-  const redis = await getRedis();
   const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
-  if (redis) {
-    try {
-      const count = await redis.get(key);
-      return count ? parseInt(count, 10) : 0;
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return 0;
+  try {
+    const count = await kv.get<number>(key);
+    return count ?? 0;
+  } catch (e) { debugWarn("KV read failed:", e); return 0; }
 }
 
-/**
- * Increment today's reply count.
- */
 export async function incrementDailyReplyCount(): Promise<void> {
-  const redis = await getRedis();
   const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
-  if (redis) {
-    try {
-      await redis.incr(key);
-      await redis.expire(key, 172800); // 48h TTL
-    } catch (e) { debugWarn("Redis recordReplyCount failed:", e); }
-  }
+  try {
+    await kv.incr(key);
+    await kv.expire(key, 172800);
+  } catch (e) { debugWarn("KV recordReplyCount failed:", e); }
 }
 
 // ============================================================
-// THREAD REPLY TRACKING — Prevent redundant replies in same thread
+// THREAD REPLY TRACKING
 // ============================================================
 
 const THREAD_REPLIES_KEY = "thread_replies";
 
-/**
- * Get how many times ET has replied in a given conversation thread today.
- */
 export async function getThreadReplyCount(conversationId: string): Promise<number> {
-  const redis = await getRedis();
   const key = `${THREAD_REPLIES_KEY}:${new Date().toISOString().split("T")[0]}`;
-  if (redis) {
-    try {
-      const count = await redis.hGet(key, conversationId);
-      return count ? parseInt(count, 10) : 0;
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return 0;
+  try {
+    const count = await kv.hget<number>(key, conversationId);
+    return count ?? 0;
+  } catch (e) { debugWarn("KV read failed:", e); return 0; }
 }
 
-/**
- * Record that ET replied in a conversation thread.
- */
 export async function recordThreadReply(conversationId: string): Promise<void> {
-  const redis = await getRedis();
   const key = `${THREAD_REPLIES_KEY}:${new Date().toISOString().split("T")[0]}`;
-  if (redis) {
-    try {
-      await redis.hIncrBy(key, conversationId, 1);
-      await redis.expire(key, 86400); // Expire after 24h
-    } catch (e) { debugWarn("Redis recordThreadReply failed:", e); }
-  }
+  try {
+    await kv.hincrby(key, conversationId, 1);
+    await kv.expire(key, 86400);
+  } catch (e) { debugWarn("KV recordThreadReply failed:", e); }
 }
 
 // ============================================================
-// PER-USER INTERACTION TRACKING — Prevent over-engaging any single user
+// PER-USER INTERACTION TRACKING
 // ============================================================
 
 const USER_INTERACTIONS_KEY = "user_interactions";
 const MAX_INTERACTIONS_PER_USER_PER_DAY = 2;
 
-/**
- * Get how many times ET has interacted with a given user today (replies + quote tweets + any engagement).
- */
 export async function getUserInteractionCount(username: string): Promise<number> {
-  const redis = await getRedis();
   const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;
-  if (redis) {
-    try {
-      const count = await redis.hGet(key, username.toLowerCase());
-      return count ? parseInt(count, 10) : 0;
-    } catch (e) { debugWarn("Redis read failed:", e); }
-  }
-  return 0;
+  try {
+    const count = await kv.hget<number>(key, username.toLowerCase());
+    return count ?? 0;
+  } catch (e) { debugWarn("KV read failed:", e); return 0; }
 }
 
-/**
- * Record an interaction with a user (reply, quote tweet, etc.).
- */
 export async function recordUserInteraction(username: string): Promise<void> {
-  const redis = await getRedis();
   const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;
-  if (redis) {
-    try {
-      await redis.hIncrBy(key, username.toLowerCase(), 1);
-      await redis.expire(key, 86400);
-    } catch (e) { debugWarn("Redis recordUserInteraction failed:", e); }
-  }
+  try {
+    await kv.hincrby(key, username.toLowerCase(), 1);
+    await kv.expire(key, 86400);
+  } catch (e) { debugWarn("KV recordUserInteraction failed:", e); }
 }
 
-/**
- * Check if ET has hit the daily interaction limit with a user.
- */
 export async function hasHitUserLimit(username: string): Promise<boolean> {
   const count = await getUserInteractionCount(username);
   return count >= MAX_INTERACTIONS_PER_USER_PER_DAY;
 }
 
 // ============================================================
-// TARGET ACCOUNTS — Community-driven interaction targets
+// TARGET ACCOUNTS
 // ============================================================
 
 const TARGETS_KEY = "target_accounts";
@@ -453,32 +343,20 @@ const TARGET_INTERACTED_KEY = "target_interacted";
 const TARGET_SUBMIT_RATE_KEY = "target_submit_rate";
 
 export interface TargetAccount {
-  handle: string;        // @username (stored without @)
-  votes: number;         // number of community votes
-  submittedAt: string;   // ISO timestamp of first submission
-  lastVotedAt: string;   // ISO timestamp of last vote
-  forced?: boolean;      // admin-forced (skip consensus)
+  handle: string;
+  votes: number;
+  submittedAt: string;
+  lastVotedAt: string;
+  forced?: boolean;
 }
 
-/**
- * Add a new target account to the queue (starts at 0 votes).
- * If already exists, returns the existing target.
- */
 export async function addTarget(handle: string): Promise<{ target: TargetAccount; isNew: boolean }> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
   if (!clean || clean.length > 30) throw new Error("Invalid handle");
 
-  const redis = await getRedis();
-  if (!redis) throw new Error("Redis unavailable");
+  const existing = await kv.hget<TargetAccount>(TARGETS_KEY, clean);
+  if (existing) return { target: existing, isNew: false };
 
-  const raw = await redis.hGet(TARGETS_KEY, clean);
-
-  if (raw) {
-    // Already in queue
-    return { target: JSON.parse(raw), isNew: false };
-  }
-
-  // New target — starts at 0 votes
   const now = new Date().toISOString();
   const target: TargetAccount = {
     handle: clean,
@@ -486,91 +364,67 @@ export async function addTarget(handle: string): Promise<{ target: TargetAccount
     submittedAt: now,
     lastVotedAt: now,
   };
-  await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+  await kv.hset(TARGETS_KEY, { [clean]: target });
   return { target, isNew: true };
 }
 
-/**
- * Upvote an existing target. Creates it if it doesn't exist.
- */
 export async function voteTarget(handle: string): Promise<TargetAccount> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
   if (!clean || clean.length > 30) throw new Error("Invalid handle");
 
-  const redis = await getRedis();
-  if (!redis) throw new Error("Redis unavailable");
-
   const now = new Date().toISOString();
-  const raw = await redis.hGet(TARGETS_KEY, clean);
+  const existing = await kv.hget<TargetAccount>(TARGETS_KEY, clean);
 
-  if (raw) {
-    const target: TargetAccount = JSON.parse(raw);
-    target.votes += 1;
-    target.lastVotedAt = now;
-    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
-    return target;
+  if (existing) {
+    existing.votes += 1;
+    existing.lastVotedAt = now;
+    await kv.hset(TARGETS_KEY, { [clean]: existing });
+    return existing;
   }
 
-  // Doesn't exist yet — add with 1 vote
   const target: TargetAccount = {
     handle: clean,
     votes: 1,
     submittedAt: now,
     lastVotedAt: now,
   };
-  await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+  await kv.hset(TARGETS_KEY, { [clean]: target });
   return target;
 }
 
-/**
- * Legacy alias for backward compatibility.
- */
 export const submitTarget = addTarget;
 
-/**
- * Admin force-add a target (goes to front of queue).
- */
 export async function forceTarget(handle: string): Promise<TargetAccount> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
   if (!clean) throw new Error("Invalid handle");
 
-  const redis = await getRedis();
-  if (!redis) throw new Error("Redis unavailable");
-
   const now = new Date().toISOString();
-  const raw = await redis.hGet(TARGETS_KEY, clean);
+  const existing = await kv.hget<TargetAccount>(TARGETS_KEY, clean);
 
-  if (raw) {
-    const target: TargetAccount = JSON.parse(raw);
-    target.forced = true;
-    target.lastVotedAt = now;
-    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
-    return target;
-  } else {
-    const target: TargetAccount = {
-      handle: clean,
-      votes: 0,
-      submittedAt: now,
-      lastVotedAt: now,
-      forced: true,
-    };
-    await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
-    return target;
+  if (existing) {
+    existing.forced = true;
+    existing.lastVotedAt = now;
+    await kv.hset(TARGETS_KEY, { [clean]: existing });
+    return existing;
   }
+
+  const target: TargetAccount = {
+    handle: clean,
+    votes: 0,
+    submittedAt: now,
+    lastVotedAt: now,
+    forced: true,
+  };
+  await kv.hset(TARGETS_KEY, { [clean]: target });
+  return target;
 }
 
-/**
- * Get all targets sorted by priority (forced first, then by votes).
- */
 export async function getTargets(): Promise<TargetAccount[]> {
-  const redis = await getRedis();
-  if (!redis) return [];
-
   try {
-    const all = await redis.hGetAll(TARGETS_KEY);
-    const targets: TargetAccount[] = Object.values(all).map((v) => JSON.parse(v as string));
+    const all = await kv.hgetall<Record<string, TargetAccount>>(TARGETS_KEY);
+    if (!all) return [];
 
-    // Sort: forced first, then by votes desc, then by oldest submission
+    const targets: TargetAccount[] = Object.values(all);
     targets.sort((a, b) => {
       if (a.forced && !b.forced) return -1;
       if (!a.forced && b.forced) return 1;
@@ -579,128 +433,93 @@ export async function getTargets(): Promise<TargetAccount[]> {
     });
 
     return targets;
-  } catch (e) { debugWarn("Redis getTargets failed:", e);
-    return [];
-  }
+  } catch (e) { debugWarn("KV getTargets failed:", e); return []; }
 }
 
-/**
- * Get the next target to interact with (highest priority, not yet interacted today).
- */
 export async function getNextTarget(): Promise<TargetAccount | null> {
   const targets = await getTargets();
-  const redis = await getRedis();
-  if (!redis || targets.length === 0) return null;
+  if (targets.length === 0) return null;
 
   const today = new Date().toISOString().split("T")[0];
 
   for (const target of targets) {
-    const interacted = await redis.sIsMember(
-      `${TARGET_INTERACTED_KEY}:${today}`,
-      target.handle
-    );
-    if (!interacted) return target;
+    try {
+      const interacted = await kv.sismember(
+        `${TARGET_INTERACTED_KEY}:${today}`,
+        target.handle
+      );
+      if (interacted === 0) return target;
+    } catch (e) { debugWarn("KV read failed:", e); }
   }
 
   return null;
 }
 
-/**
- * Mark a target as interacted with today.
- */
 export async function markTargetInteracted(handle: string): Promise<void> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
-  const redis = await getRedis();
-  if (!redis) return;
-
   const today = new Date().toISOString().split("T")[0];
   const key = `${TARGET_INTERACTED_KEY}:${today}`;
-  await redis.sAdd(key, clean);
-  await redis.expire(key, 172800); // 48h TTL
+  try {
+    await kv.sadd(key, clean);
+    await kv.expire(key, 172800);
+  } catch (e) { debugWarn("KV markTargetInteracted failed:", e); }
 }
 
 // ============================================================
-// QUOTED TWEET TRACKING — Prevent quoting the same tweet twice
+// QUOTED TWEET TRACKING
 // ============================================================
 
 const QUOTED_TWEETS_KEY = "quoted_tweet_ids";
 
-/**
- * Check if a specific tweet has already been quoted/interacted with.
- */
 export async function hasQuotedTweet(tweetId: string): Promise<boolean> {
-  const redis = await getRedis();
-  if (!redis) return false;
-  return await redis.sIsMember(QUOTED_TWEETS_KEY, tweetId);
+  try {
+    const result = await kv.sismember(QUOTED_TWEETS_KEY, tweetId);
+    return result === 1;
+  } catch (e) { debugWarn("KV read failed:", e); return false; }
 }
 
-/**
- * Mark a tweet ID as quoted so we never quote it again.
- */
 export async function markTweetQuoted(tweetId: string): Promise<void> {
-  const redis = await getRedis();
-  if (!redis) return;
-  await redis.sAdd(QUOTED_TWEETS_KEY, tweetId);
-  // Keep for 30 days
-  await redis.expire(QUOTED_TWEETS_KEY, 2592000);
+  try {
+    await kv.sadd(QUOTED_TWEETS_KEY, tweetId);
+    await kv.expire(QUOTED_TWEETS_KEY, 2592000);
+  } catch (e) { debugWarn("KV markTweetQuoted failed:", e); }
 }
 
-/**
- * Resolve a target after successful interaction.
- * Forced targets lose forced flag. Voted targets stay in queue (marked interacted today).
- */
 export async function resolveTarget(handle: string): Promise<void> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
-  const redis = await getRedis();
-  if (!redis) return;
-
-  // ALWAYS mark as interacted today first
   await markTargetInteracted(clean);
 
-  const raw = await redis.hGet(TARGETS_KEY, clean);
-  if (!raw) return;
+  try {
+    const target = await kv.hget<TargetAccount>(TARGETS_KEY, clean);
+    if (!target) return;
 
-  const target: TargetAccount = JSON.parse(raw);
-
-  if (target.forced) {
-    // Remove forced flag, keep in queue
-    target.forced = false;
-    if (target.votes <= 0) {
-      await redis.hDel(TARGETS_KEY, clean);
-    } else {
-      await redis.hSet(TARGETS_KEY, clean, JSON.stringify(target));
+    if (target.forced) {
+      target.forced = false;
+      if (target.votes <= 0) {
+        await kv.hdel(TARGETS_KEY, clean);
+      } else {
+        await kv.hset(TARGETS_KEY, { [clean]: target });
+      }
     }
-  }
-  // Voted targets stay — they remain in queue for future interactions
+  } catch (e) { debugWarn("KV resolveTarget failed:", e); }
 
   await markTargetInteracted(clean);
 }
 
-/**
- * Remove a target entirely (admin action).
- */
 export async function removeTarget(handle: string): Promise<void> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
-  const redis = await getRedis();
-  if (!redis) return;
-  await redis.hDel(TARGETS_KEY, clean);
+  try {
+    await kv.hdel(TARGETS_KEY, clean);
+  } catch (e) { debugWarn("KV removeTarget failed:", e); }
 }
 
-/**
- * Rate limit community submissions by IP (max 5 per hour).
- */
 export async function checkSubmitRateLimit(ip: string): Promise<boolean> {
-  const redis = await getRedis();
-  if (!redis) return true; // allow if no redis
-
   const key = `${TARGET_SUBMIT_RATE_KEY}:${ip}`;
   try {
-    const count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, 3600); // 1 hour window
+    const count = await kv.incr(key);
+    if (count === 1) await kv.expire(key, 3600);
     return count <= 5;
-  } catch (e) { debugWarn("Redis checkSubmitRateLimit failed:", e);
-    return true;
-  }
+  } catch (e) { debugWarn("KV checkSubmitRateLimit failed:", e); return true; }
 }
 
 // ============================================================
@@ -711,87 +530,67 @@ export interface ScheduledTweet {
   id: string;
   text: string;
   pillar: ContentPillar;
-  imageKey?: string; // Redis key for stored image data
-  scheduledAt: number; // epoch ms
+  imageKey?: string;
+  scheduledAt: number;
   createdAt: string;
 }
 
 const SCHEDULED_KEY = "scheduled_tweets";
 const SCHEDULED_IMG_PREFIX = "scheduled_img:";
 
-/**
- * Store image data for a scheduled tweet.
- */
 export async function storeScheduledImage(id: string, imageBuffer: Buffer): Promise<string> {
-  const redis = await getRedis();
-  if (!redis) throw new Error("Redis not available");
   const key = `${SCHEDULED_IMG_PREFIX}${id}`;
-  await redis.set(key, imageBuffer.toString("base64"));
-  // Auto-expire after 48h as safety net
-  await redis.expire(key, 48 * 60 * 60);
+  await kv.set(key, imageBuffer.toString("base64"), { ex: 48 * 60 * 60 });
   return key;
 }
 
-/**
- * Retrieve stored image data for a scheduled tweet.
- */
 export async function getScheduledImage(imageKey: string): Promise<Buffer | null> {
-  const redis = await getRedis();
-  if (!redis) return null;
-  const data = await redis.get(imageKey);
-  if (!data) return null;
-  return Buffer.from(data, "base64");
+  try {
+    const data = await kv.get<string>(imageKey);
+    if (!data) return null;
+    return Buffer.from(data, "base64");
+  } catch (e) { debugWarn("KV getScheduledImage failed:", e); return null; }
 }
 
-/**
- * Delete stored image data after posting.
- */
 export async function deleteScheduledImage(imageKey: string): Promise<void> {
-  const redis = await getRedis();
-  if (!redis) return;
-  await redis.del(imageKey);
+  try {
+    await kv.del(imageKey);
+  } catch (e) { debugWarn("KV deleteScheduledImage failed:", e); }
 }
 
-/**
- * Schedule a tweet for future posting.
- */
 export async function scheduletweet(tweet: ScheduledTweet): Promise<void> {
-  const redis = await getRedis();
-  if (!redis) return;
-  await redis.zAdd(SCHEDULED_KEY, {
-    score: tweet.scheduledAt,
-    value: JSON.stringify(tweet),
-  });
+  try {
+    await kv.zadd(SCHEDULED_KEY, {
+      score: tweet.scheduledAt,
+      member: JSON.stringify(tweet),
+    });
+  } catch (e) { debugWarn("KV scheduletweet failed:", e); }
 }
 
-/**
- * Get all due scheduled tweets (scheduledAt <= now).
- */
 export async function getDueScheduledTweets(): Promise<ScheduledTweet[]> {
-  const redis = await getRedis();
-  if (!redis) return [];
-
-  const now = Date.now();
-  const items = await redis.zRangeByScore(SCHEDULED_KEY, 0, now);
-  return items.map((item) => JSON.parse(item) as ScheduledTweet);
+  try {
+    const items = await kv.zrange<string[]>(SCHEDULED_KEY, 0, Date.now(), { byScore: true });
+    if (!items || items.length === 0) return [];
+    return items.map((item) => {
+      if (typeof item === "string") return JSON.parse(item) as ScheduledTweet;
+      return item as unknown as ScheduledTweet;
+    });
+  } catch (e) { debugWarn("KV getDueScheduledTweets failed:", e); return []; }
 }
 
-/**
- * Remove a scheduled tweet after posting.
- */
 export async function removeScheduledTweet(tweet: ScheduledTweet): Promise<void> {
-  const redis = await getRedis();
-  if (!redis) return;
-  await redis.zRem(SCHEDULED_KEY, JSON.stringify(tweet));
+  try {
+    await kv.zrem(SCHEDULED_KEY, JSON.stringify(tweet));
+  } catch (e) { debugWarn("KV removeScheduledTweet failed:", e); }
 }
 
-/**
- * Get all upcoming scheduled tweets.
- */
 export async function getScheduledTweets(): Promise<ScheduledTweet[]> {
-  const redis = await getRedis();
-  if (!redis) return [];
-
-  const items = await redis.zRangeByScore(SCHEDULED_KEY, 0, "+inf");
-  return items.map((item) => JSON.parse(item) as ScheduledTweet);
+  try {
+    const items = await kv.zrange<string[]>(SCHEDULED_KEY, 0, "+inf", { byScore: true });
+    if (!items || items.length === 0) return [];
+    return items.map((item) => {
+      if (typeof item === "string") return JSON.parse(item) as ScheduledTweet;
+      return item as unknown as ScheduledTweet;
+    });
+  } catch (e) { debugWarn("KV getScheduledTweets failed:", e); return []; }
 }
