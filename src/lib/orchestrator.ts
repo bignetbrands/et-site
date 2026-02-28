@@ -551,6 +551,15 @@ export async function interactWithTarget(
 
     // Strip leading @ so it shows in timeline
     const reactionText = stripLeadingMentions(interaction.replyText);
+
+    // DEDUP CHECK — make sure this reaction isn't too similar to recent tweets
+    const recentTweets = await getRecentTweets();
+    const similarTo = await checkSimilarity(reactionText, recentTweets);
+    if (similarTo) {
+      console.warn(`[ET Target] DEDUP — reaction for @${handle} too similar to: "${similarTo.substring(0, 50)}...". Skipping.`);
+      return { success: false, error: `Dedup: too similar to existing tweet` };
+    }
+
     console.log(`[ET Target] Quote tweeting ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
 
     // 5. Post as quote tweet (primary method)
@@ -789,6 +798,14 @@ export async function reactToNews(): Promise<{
 
     // Strip leading @ so it shows in timeline
     const reactionText = stripLeadingMentions(reaction.reactionText);
+
+    // DEDUP CHECK — make sure this reaction isn't too similar to recent tweets
+    const recentTweets = await getRecentTweets();
+    const similarTo = await checkSimilarity(reactionText, recentTweets);
+    if (similarTo) {
+      console.warn(`[ET News] DEDUP — reaction "${reactionText.substring(0, 50)}..." too similar to: "${similarTo.substring(0, 50)}...". Skipping.`);
+      return { success: false, error: `Dedup: too similar to existing tweet` };
+    }
 
     // 3. Try quote tweet first
     try {

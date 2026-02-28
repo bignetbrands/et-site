@@ -74,7 +74,8 @@ export async function checkSimilarity(
 ): Promise<string | null> {
   if (recentTweets.length === 0) return null;
 
-  const recent10 = recentTweets.slice(0, 10);
+  // Check against last 30 tweets (was 10 — too narrow, duplicates slipped through)
+  const recent30 = recentTweets.slice(0, 30);
 
   try {
     const response = await getClient().messages.create({
@@ -88,9 +89,13 @@ export async function checkSimilarity(
 NEW TWEET: "${newTweet}"
 
 EXISTING TWEETS:
-${recent10.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
+${recent30.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
 
-Is the new tweet too similar to ANY existing tweet? Similar means: same core topic/subject, same joke structure, same punchline format, or same observation just reworded.
+Is the new tweet too similar to ANY existing tweet? Similar means:
+- Same core TOPIC or SUBJECT (e.g. two tweets both about ancient writing, or both about alarm clocks, or both about the same person)
+- Same joke structure or punchline format (even with different subjects)
+- Same observation just reworded
+- Overlapping theme (e.g. "humans are bad at texting back" and "humans won't reply" = same theme)
 
 If TOO SIMILAR, respond: SIMILAR: [paste the existing tweet number and first 50 chars]
 If UNIQUE ENOUGH, respond: UNIQUE
@@ -108,11 +113,11 @@ Be strict. If the topic overlaps even partially, it's similar.`,
       const matchNum = text.match(/(\d+)/);
       if (matchNum) {
         const idx = parseInt(matchNum[1]) - 1;
-        if (idx >= 0 && idx < recent10.length) {
-          return recent10[idx];
+        if (idx >= 0 && idx < recent30.length) {
+          return recent30[idx];
         }
       }
-      return recent10[0]; // fallback
+      return recent30[0]; // fallback
     }
 
     return null; // unique
