@@ -66,7 +66,7 @@ export async function downloadImage(url: string, pillar?: ContentPillar): Promis
     throw new Error(`Failed to download image: ${response.status}`);
   }
   const arrayBuffer = await response.arrayBuffer();
-  let buffer = Buffer.from(arrayBuffer);
+  let buffer: Buffer = Buffer.from(arrayBuffer) as Buffer;
 
   // Apply film grain post-processing to personal_lore images
   if (pillar === "personal_lore") {

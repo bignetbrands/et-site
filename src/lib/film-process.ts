@@ -40,26 +40,29 @@ export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
   const dustBuffer = await generateDustAndScratches(size);
   const lightLeakBuffer = await generateLightLeak(size);
 
-  // --- STEP 3: Composite all layers ---
+  // --- STEP 3: Apply opacity to layers that need it ---
+  const grainWithOpacity = await applyOpacity(grainBuffer, 0.55);
+  const dustWithOpacity = await applyOpacity(dustBuffer, 0.3);
+  const lightLeakWithOpacity = await applyOpacity(lightLeakBuffer, 0.2);
+  const scanLineWithOpacity = await applyOpacity(scanLineBuffer, 0.08);
+
+  // --- STEP 4: Composite all layers ---
   let final = sharp(baseBuffer)
     .composite([
       // Heavy film grain
       {
-        input: grainBuffer,
+        input: grainWithOpacity,
         blend: "overlay",
-        opacity: 0.55,
       },
       // Dust and scratches
       {
-        input: dustBuffer,
+        input: dustWithOpacity,
         blend: "screen",
-        opacity: 0.3,
       },
       // Light leak (warm amber edge bleed — subtle)
       {
-        input: lightLeakBuffer,
+        input: lightLeakWithOpacity,
         blend: "screen",
-        opacity: 0.2,
       },
       // Vignette (very dark edges)
       {
@@ -68,13 +71,12 @@ export async function applyFilmGrain(imageBuffer: Buffer): Promise<Buffer> {
       },
       // Scan lines
       {
-        input: scanLineBuffer,
+        input: scanLineWithOpacity,
         blend: "overlay",
-        opacity: 0.08,
       },
     ]);
 
-  // --- STEP 4: Final color grade ---
+  // --- STEP 5: Final color grade ---
   const composited = await final.png().toBuffer();
 
   const result = await sharp(composited)
@@ -308,6 +310,29 @@ async function generateLightLeak(size: number): Promise<Buffer> {
     raw: { width: size, height: size, channels: 4 },
   })
     .blur(40) // Smooth, organic bleed
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Apply opacity to a layer by modifying its alpha channel.
+ * Sharp's composite doesn't support opacity directly in all versions,
+ * so we bake it into the buffer.
+ */
+async function applyOpacity(pngBuffer: Buffer, opacity: number): Promise<Buffer> {
+  const { data, info } = await sharp(pngBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  // Modify alpha channel
+  for (let i = 3; i < data.length; i += 4) {
+    data[i] = Math.round(data[i] * opacity);
+  }
+
+  return sharp(data, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
     .png()
     .toBuffer();
 }
