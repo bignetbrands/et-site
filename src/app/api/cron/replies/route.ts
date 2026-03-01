@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/replies
  *
- * Called by Vercel cron every 15 minutes.
+ * Called by Vercel cron every 3 minutes.
+ * ~30% chance to skip each cycle for natural response timing (3-9 min range).
  * 1. Fetches new mentions and replies to them in character.
- * 2. Processes one community target if any are queued.
+ * 2. Processes one community target if any are queued (~5% chance per run).
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -29,9 +30,18 @@ export async function GET(request: Request) {
       });
     }
 
+    // Random skip for human-like response timing (~30% skip rate)
+    // With 3-min cron: replies arrive 3-9 min after mention, feels natural
+    if (Math.random() < 0.3) {
+      console.log("[ET Replies Cron] Random skip — adding human delay");
+      return NextResponse.json({
+        processed: 0,
+        reason: "Human delay skip",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // KV health check — if we can't persist reply tracking, don't process.
-    // Without working KV, hasReplied always returns false → re-replies to
-    // every mention every 15 minutes → spam.
     const kvOk = await kvHealthCheck();
     if (!kvOk) {
       console.error("[ET Replies Cron] KV health check failed — refusing to process replies");
@@ -52,9 +62,9 @@ export async function GET(request: Request) {
       `[ET Replies Cron] Mentions: ${posted.length} replied, ${skipped.length} skipped`
     );
 
-    // 2. Process one community target (25% chance per run to keep it organic)
+    // 2. Process one community target (~5% chance per run ≈ 1/hour at 3-min intervals)
     let targetResult = null;
-    if (Math.random() < 0.25) {
+    if (Math.random() < 0.05) {
       const nextTarget = await getNextTarget();
       if (nextTarget) {
         console.log(`[ET Replies Cron] Processing target: @${nextTarget.handle} (${nextTarget.votes} votes, forced: ${!!nextTarget.forced})`);
