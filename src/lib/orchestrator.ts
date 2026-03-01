@@ -167,9 +167,9 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     const batchThreadReplies = new Map<string, number>();
     const MAX_REPLIES_PER_THREAD = 2; // Max 2 replies per thread per day
 
-    // Pre-generate ONE shared late excuse for this batch
-    // (ET was doing one thing — same excuse for everyone in this run)
-    let sharedLateExcuse: string | null = null;
+    // Pre-generate a POOL of late excuses (3 different ones) so replies in
+    // the same batch don't all start identically. Rotate through them.
+    let lateExcusePool: string[] = [];
     const oldestMention = toProcess[0];
     if (oldestMention?.createdAt) {
       const delayMs = Date.now() - new Date(oldestMention.createdAt).getTime();
@@ -177,13 +177,20 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
       if (delayMinutes >= 60) {
         try {
           const { generateLateExcuse } = await import("./claude");
-          sharedLateExcuse = await generateLateExcuse();
-          console.log(`[ET Replies] Shared late excuse for batch: "${sharedLateExcuse}"`);
+          // Generate 3 different excuses for variety
+          const excuses = await Promise.all([
+            generateLateExcuse(),
+            generateLateExcuse(),
+            generateLateExcuse(),
+          ]);
+          lateExcusePool = excuses.filter(Boolean);
+          console.log(`[ET Replies] Late excuse pool (${lateExcusePool.length}): ${lateExcusePool.map(e => `"${e}"`).join(", ")}`);
         } catch (e) {
-          console.warn("[ET Replies] Failed to generate late excuse:", e);
+          console.warn("[ET Replies] Failed to generate late excuses:", e);
         }
       }
     }
+    let excuseIndex = 0;
 
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
@@ -236,7 +243,9 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
       }
 
       try {
-        const result = await processOneMention(mention, sharedLateExcuse);
+        const currentExcuse = lateExcusePool.length > 0 ? lateExcusePool[excuseIndex % lateExcusePool.length] : null;
+        excuseIndex++;
+        const result = await processOneMention(mention, currentExcuse);
         results.push(result);
         // Track the highest ID we actually processed (mentions are oldest→newest after reverse)
         lastProcessedId = mention.id;
@@ -295,9 +304,9 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
 /**
  * Process a single mention and generate/post a reply.
- * @param sharedLateExcuse - Pre-generated excuse shared across all late replies in this batch
+ * @param lateExcuse - Pre-generated excuse for this specific late reply (rotated from pool)
  */
-async function processOneMention(mention: Mention, sharedLateExcuse: string | null = null): Promise<ReplyResult> {
+async function processOneMention(mention: Mention, lateExcuse: string | null = null): Promise<ReplyResult> {
   const authorUsername = mention.authorUsername || "someone";
 
   // Skip if already replied
@@ -333,7 +342,7 @@ async function processOneMention(mention: Mention, sharedLateExcuse: string | nu
 
   // Detect reply delay and build late context
   let lateContext: { delayMinutes: number; delayLabel: string; excuse: string } | undefined;
-  if (mention.createdAt && sharedLateExcuse) {
+  if (mention.createdAt && lateExcuse) {
     const mentionTime = new Date(mention.createdAt).getTime();
     const delayMs = Date.now() - mentionTime;
     const delayMinutes = Math.floor(delayMs / 60000);
@@ -347,8 +356,8 @@ async function processOneMention(mention: Mention, sharedLateExcuse: string | nu
       } else {
         delayLabel = hours === 1 ? "an hour" : `${hours} hours`;
       }
-      lateContext = { delayMinutes, delayLabel, excuse: sharedLateExcuse };
-      console.log(`[ET Replies] Late reply: ${delayLabel} delay for @${authorUsername} (excuse: "${sharedLateExcuse}")`);
+      lateContext = { delayMinutes, delayLabel, excuse: lateExcuse };
+      console.log(`[ET Replies] Late reply: ${delayLabel} delay for @${authorUsername} (excuse: "${lateExcuse}")`);
     }
   }
 

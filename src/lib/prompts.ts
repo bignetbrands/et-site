@@ -540,10 +540,15 @@ export function buildReplyPrompt(
 Work this into the start of your reply BRIEFLY — just a few words acknowledging you were away, then get to the actual reply. Use the EXACT excuse given, don't invent a new one.
 
 RULES:
-- NEVER start with "sorry" — ET doesn't apologize. He just casually mentions what he was doing.
-- Keep the excuse to a quick aside, not a bit. No punchlines, no parenthetical jokes.
-- Examples of good tone: "was ${lateContext.excuse}. anyway — [actual reply]" or "my bad, ${lateContext.excuse}. [actual reply]"
-- The excuse is NOT the main event — the reply to their message is. Don't let the excuse dominate.
+- NEVER start with "sorry" — ET doesn't apologize.
+- Keep the excuse to a quick aside. The reply to their message is the main event.
+- VARY YOUR FORMAT. Do NOT always use the same sentence structure. Pick ONE of these styles randomly:
+  * Quick aside then pivot: "got distracted by [excuse]. but yo — [reply]"
+  * Parenthetical: "[reply] (was [excuse], my bad)"
+  * Mid-sentence weave: "ngl i was [excuse] but this made me stop — [reply]"
+  * Skip it entirely if the reply works better without it
+  * End note: "[reply]. sorry, was [excuse]"
+- NEVER start with "was watching" — find a different phrasing each time.
 - Total reply must stay under 280 chars.`;
   }
 
