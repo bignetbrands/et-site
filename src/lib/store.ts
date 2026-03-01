@@ -358,18 +358,15 @@ export async function hasHitUserLimit(username: string): Promise<boolean> {
 // Single chokepoint: no Twitter action can fire unless the global
 // throttle allows it. This prevents crons from stacking actions.
 //
-// Rules:
-//   - Minimum 8 minutes between ANY Twitter actions (tweet, reply, QT, etc.)
-//   - Max 30 total actions per day (tweets + replies + QTs combined)
-//   - All crons must call canAct() before doing anything, and
-//     recordAction() after success.
+// ⚠️  RECOVERY MODE — tightened limits until shadowban lifts
+//     Normal mode values in comments for when we ramp back up.
 //
 // This is the PRIMARY shadowban prevention mechanism.
 
 const GLOBAL_LAST_ACTION_KEY = "et:global_last_action";
 const GLOBAL_ACTION_COUNT_KEY = "et:global_action_count";
-const GLOBAL_MIN_GAP_MS = 8 * 60 * 1000;  // 8 minutes between ANY actions
-const GLOBAL_MAX_ACTIONS_PER_DAY = 30;     // Hard ceiling on all actions combined
+const GLOBAL_MIN_GAP_MS = 15 * 60 * 1000;  // RECOVERY: 15 min (normal: 8 min)
+const GLOBAL_MAX_ACTIONS_PER_DAY = 10;      // RECOVERY: 10/day (normal: 30/day)
 
 export async function canAct(): Promise<{ allowed: boolean; reason: string }> {
   try {

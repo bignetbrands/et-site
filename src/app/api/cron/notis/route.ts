@@ -29,6 +29,17 @@ export async function GET(request: Request) {
   }
 
   try {
+    // ⚠️  RECOVERY MODE — notis disabled entirely
+    // Automated replies to watchlist accounts are unsolicited @mentions,
+    // which is the highest-risk behavior for spam detection.
+    // Re-enable cautiously once shadowban lifts.
+    return NextResponse.json({
+      skipped: true,
+      reason: "RECOVERY MODE — notis disabled to avoid unsolicited @mentions",
+      timestamp: new Date().toISOString(),
+    });
+
+    // eslint-disable-next-line no-unreachable -- RECOVERY: everything below is disabled
     if (await isKillSwitchActive()) {
       return NextResponse.json({ skipped: true, reason: "Kill switch active" });
     }
@@ -94,7 +105,7 @@ export async function GET(request: Request) {
         }
 
         // NEW TWEET DETECTED — find all tweets newer than lastSeen
-        const newTweets = tweets.filter(t => t.id > lastSeen);
+        const newTweets = tweets.filter(t => t.id > lastSeen!);
         if (newTweets.length === 0) {
           results.push({ handle: account.handle });
           continue;
@@ -121,7 +132,7 @@ export async function GET(request: Request) {
 
         // Skip if tweet is too old (>15 min — we missed the window)
         if (target.createdAt) {
-          const ageMs = Date.now() - new Date(target.createdAt).getTime();
+          const ageMs = Date.now() - new Date(target.createdAt as string).getTime();
           const ageMin = Math.round(ageMs / 60000);
           if (ageMin > 15) {
             console.log(`[Notis] Tweet from @${account.handle} is ${ageMin}m old — too stale, skipping`);
@@ -190,11 +201,11 @@ export async function GET(request: Request) {
 
         // Only 1 reply per notis run — respect global throttle
         break;
-      } catch (err) {
+      } catch (err: any) {
         console.error(`[Notis] Error processing @${account.handle}:`, err);
         results.push({
           handle: account.handle,
-          error: err instanceof Error ? err.message : "Unknown error",
+          error: err?.message || "Unknown error",
         });
       }
     }

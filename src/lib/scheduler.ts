@@ -26,19 +26,20 @@ const ACTIVE_END_HOUR = 3; // 3 AM UTC (next day)
 //   - 2-4 PM ET (19-21 UTC): Work grind, meetings, low engagement
 const QUIET_HOURS_UTC: number[] = [11, 12, 19, 20];
 
-const DAILY_TWEET_TARGET = { min: 4, max: 6 };
+// ⚠️  RECOVERY MODE — reduced targets until shadowban lifts
+const DAILY_TWEET_TARGET = { min: 2, max: 3 }; // RECOVERY (normal: 4-6)
 
 // Random gap range between tweets (minutes)
-// Wider gaps = more human-like, less likely to trigger spam detection
+// RECOVERY: extra wide gaps to look maximally human
 const GAP_RANGES: Record<string, { min: number; max: number }> = {
-  morning: { min: 90, max: 180 },    // slow start, ~1 tweet per 1.5-3 hrs
-  afternoon: { min: 70, max: 150 },   // more active but still relaxed
-  evening: { min: 60, max: 130 },     // peak hours, still spaced
-  latenight: { min: 120, max: 240 },  // sparse, contemplative
+  morning: { min: 120, max: 240 },    // RECOVERY (normal: 90-180)
+  afternoon: { min: 100, max: 200 },   // RECOVERY (normal: 70-150)
+  evening: { min: 90, max: 180 },      // RECOVERY (normal: 60-130)
+  latenight: { min: 180, max: 300 },   // RECOVERY (normal: 120-240)
 };
 
 // Chance of a trending/reactive tweet instead of pillar tweet
-const TRENDING_CHANCE = 0.50; // 50% of tweets reference current topics
+const TRENDING_CHANCE = 0; // RECOVERY: disabled (normal: 0.50) — avoids Twitter search API calls
 
 // Chance of a riddle/puzzle tweet for engagement
 const RIDDLE_CHANCE = 0.15; // ~15% of tweets are riddles, puzzles, or "what am I looking at" image challenges

@@ -33,8 +33,8 @@ import {
 } from "./self-awareness";
 
 // Max replies per cron run & per day
-const MAX_REPLIES_PER_RUN = 1; // Only 1 reply per cron cycle — throttled by global action limiter
-const MAX_REPLIES_PER_DAY = 15; // Combined with tweets, stays well under global 30/day cap
+const MAX_REPLIES_PER_RUN = 1; // Only 1 reply per cron cycle
+const MAX_REPLIES_PER_DAY = 5; // RECOVERY: 5/day (normal: 15)
 
 /** Extract rough topics from text for user memory and QT dedup */
 function extractTopicsFromText(text: string): string[] {

@@ -10,6 +10,58 @@ function assertNotHalted(action: string) {
   }
 }
 
+// ============================================================
+// RATE LIMIT TRACKING
+// ============================================================
+// Twitter returns rate limit headers on every response.
+// We track them and refuse to act if we're close to the limit.
+
+interface RateLimitState {
+  remaining: number;
+  limit: number;
+  reset: number; // Unix timestamp (seconds)
+  lastChecked: number;
+}
+
+const rateLimits: Record<string, RateLimitState> = {};
+
+function trackRateLimit(endpoint: string, rateLimit: { limit: number; remaining: number; reset: number } | undefined) {
+  if (!rateLimit) return;
+
+  rateLimits[endpoint] = {
+    remaining: rateLimit.remaining,
+    limit: rateLimit.limit,
+    reset: rateLimit.reset,
+    lastChecked: Date.now(),
+  };
+
+  if (rateLimit.remaining <= 2) {
+    const resetIn = Math.max(0, rateLimit.reset - Math.floor(Date.now() / 1000));
+    console.warn(`[Twitter] ⚠️ Rate limit critical for ${endpoint}: ${rateLimit.remaining} remaining, resets in ${resetIn}s`);
+  } else if (rateLimit.remaining <= 5) {
+    console.log(`[Twitter] Rate limit low for ${endpoint}: ${rateLimit.remaining}/${rateLimit.limit} remaining`);
+  }
+}
+
+function checkRateLimit(endpoint: string): { ok: boolean; waitSeconds?: number } {
+  const state = rateLimits[endpoint];
+  if (!state) return { ok: true }; // No data yet, proceed cautiously
+
+  if (state.remaining <= 1) {
+    const now = Math.floor(Date.now() / 1000);
+    if (state.reset > now) {
+      return { ok: false, waitSeconds: state.reset - now };
+    }
+    // Reset time passed, allow through
+  }
+  return { ok: true };
+}
+
+/** Get current rate limit status for monitoring */
+export function getRateLimits(): Record<string, RateLimitState> {
+  return { ...rateLimits };
+}
+
 let _rwClient: TwitterApiReadWrite | null = null;
 
 function getClient() {
@@ -42,7 +94,12 @@ export interface Mention {
  */
 export async function postTweet(text: string): Promise<string> {
   assertNotHalted("postTweet");
+  const rl = checkRateLimit("tweets/create");
+  if (!rl.ok) {
+    throw new Error(`Rate limited on tweets/create — wait ${rl.waitSeconds}s`);
+  }
   const response = await getClient().v2.tweet(text);
+  trackRateLimit("tweets/create", (response as any).rateLimit);
   return response.data.id;
 }
 
@@ -54,11 +111,16 @@ export async function postReply(
   replyToId: string
 ): Promise<string> {
   assertNotHalted("postReply");
+  const rl = checkRateLimit("tweets/create");
+  if (!rl.ok) {
+    throw new Error(`Rate limited on tweets/create — wait ${rl.waitSeconds}s`);
+  }
   try {
     const response = await getClient().v2.tweet({
       text,
       reply: { in_reply_to_tweet_id: replyToId },
     });
+    trackRateLimit("tweets/create", (response as any).rateLimit);
     return response.data.id;
   } catch (error: any) {
     // Log the full Twitter error for debugging
@@ -76,11 +138,16 @@ export async function postQuoteTweet(
   quoteTweetId: string
 ): Promise<string> {
   assertNotHalted("postQuoteTweet");
+  const rl = checkRateLimit("tweets/create");
+  if (!rl.ok) {
+    throw new Error(`Rate limited on tweets/create — wait ${rl.waitSeconds}s`);
+  }
   try {
     const response = await getClient().v2.tweet({
       text,
       quote_tweet_id: quoteTweetId,
     });
+    trackRateLimit("tweets/create", (response as any).rateLimit);
     return response.data.id;
   } catch (error: any) {
     const details = error?.data || error?.errors || error?.message || error;
@@ -522,5 +589,62 @@ export async function getOwnTweetMetrics(): Promise<Array<{
   } catch (error) {
     console.warn("[ET Metrics] Failed to fetch own tweets:", error);
     return [];
+  }
+}
+
+/**
+ * Shadowban health check.
+ * Searches for ET's own tweets in Twitter search.
+ * If recent tweets aren't appearing in search results, we're likely shadowbanned.
+ * 
+ * Returns:
+ *   status: "visible" | "restricted" | "search_banned" | "error"
+ *   visibleCount: number of recent tweets visible in search
+ *   note: explanation
+ */
+export async function checkShadowban(): Promise<{
+  status: "visible" | "restricted" | "search_banned" | "error";
+  visibleCount: number;
+  note: string;
+}> {
+  assertNotHalted("checkShadowban");
+
+  try {
+    const results = await getClient().v2.search("from:etalienx", {
+      max_results: 10,
+      sort_order: "recency",
+      "tweet.fields": "created_at",
+    });
+
+    trackRateLimit("search", (results as any).rateLimit);
+
+    const count = results.data?.data?.length || 0;
+
+    if (count >= 5) {
+      return {
+        status: "visible",
+        visibleCount: count,
+        note: `${count} recent tweets visible in search — no shadowban detected`,
+      };
+    } else if (count > 0) {
+      return {
+        status: "restricted",
+        visibleCount: count,
+        note: `Only ${count} tweets visible in search (expected 10+) — possible partial restriction`,
+      };
+    } else {
+      return {
+        status: "search_banned",
+        visibleCount: 0,
+        note: "0 tweets visible in search — likely search-banned or shadowbanned",
+      };
+    }
+  } catch (error) {
+    console.error("[Shadowban Check] Error:", error);
+    return {
+      status: "error",
+      visibleCount: 0,
+      note: `Check failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }

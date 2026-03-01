@@ -113,12 +113,20 @@ export async function GET(request: Request) {
     }
 
     // Normal scheduling
+    // ⚠️ RECOVERY: Engagement refresh disabled — uses Twitter search API
+    // Re-enable after shadowban lifts
+    /* NORMAL MODE:
     // Periodically refresh engagement data (~once per 2.5hrs, 30min cron = 20% chance)
     if (Math.random() < 0.20) {
       const { refreshEngagement } = await import("@/lib/orchestrator");
       await refreshEngagement();
     }
+    */
 
+    // ⚠️ RECOVERY: News reactions disabled — QTs to strangers' tweets
+    // are unsolicited engagement that looks automated
+    // if (Math.random() < 0.10) { ... }
+    /* NORMAL MODE:
     // 10% chance to react to news instead of normal tweet (reduced from 20%)
     if (Math.random() < 0.10) {
       const { reactToNews } = await import("@/lib/orchestrator");
@@ -134,6 +142,7 @@ export async function GET(request: Request) {
       }
       // If news reaction failed, fall through to normal tweet
     }
+    */
 
     // Ask the scheduler if we should tweet
     const decision = await shouldTweet();
