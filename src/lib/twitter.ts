@@ -332,6 +332,70 @@ export async function getUserRecentTweets(
 }
 
 /**
+ * Batch-fetch recent tweets from multiple accounts in ONE API call.
+ * Uses `from:user1 OR from:user2` query to minimize Twitter API usage.
+ * Returns tweets grouped by author username.
+ */
+export async function batchGetRecentTweets(
+  usernames: string[],
+  maxResults: number = 10
+): Promise<Map<string, Array<{ id: string; text: string; likes: number; createdAt?: string }>>> {
+  const result = new Map<string, Array<{ id: string; text: string; likes: number; createdAt?: string }>>();
+
+  if (usernames.length === 0) return result;
+
+  // Initialize empty arrays for all usernames
+  const cleanNames = usernames.map(u => u.replace(/^@/, "").toLowerCase());
+  for (const name of cleanNames) {
+    result.set(name, []);
+  }
+
+  try {
+    const fromQuery = cleanNames.map(u => `from:${u}`).join(" OR ");
+    const query = `(${fromQuery}) -is:retweet -is:reply`;
+
+    const searchResult = await getClient().v2.search(query, {
+      max_results: Math.min(maxResults, 100),
+      "tweet.fields": "public_metrics,created_at,author_id",
+      expansions: "author_id",
+      "user.fields": "username",
+      sort_order: "recency",
+    });
+
+    if (!searchResult.data?.data) return result;
+
+    // Build author_id → username map
+    const authorMap = new Map<string, string>();
+    if (searchResult.includes?.users) {
+      for (const u of searchResult.includes.users) {
+        authorMap.set(u.id, u.username.toLowerCase());
+      }
+    }
+
+    // Group tweets by author
+    for (const t of searchResult.data.data) {
+      const author = authorMap.get(t.author_id || "") || "";
+      if (!author || !result.has(author)) continue;
+
+      const cleanText = t.text.replace(/https:\/\/t\.co\/\w+/g, "").trim();
+      if (cleanText.length <= 15) continue;
+
+      result.get(author)!.push({
+        id: t.id,
+        text: cleanText,
+        likes: t.public_metrics?.like_count || 0,
+        createdAt: t.created_at,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    console.warn(`[Notis] Batch search failed:`, error);
+    return result;
+  }
+}
+
+/**
  * Search for trending news tweets about UFOs, aliens, space discoveries, ancient findings.
  * Returns high-engagement tweets with links that ET can quote tweet or react to.
  */

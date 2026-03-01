@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/cron/notis",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }

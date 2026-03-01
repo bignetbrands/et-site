@@ -12,15 +12,15 @@ import {
   recordTweet,
 } from "@/lib/store";
 
-export const maxDuration = 30; // Keep it fast
+export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/cron/notis
  *
- * Called every 2 minutes by Vercel cron.
- * Polls watchlist accounts for new tweets and replies instantly.
- * Goal: reply within 1-2 minutes of a VIP account posting.
+ * Called every 10 minutes by Vercel cron.
+ * Polls watchlist accounts for new tweets using ONE batched Twitter API call.
+ * When a new tweet is detected, ET replies directly under it.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -43,10 +43,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ skipped: true, reason: "Watchlist empty" });
     }
 
-    const { getUserRecentTweets } = await import("@/lib/twitter");
+    // ONE batched API call for all watchlist accounts
+    const { batchGetRecentTweets } = await import("@/lib/twitter");
+    const handles = watchlist.map(a => a.handle);
+    const tweetsByAuthor = await batchGetRecentTweets(handles, 10);
+
     const { generateReply } = await import("@/lib/claude");
     const { postReply } = await import("@/lib/twitter");
-    const { REPLY_SYSTEM_PROMPT, buildReplyPrompt } = await import("@/lib/prompts");
 
     const results: Array<{
       handle: string;
@@ -58,29 +61,28 @@ export async function GET(request: Request) {
 
     for (const account of watchlist) {
       try {
-        // Fetch their most recent tweet
-        const tweets = await getUserRecentTweets(account.handle, 3);
+        const tweets = tweetsByAuthor.get(account.handle) || [];
         if (tweets.length === 0) {
           results.push({ handle: account.handle, error: "No tweets found" });
           continue;
         }
 
-        const latest = tweets[0];
+        const latest = tweets[0]; // Already sorted by recency
         const lastSeen = await getWatchlistLastSeen(account.handle);
 
-        // Always update last seen to the latest tweet
+        // Always advance cursor to latest tweet
         await setWatchlistLastSeen(account.handle, latest.id);
 
-        // If this is the first poll (no lastSeen), just mark position — don't reply to old tweets
+        // First poll — just mark position, don't reply to old tweets
         if (!lastSeen) {
           console.log(`[Notis] First poll for @${account.handle} — marking position at ${latest.id}`);
           results.push({ handle: account.handle, newTweet: "(first poll, marking position)" });
           continue;
         }
 
-        // Check if there's a new tweet since last seen
+        // No new tweet since last check
         if (latest.id === lastSeen) {
-          results.push({ handle: account.handle }); // No new tweet
+          results.push({ handle: account.handle });
           continue;
         }
 
@@ -93,10 +95,10 @@ export async function GET(request: Request) {
 
         console.log(`[Notis] 🚨 @${account.handle} posted ${newTweets.length} new tweet(s)!`);
 
-        // Reply to the NEWEST tweet only (the one followers are seeing right now)
+        // Reply to the NEWEST tweet only
         const target = newTweets[0];
 
-        // Skip if already interacted with this tweet
+        // Skip if already interacted
         if (await hasQuotedTweet(target.id)) {
           console.log(`[Notis] Already replied to ${target.id}, skipping`);
           results.push({ handle: account.handle, newTweet: target.text.substring(0, 60), replied: false, error: "Already replied" });
@@ -110,11 +112,11 @@ export async function GET(request: Request) {
           continue;
         }
 
-        // Check tweet age — only reply if under 10 minutes old (don't reply to tweets we missed by a lot)
+        // Skip if tweet is too old (>15 min — we missed the window)
         if (target.createdAt) {
           const ageMs = Date.now() - new Date(target.createdAt).getTime();
           const ageMin = Math.round(ageMs / 60000);
-          if (ageMin > 10) {
+          if (ageMin > 15) {
             console.log(`[Notis] Tweet from @${account.handle} is ${ageMin}m old — too stale, skipping`);
             results.push({ handle: account.handle, newTweet: target.text.substring(0, 60), replied: false, error: `Too old (${ageMin}m)` });
             continue;
@@ -129,7 +131,7 @@ export async function GET(request: Request) {
           continue;
         }
 
-        // Post reply directly under the tweet
+        // Post reply directly under their tweet
         const replyId = await postReply(replyText, target.id);
         console.log(`[Notis] ⚡ Replied to @${account.handle} tweet ${target.id}: "${replyText.substring(0, 60)}..."`);
 
@@ -151,7 +153,7 @@ export async function GET(request: Request) {
           replyText: replyText.substring(0, 80),
         });
       } catch (err) {
-        console.error(`[Notis] Error polling @${account.handle}:`, err);
+        console.error(`[Notis] Error processing @${account.handle}:`, err);
         results.push({
           handle: account.handle,
           error: err instanceof Error ? err.message : "Unknown error",
@@ -160,7 +162,7 @@ export async function GET(request: Request) {
     }
 
     const replied = results.filter(r => r.replied);
-    console.log(`[Notis] Polled ${watchlist.length} accounts — ${replied.length} new replies`);
+    console.log(`[Notis] Polled ${watchlist.length} accounts (1 API call) — ${replied.length} new replies`);
 
     return NextResponse.json({
       polled: watchlist.length,

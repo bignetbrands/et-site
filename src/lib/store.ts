@@ -625,12 +625,20 @@ export interface WatchlistAccount {
   note?: string;        // optional admin note
 }
 
+const MAX_WATCHLIST_SIZE = 2;
+
 /**
  * Add an account to the watchlist.
  */
 export async function addWatchlistAccount(handle: string, note?: string): Promise<WatchlistAccount> {
   const clean = handle.replace(/^@/, "").toLowerCase().trim();
   if (!clean || clean.length > 30) throw new Error("Invalid handle");
+
+  // Check cap
+  const current = await getWatchlist();
+  if (current.length >= MAX_WATCHLIST_SIZE && !current.find(a => a.handle === clean)) {
+    throw new Error(`Watchlist full (max ${MAX_WATCHLIST_SIZE}). Remove an account first.`);
+  }
 
   const account: WatchlistAccount = {
     handle: clean,
