@@ -60,11 +60,33 @@ export default function BackroomPage() {
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Chat state
-  const [messages, setMessages] = useState<Array<{ text: string; who: "et" | "user" }>>([
-    { text: "you found the backroom. this is where the community talks to me directly. you can chat, or if you've got ideas for how to make $ET better — drop them here. i'll process them into the suggestion board for everyone to vote on. what's on your mind?", who: "et" },
-  ]);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  // Chat state — load from localStorage if available
+  const DEFAULT_MSG = { text: "you found the backroom. this is where the community talks to me directly. you can chat, or if you've got ideas for how to make $ET better — drop them here. i'll process them into the suggestion board for everyone to vote on. what's on your mind?", who: "et" as const };
+
+  const [messages, setMessages] = useState<Array<{ text: string; who: "et" | "user" }>>(() => {
+    if (typeof window === "undefined") return [DEFAULT_MSG];
+    try {
+      const saved = localStorage.getItem("et_backroom_messages");
+      if (saved) { const parsed = JSON.parse(saved); if (parsed.length > 0) return parsed; }
+    } catch { /* ignore */ }
+    return [DEFAULT_MSG];
+  });
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("et_backroom_history");
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  // Persist chat on every change
+  useEffect(() => {
+    try { localStorage.setItem("et_backroom_messages", JSON.stringify(messages)); } catch { /* ignore */ }
+  }, [messages]);
+  useEffect(() => {
+    try { localStorage.setItem("et_backroom_history", JSON.stringify(chatHistory)); } catch { /* ignore */ }
+  }, [chatHistory]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -215,10 +237,21 @@ export default function BackroomPage() {
     }
     sessionStorage.removeItem("et_backroom_verified");
     localStorage.setItem("et_backroom_disconnected", "1");
+    localStorage.removeItem("et_backroom_messages");
+    localStorage.removeItem("et_backroom_history");
     setGateState("disconnected");
     setWalletAddress("");
     setTokenBalance(0);
     setErrorMsg("");
+    setMessages([DEFAULT_MSG]);
+    setChatHistory([]);
+  };
+
+  const clearChat = () => {
+    localStorage.removeItem("et_backroom_messages");
+    localStorage.removeItem("et_backroom_history");
+    setMessages([DEFAULT_MSG]);
+    setChatHistory([]);
   };
 
   // ============================================================
@@ -453,10 +486,15 @@ export default function BackroomPage() {
         <div style={styles.chatPanel}>
           <div style={styles.chatHeader}>
             <div style={styles.avatar}>👽</div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={styles.chatName}>$ET</div>
               <div style={styles.chatStatus}>online · stranded on earth · listening</div>
             </div>
+            {messages.length > 1 && (
+              <button onClick={clearChat} style={styles.clearBtn} title="Clear chat history">
+                clear chat
+              </button>
+            )}
           </div>
 
           <div style={styles.chatMessages}>
@@ -759,6 +797,18 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "1px",
     padding: "6px 10px",
     cursor: "pointer",
+  },
+  clearBtn: {
+    background: "transparent",
+    border: "1px solid #1a3a1a",
+    color: "#5a8a52",
+    fontFamily: "'Space Mono', monospace",
+    fontSize: "8px",
+    letterSpacing: "1px",
+    padding: "4px 8px",
+    cursor: "pointer",
+    textTransform: "uppercase" as const,
+    flexShrink: 0,
   },
 
   // LAYOUT
