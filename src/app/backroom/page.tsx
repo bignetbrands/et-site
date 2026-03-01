@@ -1,10 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// $ET token mint on Solana
-const ET_MINT = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
-const RPC_URL = "https://api.mainnet-beta.solana.com";
-
 interface Suggestion {
   id: string;
   text: string;
@@ -36,34 +32,20 @@ function getProvider(): { name: string; provider: any } | null {
   return null;
 }
 
-async function checkTokenBalance(walletAddress: string): Promise<number> {
-  // Use RPC directly to avoid heavy imports in client bundle
-  const body = {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "getTokenAccountsByOwner",
-    params: [
-      walletAddress,
-      { mint: ET_MINT },
-      { encoding: "jsonParsed" },
-    ],
-  };
-
-  const res = await fetch(RPC_URL, {
+async function checkTokenBalance(walletAddress: string): Promise<{ holder: boolean; balance: number }> {
+  const res = await fetch("/api/backroom/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ wallet: walletAddress }),
   });
 
   const data = await res.json();
-  if (!data.result?.value?.length) return 0;
 
-  let total = 0;
-  for (const account of data.result.value) {
-    const amount = account.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
-    if (amount) total += amount;
+  if (!res.ok) {
+    throw new Error(data.error || "Verification failed");
   }
-  return total;
+
+  return { holder: data.holder, balance: data.balance };
 }
 
 // ============================================================
@@ -138,11 +120,11 @@ export default function BackroomPage() {
       setWalletAddress(pubkey);
       setGateState("checking");
 
-      // Check $ET balance
-      const balance = await checkTokenBalance(pubkey);
-      setTokenBalance(balance);
+      // Check $ET balance via server-side API
+      const result = await checkTokenBalance(pubkey);
+      setTokenBalance(result.balance);
 
-      if (balance > 0) {
+      if (result.holder) {
         setGateState("holder");
       } else {
         setGateState("not_holder");
@@ -153,7 +135,7 @@ export default function BackroomPage() {
         setErrorMsg("Connection cancelled. Click connect when you're ready.");
       } else {
         setGateState("error");
-        setErrorMsg("Connection failed. Please try again.");
+        setErrorMsg(err?.message || "Connection failed. Please try again.");
         console.error("[Backroom] Wallet error:", err);
       }
     }
