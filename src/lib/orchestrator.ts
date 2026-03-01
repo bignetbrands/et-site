@@ -740,10 +740,20 @@ export async function replyToSpecificTweet(
 export async function dryRun(
   pillar: ContentPillar,
   useTrending: boolean = false
-): Promise<GeneratedTweet> {
+): Promise<GeneratedTweet & { selfAwareness?: string }> {
   const recentTweets = await getRecentTweets();
   const topPerformers = await getTopPerformers();
   const memorySummary = await getTweetMemorySummary();
+
+  // Get self-awareness context
+  let selfAwarenessContext: string | undefined;
+  try {
+    const selfAwareness = await getSelfAwarenessForTweets();
+    selfAwarenessContext = formatSelfAwarenessForPrompt(selfAwareness);
+    console.log(`[ET Dry Run] Self-awareness loaded (${selfAwarenessContext.length} chars)`);
+  } catch (e) {
+    console.warn("[ET Dry Run] Self-awareness failed:", e);
+  }
 
   let trendingContext: string[] | undefined;
   if (useTrending) {
@@ -752,11 +762,12 @@ export async function dryRun(
     } catch { /* proceed without */ }
   }
 
-  const tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary);
+  const tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary, false, selfAwarenessContext);
 
-  const result: GeneratedTweet = {
+  const result: GeneratedTweet & { selfAwareness?: string } = {
     text: tweetText,
     pillar,
+    selfAwareness: selfAwarenessContext,
   };
 
   // Generate image preview for image-enabled pillars (always generate — pillar config is authority)

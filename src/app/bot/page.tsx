@@ -21,7 +21,7 @@ export default function BotDashboard() {
   const [killSwitch, setKillSwitch] = useState(false);
   const [loading, setLoading] = useState("");
   const [log, setLog] = useState<Array<{ time: string; msg: string; type: "info" | "success" | "error" | "warn" }>>([]);
-  const [preview, setPreview] = useState<{ text: string; pillar: string; imageUrl?: string; charCount: number } | null>(null);
+  const [preview, setPreview] = useState<{ text: string; pillar: string; imageUrl?: string; charCount: number; selfAwareness?: string } | null>(null);
   const [selectedPillar, setSelectedPillar] = useState("human_observation");
   const [watchlist, setWatchlist] = useState<Array<{ handle: string; addedAt: string; note?: string }>>([]);
   const [watchlistLoaded, setWatchlistLoaded] = useState(false);
@@ -90,7 +90,7 @@ export default function BotDashboard() {
       });
       const data = await res.json();
       if (data.error) { addLog(`Error: ${data.error}`, "error"); setLoading(""); return; }
-      setPreview({ text: data.tweet, pillar: data.pillar, imageUrl: data.imageUrl, charCount: data.charCount });
+      setPreview({ text: data.tweet, pillar: data.pillar, imageUrl: data.imageUrl, charCount: data.charCount, selfAwareness: data.selfAwareness });
       addLog(`Preview: "${data.tweet.slice(0, 60)}..." (${data.charCount} chars)`, "success");
     } catch (e) {
       addLog(`Dry run failed: ${e}`, "error");
@@ -232,6 +232,27 @@ export default function BotDashboard() {
                 <div style={styles.previewText}>{preview.text}</div>
                 {preview.imageUrl && (
                   <img src={preview.imageUrl} alt="Preview" style={styles.previewImage} />
+                )}
+                {preview.selfAwareness && (
+                  <details style={{ marginTop: "10px", fontSize: "11px" }}>
+                    <summary style={{ color: "#39ff14", cursor: "pointer", fontFamily: "monospace", letterSpacing: "1px", userSelect: "none" }}>
+                      ◆ ET&apos;S MIND (self-awareness context injected)
+                    </summary>
+                    <pre style={{
+                      marginTop: "8px",
+                      padding: "10px",
+                      background: "rgba(0,0,0,0.4)",
+                      border: "1px solid #1a3a1a",
+                      borderRadius: "4px",
+                      color: "#7a9f7a",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontSize: "10px",
+                      lineHeight: "1.5",
+                      maxHeight: "300px",
+                      overflow: "auto",
+                    }}>{preview.selfAwareness}</pre>
+                  </details>
                 )}
                 <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
                   <button

@@ -55,6 +55,7 @@ export async function POST(request: Request) {
         imageUrl: result.imageUrl || null,
         rawImageUrl: result.rawImageUrl || result.imageUrl || null,
         charCount: result.text.length,
+        selfAwareness: result.selfAwareness || null,
         timestamp: new Date().toISOString(),
       });
     }
