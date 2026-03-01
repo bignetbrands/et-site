@@ -8,6 +8,7 @@ import {
   getTodayTweetCount,
   getNextTweetTime,
   setNextTweetTime,
+  kvHealthCheck,
 } from "./store";
 
 // ============================================================
@@ -172,21 +173,8 @@ export async function shouldTweet(): Promise<SchedulerDecision> {
   // KV health check — if we can't persist state, don't tweet.
   // Without working KV, daily counts and next-tweet-time are lost,
   // causing ET to spam a tweet every 15-min cron cycle.
-  try {
-    const probe = await getNextTweetTime();
-    if (probe === null) {
-      // First run or KV was wiped — set a next-tweet-time so we don't fire again immediately
-      await setNextTweetTime(Date.now() + randomGap() * 60000);
-    }
-    // Verify the write stuck
-    const verify = await getNextTweetTime();
-    if (verify === null) {
-      return {
-        shouldTweet: false,
-        reason: "KV write failed — refusing to tweet without state tracking",
-      };
-    }
-  } catch {
+  const kvOk = await kvHealthCheck();
+  if (!kvOk) {
     return {
       shouldTweet: false,
       reason: "KV health check failed — refusing to tweet without state tracking",

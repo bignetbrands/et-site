@@ -4,6 +4,23 @@ import { PILLAR_CONFIGS } from "./prompts";
 import { debug, debugWarn, critical } from "./debug";
 
 /**
+ * KV health check — write then verify a test key.
+ * Returns true if KV is working, false if writes don't persist.
+ * Uses a dedicated key so it never pollutes real state.
+ */
+export async function kvHealthCheck(): Promise<boolean> {
+  try {
+    const testKey = "et:kv_health";
+    const testVal = Date.now().toString();
+    await kv.set(testKey, testVal, { ex: 60 }); // auto-expires in 60s
+    const verify = await kv.get<string>(testKey);
+    return verify === testVal;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * MIGRATION: node-redis (TCP) → @vercel/kv (HTTP/Upstash)
  * 
  * Key differences:

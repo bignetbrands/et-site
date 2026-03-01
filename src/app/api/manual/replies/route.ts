@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { processReplies } from "@/lib/orchestrator";
 import { isKillSwitchActive } from "@/lib/kill-switch";
-import { getLastMentionId, setLastMentionId } from "@/lib/store";
+import { kvHealthCheck } from "@/lib/store";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -27,16 +27,9 @@ export async function POST(request: Request) {
     }
 
     // KV health check — refuse to process without state tracking
-    try {
-      const probe = await getLastMentionId();
-      await setLastMentionId(probe ?? "health_check");
-      const verify = await getLastMentionId();
-      if (verify === null) {
-        return NextResponse.json({ error: "KV unavailable — refusing to prevent duplicate replies" }, { status: 503 });
-      }
-      if (probe && verify === "health_check") await setLastMentionId(probe);
-    } catch {
-      return NextResponse.json({ error: "KV health check failed" }, { status: 503 });
+    const kvOk = await kvHealthCheck();
+    if (!kvOk) {
+      return NextResponse.json({ error: "KV unavailable — refusing to prevent duplicate replies" }, { status: 503 });
     }
 
     console.log(`[ET Manual] Processing replies${catchUp ? " (CATCH-UP MODE)" : ""}...`);
