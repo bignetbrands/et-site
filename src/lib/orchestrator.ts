@@ -167,31 +167,6 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     const batchThreadReplies = new Map<string, number>();
     const MAX_REPLIES_PER_THREAD = 2; // Max 2 replies per thread per day
 
-    // Pre-generate a POOL of late excuses (3 different ones) so replies in
-    // the same batch don't all start identically. Rotate through them.
-    let lateExcusePool: string[] = [];
-    const oldestMention = toProcess[0];
-    if (oldestMention?.createdAt) {
-      const delayMs = Date.now() - new Date(oldestMention.createdAt).getTime();
-      const delayMinutes = Math.floor(delayMs / 60000);
-      if (delayMinutes >= 60) {
-        try {
-          const { generateLateExcuse } = await import("./claude");
-          // Generate 3 different excuses for variety
-          const excuses = await Promise.all([
-            generateLateExcuse(),
-            generateLateExcuse(),
-            generateLateExcuse(),
-          ]);
-          lateExcusePool = excuses.filter(Boolean);
-          console.log(`[ET Replies] Late excuse pool (${lateExcusePool.length}): ${lateExcusePool.map(e => `"${e}"`).join(", ")}`);
-        } catch (e) {
-          console.warn("[ET Replies] Failed to generate late excuses:", e);
-        }
-      }
-    }
-    let excuseIndex = 0;
-
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
         console.log("[ET Replies] Daily budget exhausted during run");
@@ -243,9 +218,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
       }
 
       try {
-        const currentExcuse = lateExcusePool.length > 0 ? lateExcusePool[excuseIndex % lateExcusePool.length] : null;
-        excuseIndex++;
-        const result = await processOneMention(mention, currentExcuse);
+        const result = await processOneMention(mention);
         results.push(result);
         // Track the highest ID we actually processed (mentions are oldest→newest after reverse)
         lastProcessedId = mention.id;
@@ -304,9 +277,8 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
 /**
  * Process a single mention and generate/post a reply.
- * @param lateExcuse - Pre-generated excuse for this specific late reply (rotated from pool)
  */
-async function processOneMention(mention: Mention, lateExcuse: string | null = null): Promise<ReplyResult> {
+async function processOneMention(mention: Mention): Promise<ReplyResult> {
   const authorUsername = mention.authorUsername || "someone";
 
   // Skip if already replied
@@ -328,7 +300,7 @@ async function processOneMention(mention: Mention, lateExcuse: string | null = n
   const isCARequest = /^(ca|contract|address|ca\?|CA)\??$/i.test(textWithoutMentions);
   
   if (textWithoutMentions.length < 2 && !isCARequest) {
-    await recordReply(mention.id); // Mark as processed so we don't retry
+    await recordReply(mention.id);
     return {
       mentionId: mention.id,
       mentionText: mention.text,
@@ -340,27 +312,6 @@ async function processOneMention(mention: Mention, lateExcuse: string | null = n
     };
   }
 
-  // Detect reply delay and build late context
-  let lateContext: { delayMinutes: number; delayLabel: string; excuse: string } | undefined;
-  if (mention.createdAt && lateExcuse) {
-    const mentionTime = new Date(mention.createdAt).getTime();
-    const delayMs = Date.now() - mentionTime;
-    const delayMinutes = Math.floor(delayMs / 60000);
-
-    if (delayMinutes >= 60) {
-      const hours = Math.floor(delayMinutes / 60);
-      let delayLabel: string;
-      if (hours >= 24) {
-        const days = Math.floor(hours / 24);
-        delayLabel = days === 1 ? "a day" : `${days} days`;
-      } else {
-        delayLabel = hours === 1 ? "an hour" : `${hours} hours`;
-      }
-      lateContext = { delayMinutes, delayLabel, excuse: lateExcuse };
-      console.log(`[ET Replies] Late reply: ${delayLabel} delay for @${authorUsername} (excuse: "${lateExcuse}")`);
-    }
-  }
-
   // Get conversation context if this is a reply to one of our tweets
   let conversationContext: string | undefined;
   if (mention.inReplyToId) {
@@ -370,15 +321,16 @@ async function processOneMention(mention: Mention, lateExcuse: string | null = n
     }
   }
 
-  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}${lateContext ? ` [LATE: ${lateContext.delayLabel}]` : ""}`);
+  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}`);
 
-  // Generate the reply
+  // Generate the reply — no proactive excuses. ET just replies naturally.
+  // If the user calls him out for being slow, Claude will see that in the
+  // mention text and can improvise a funny excuse in character.
   const replyText = await generateReply(
     mention.text,
     authorUsername,
     conversationContext,
-    mention.imageUrls,
-    lateContext
+    mention.imageUrls
   );
 
   if (!replyText || replyText.length > 280) {
@@ -394,32 +346,9 @@ async function processOneMention(mention: Mention, lateExcuse: string | null = n
     };
   }
 
-  // For very late replies (2+ hours), sometimes attach a "what ET was doing" image (30% chance, once per batch)
-  let lateImageBuffer: Buffer | null = null;
-  if (lateContext && lateContext.delayMinutes >= 120 && Math.random() < 0.3) {
-    try {
-      const { generateLateReplyScene } = await import("./claude");
-      const sceneDescription = await generateLateReplyScene(lateContext.delayLabel);
-      console.log(`[ET Replies] Late image scene: ${sceneDescription}`);
-
-      const imageUrl = await generateImage(sceneDescription, "personal_lore");
-      lateImageBuffer = await downloadImage(imageUrl, "personal_lore");
-      console.log(`[ET Replies] Late image generated: ${Math.round(lateImageBuffer.length / 1024)}KB`);
-    } catch (imgErr) {
-      console.warn(`[ET Replies] Late image failed, continuing with text:`, imgErr);
-    }
-  }
-
-  // Post the reply (with image if we have one)
-  let replyId: string;
-  if (lateImageBuffer) {
-    const { postReplyWithImage } = await import("./twitter");
-    replyId = await postReplyWithImage(replyText, mention.id, lateImageBuffer);
-    console.log(`[ET Replies] Posted reply WITH IMAGE ${replyId} to @${authorUsername} (late: ${lateContext!.delayLabel})`);
-  } else {
-    replyId = await postReply(replyText, mention.id);
-    console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}${lateContext ? ` (late: ${lateContext.delayLabel})` : ""}`);
-  }
+  // Post the reply
+  const replyId = await postReply(replyText, mention.id);
+  console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}`);
   await recordReply(mention.id);
 
   return {

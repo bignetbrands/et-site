@@ -137,7 +137,6 @@ export async function generateReply(
   authorUsername: string,
   conversationContext?: string,
   imageUrls?: string[],
-  lateContext?: { delayMinutes: number; delayLabel: string; excuse: string }
 ): Promise<string> {
   // Build message content — text + optional images
   const content: Array<{ type: string; source?: Record<string, string>; text?: string }> = [];
@@ -158,7 +157,7 @@ export async function generateReply(
   // Add the text prompt
   content.push({
     type: "text",
-    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, lateContext),
+    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0),
   });
 
   const response = await getClient().messages.create({
@@ -187,81 +186,6 @@ export async function generateReply(
   cleaned = cleaned.replace(/^(@\w+\s*)+/, "").trim();
 
   return cleaned;
-}
-
-/**
- * Generate a scene description for a "what was ET doing" late reply image.
- */
-export async function generateLateReplyScene(delayLabel: string): Promise<string> {
-  const { buildLateReplyImagePrompt } = await import("./prompts");
-
-  const response = await getClient().messages.create({
-    model: MODELS.sonnet,
-    max_tokens: 200,
-    messages: [
-      {
-        role: "user",
-        content: buildLateReplyImagePrompt(delayLabel),
-      },
-    ],
-    temperature: 1.0,
-  });
-
-  const text = response.content[0].type === "text" ? response.content[0].text : "";
-  return text.trim();
-}
-
-/**
- * Generate ONE late excuse for a batch of replies.
- * This is called once and shared across all late replies in the same run.
- * Returns a short, casual phrase (NOT a full sentence, no "sorry").
- */
-export async function generateLateExcuse(): Promise<string> {
-  const response = await getClient().messages.create({
-    model: MODELS.sonnet,
-    max_tokens: 50,
-    messages: [
-      {
-        role: "user",
-        content: `You are ET, an alien stranded on Earth. You were away from Twitter for a while and need a short excuse for being late.
-
-Generate ONE short excuse — just the activity, 3-8 words max. Casual, tossed-off, not a joke with a punchline. Just what you were doing.
-
-RULES:
-- NO "sorry" — ET doesn't apologize
-- NO punchlines or wordplay — just state what you were doing
-- Should feel natural, like a friend saying "yo my bad, was [doing thing]"
-- Alien perspective welcome but not forced
-
-GOOD examples (match this energy):
-- "was out touching grass"
-- "got lost in a wikipedia hole"  
-- "was staring at the moon again"
-- "phone died"
-- "was recalibrating the signal dish"
-- "fell asleep watching documentaries"
-- "was trying to cook pasta"
-- "got distracted by a cloud"
-- "was building something"
-- "had my head in the stars"
-
-BAD examples (too try-hard):
-- "was teaching myself to whistle (still can't)" ← punchline
-- "was arguing with a raccoon about territory" ← too quirky/random
-- "was trying to figure out how doorknobs work" ← forced alien humor
-
-Output ONLY the excuse phrase. Nothing else.`,
-      },
-    ],
-    temperature: 1.0,
-  });
-
-  let text = response.content[0].type === "text" ? response.content[0].text : "was offline";
-  // Clean up
-  text = text.trim().replace(/^["']|["']$/g, "").trim();
-  // Ensure it doesn't start with sorry
-  text = text.replace(/^sorry[,.]?\s*/i, "").trim();
-  return text;
 }
 
 /**

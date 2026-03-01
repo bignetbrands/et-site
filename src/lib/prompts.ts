@@ -522,7 +522,6 @@ export function buildReplyPrompt(
   authorUsername: string,
   conversationContext?: string,
   hasImages?: boolean,
-  lateContext?: { delayMinutes: number; delayLabel: string; excuse: string }
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
@@ -534,48 +533,9 @@ export function buildReplyPrompt(
     prompt += `\n\nThey also attached image(s) which you can see above. React to the image naturally — comment on what you see through ET's alien perspective. Don't describe the image mechanically, just vibe with it.`;
   }
 
-  if (lateContext && lateContext.delayMinutes >= 60) {
-    prompt += `\n\nLATE REPLY: You're responding ${lateContext.delayLabel} late. The reason: "${lateContext.excuse}"
-
-Work this into the start of your reply BRIEFLY — just a few words acknowledging you were away, then get to the actual reply. Use the EXACT excuse given, don't invent a new one.
-
-RULES:
-- NEVER start with "sorry" — ET doesn't apologize.
-- Keep the excuse to a quick aside. The reply to their message is the main event.
-- VARY YOUR FORMAT. Do NOT always use the same sentence structure. Pick ONE of these styles randomly:
-  * Quick aside then pivot: "got distracted by [excuse]. but yo — [reply]"
-  * Parenthetical: "[reply] (was [excuse], my bad)"
-  * Mid-sentence weave: "ngl i was [excuse] but this made me stop — [reply]"
-  * Skip it entirely if the reply works better without it
-  * End note: "[reply]. sorry, was [excuse]"
-- NEVER start with "was watching" — find a different phrasing each time.
-- Total reply must stay under 280 chars.`;
-  }
-
   prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply.`;
 
   return prompt;
-}
-
-// ============================================================
-// LATE REPLY IMAGE PROMPT — What was ET busy doing?
-// ============================================================
-
-export function buildLateReplyImagePrompt(delayLabel: string): string {
-  return `Generate a SCENE LINE (1-2 sentences) for a DALL-E image showing what ET was doing instead of checking his phone. He took ${delayLabel} to reply.
-
-The scene line will be appended to a locked base aesthetic prompt (1970s Kodak Super 8, grainy, documentary realism). You do NOT describe film grain, camera style, or lighting — just the scene.
-
-Ideas (pick one or invent):
-- ET sitting inside a dim bunker hunched over an old radio set, surrounded by stacked boxes and tangled cables
-- ET standing in tall grass at dusk staring at the sky, wind bending the stalks around him
-- ET in a dark kitchen standing on a stool reaching for a high shelf, single bare bulb overhead
-- ET curled up in the corner of a dimly lit room with a CRT TV playing static nearby
-- ET standing at a rain-streaked window, one hand on the glass, faint red glow at his fingertip
-- ET walking along an empty rural road at night, distant headlights approaching on the horizon
-- ET sitting on a rooftop at the edge, looking out over scattered lights in the distance
-
-Output ONLY the scene line. Nothing else.`;
 }
 
 // ============================================================
