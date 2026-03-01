@@ -26,15 +26,15 @@ const ACTIVE_END_HOUR = 3; // 3 AM UTC (next day)
 //   - 2-4 PM ET (19-21 UTC): Work grind, meetings, low engagement
 const QUIET_HOURS_UTC: number[] = [11, 12, 19, 20];
 
-const DAILY_TWEET_TARGET = { min: 7, max: 10 };
+const DAILY_TWEET_TARGET = { min: 4, max: 6 };
 
 // Random gap range between tweets (minutes)
-// Varies by time of day for organic feel
+// Wider gaps = more human-like, less likely to trigger spam detection
 const GAP_RANGES: Record<string, { min: number; max: number }> = {
-  morning: { min: 50, max: 130 },   // slower start
-  afternoon: { min: 40, max: 100 },  // more active
-  evening: { min: 35, max: 90 },     // peak hours, tighter gaps
-  latenight: { min: 60, max: 160 },  // sparse, contemplative
+  morning: { min: 90, max: 180 },    // slow start, ~1 tweet per 1.5-3 hrs
+  afternoon: { min: 70, max: 150 },   // more active but still relaxed
+  evening: { min: 60, max: 130 },     // peak hours, still spaced
+  latenight: { min: 120, max: 240 },  // sparse, contemplative
 };
 
 // Chance of a trending/reactive tweet instead of pillar tweet

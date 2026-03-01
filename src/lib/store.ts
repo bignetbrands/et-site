@@ -329,7 +329,7 @@ export async function recordThreadReply(conversationId: string): Promise<void> {
 // ============================================================
 
 const USER_INTERACTIONS_KEY = "user_interactions";
-const MAX_INTERACTIONS_PER_USER_PER_DAY = 10; // Safety net — ET uses judgment to keep it natural
+const MAX_INTERACTIONS_PER_USER_PER_DAY = 3; // Max 3 replies to same person per day
 
 export async function getUserInteractionCount(username: string): Promise<number> {
   const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;
@@ -350,6 +350,67 @@ export async function recordUserInteraction(username: string): Promise<void> {
 export async function hasHitUserLimit(username: string): Promise<boolean> {
   const count = await getUserInteractionCount(username);
   return count >= MAX_INTERACTIONS_PER_USER_PER_DAY;
+}
+
+// ============================================================
+// GLOBAL ACTION THROTTLE
+// ============================================================
+// Single chokepoint: no Twitter action can fire unless the global
+// throttle allows it. This prevents crons from stacking actions.
+//
+// Rules:
+//   - Minimum 8 minutes between ANY Twitter actions (tweet, reply, QT, etc.)
+//   - Max 30 total actions per day (tweets + replies + QTs combined)
+//   - All crons must call canAct() before doing anything, and
+//     recordAction() after success.
+//
+// This is the PRIMARY shadowban prevention mechanism.
+
+const GLOBAL_LAST_ACTION_KEY = "et:global_last_action";
+const GLOBAL_ACTION_COUNT_KEY = "et:global_action_count";
+const GLOBAL_MIN_GAP_MS = 8 * 60 * 1000;  // 8 minutes between ANY actions
+const GLOBAL_MAX_ACTIONS_PER_DAY = 30;     // Hard ceiling on all actions combined
+
+export async function canAct(): Promise<{ allowed: boolean; reason: string }> {
+  try {
+    // Check daily action count
+    const countKey = `${GLOBAL_ACTION_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
+    const dayCount = (await kv.get<number>(countKey)) ?? 0;
+    if (dayCount >= GLOBAL_MAX_ACTIONS_PER_DAY) {
+      return { allowed: false, reason: `Daily action limit reached (${dayCount}/${GLOBAL_MAX_ACTIONS_PER_DAY})` };
+    }
+
+    // Check time since last action
+    const lastAction = await kv.get<number>(GLOBAL_LAST_ACTION_KEY);
+    if (lastAction) {
+      const elapsed = Date.now() - lastAction;
+      if (elapsed < GLOBAL_MIN_GAP_MS) {
+        const waitMin = Math.round((GLOBAL_MIN_GAP_MS - elapsed) / 60000);
+        return { allowed: false, reason: `Throttled — last action ${Math.round(elapsed / 60000)}m ago, wait ~${waitMin}m` };
+      }
+    }
+
+    return { allowed: true, reason: `OK — action #${dayCount + 1} today` };
+  } catch (e) {
+    debugWarn("canAct check failed:", e);
+    return { allowed: false, reason: "Throttle check failed — blocking as safety" };
+  }
+}
+
+export async function recordAction(): Promise<void> {
+  try {
+    await kv.set(GLOBAL_LAST_ACTION_KEY, Date.now());
+    const countKey = `${GLOBAL_ACTION_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
+    await kv.incr(countKey);
+    await kv.expire(countKey, 86400);
+  } catch (e) { debugWarn("recordAction failed:", e); }
+}
+
+export async function getGlobalActionCount(): Promise<number> {
+  try {
+    const countKey = `${GLOBAL_ACTION_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
+    return (await kv.get<number>(countKey)) ?? 0;
+  } catch { return 0; }
 }
 
 // ============================================================

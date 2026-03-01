@@ -38,6 +38,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ skipped: true, reason: "KV unavailable" });
     }
 
+    // Global action throttle
+    const { canAct, recordAction } = await import("@/lib/store");
+    const throttle = await canAct();
+    if (!throttle.allowed) {
+      return NextResponse.json({ skipped: true, reason: throttle.reason });
+    }
+
     const watchlist = await getWatchlist();
     if (watchlist.length === 0) {
       return NextResponse.json({ skipped: true, reason: "Watchlist empty" });
@@ -172,6 +179,7 @@ export async function GET(request: Request) {
           postedAt: new Date().toISOString(),
           hasImage: false,
         });
+        await recordAction();
 
         results.push({
           handle: account.handle,
@@ -179,6 +187,9 @@ export async function GET(request: Request) {
           replied: true,
           replyText: replyText.substring(0, 80),
         });
+
+        // Only 1 reply per notis run — respect global throttle
+        break;
       } catch (err) {
         console.error(`[Notis] Error processing @${account.handle}:`, err);
         results.push({

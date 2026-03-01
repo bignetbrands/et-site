@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { processReplies, interactWithTarget } from "@/lib/orchestrator";
+import { processReplies } from "@/lib/orchestrator";
 import { isKillSwitchActive } from "@/lib/kill-switch";
-import { getNextTarget, kvHealthCheck } from "@/lib/store";
+import { kvHealthCheck } from "@/lib/store";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -30,9 +30,20 @@ export async function GET(request: Request) {
       });
     }
 
-    // Random skip for human-like response timing (~30% skip rate)
-    // With 3-min cron: replies arrive 3-9 min after mention, feels natural
-    if (Math.random() < 0.3) {
+    // Global action throttle — prevents stacking with tweet/notis crons
+    const { canAct, recordAction } = await import("@/lib/store");
+    const throttle = await canAct();
+    if (!throttle.allowed) {
+      return NextResponse.json({
+        processed: 0,
+        reason: throttle.reason,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Random skip for human-like response timing (~50% skip rate)
+    // With 10-min cron: replies arrive 10-20 min after mention
+    if (Math.random() < 0.5) {
       console.log("[ET Replies Cron] Random skip — adding human delay");
       return NextResponse.json({
         processed: 0,
@@ -52,25 +63,20 @@ export async function GET(request: Request) {
       });
     }
 
-    // 1. Process mentions
+    // 1. Process mentions (max 1 per run due to MAX_REPLIES_PER_RUN)
     const results = await processReplies();
 
     const posted = results.filter((r) => !r.skipped);
     const skipped = results.filter((r) => r.skipped);
 
+    // Record global action if we actually posted a reply
+    if (posted.length > 0) {
+      await recordAction();
+    }
+
     console.log(
       `[ET Replies Cron] Mentions: ${posted.length} replied, ${skipped.length} skipped`
     );
-
-    // 2. Process one community target (~5% chance per run ≈ 1/hour at 3-min intervals)
-    let targetResult = null;
-    if (Math.random() < 0.05) {
-      const nextTarget = await getNextTarget();
-      if (nextTarget) {
-        console.log(`[ET Replies Cron] Processing target: @${nextTarget.handle} (${nextTarget.votes} votes, forced: ${!!nextTarget.forced})`);
-        targetResult = await interactWithTarget(nextTarget.handle);
-      }
-    }
 
     return NextResponse.json({
       processed: results.length,
@@ -84,13 +90,7 @@ export async function GET(request: Request) {
         skipped: r.skipped || undefined,
         skipReason: r.skipReason || undefined,
       })),
-      target: targetResult
-        ? {
-            handle: targetResult.success ? targetResult.replyText?.substring(0, 80) : undefined,
-            success: targetResult.success,
-            error: targetResult.error || undefined,
-          }
-        : null,
+      target: null,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

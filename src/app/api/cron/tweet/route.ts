@@ -32,6 +32,18 @@ export async function GET(request: Request) {
       });
     }
 
+    // Global action throttle — prevents cron stacking
+    const { canAct, recordAction } = await import("@/lib/store");
+    const throttle = await canAct();
+    if (!throttle.allowed) {
+      console.log(`[ET Cron] Throttled: ${throttle.reason}`);
+      return NextResponse.json({
+        posted: false,
+        reason: throttle.reason,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Check for scheduled tweets first
     const { getDueScheduledTweets, removeScheduledTweet, recordTweet, getScheduledImage, deleteScheduledImage } = await import("@/lib/store");
     const { postTweet, postTweetWithImage } = await import("@/lib/twitter");
@@ -88,6 +100,7 @@ export async function GET(request: Request) {
         hasImage,
       });
       await removeScheduledTweet(scheduled);
+      await recordAction();
 
       console.log(`[ET Cron] Scheduled tweet posted: ${tweetId}`);
 
@@ -100,17 +113,18 @@ export async function GET(request: Request) {
     }
 
     // Normal scheduling
-    // Periodically refresh engagement data (~once per hour, 15min cron = 25% chance)
-    if (Math.random() < 0.25) {
+    // Periodically refresh engagement data (~once per 2.5hrs, 30min cron = 20% chance)
+    if (Math.random() < 0.20) {
       const { refreshEngagement } = await import("@/lib/orchestrator");
       await refreshEngagement();
     }
 
-    // 20% chance to react to news instead of normal tweet
-    if (Math.random() < 0.20) {
+    // 10% chance to react to news instead of normal tweet (reduced from 20%)
+    if (Math.random() < 0.10) {
       const { reactToNews } = await import("@/lib/orchestrator");
       const newsResult = await reactToNews();
       if (newsResult.success) {
+        await recordAction();
         return NextResponse.json({
           posted: true,
           newsReaction: true,
@@ -144,6 +158,8 @@ export async function GET(request: Request) {
         timestamp: new Date().toISOString(),
       });
     }
+
+    await recordAction();
 
     return NextResponse.json({
       posted: true,

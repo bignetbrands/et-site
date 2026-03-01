@@ -33,8 +33,8 @@ import {
 } from "./self-awareness";
 
 // Max replies per cron run & per day
-const MAX_REPLIES_PER_RUN = 4; // ~15s per reply (delay + API calls) × 4 = ~60s function limit
-const MAX_REPLIES_PER_DAY = 75;
+const MAX_REPLIES_PER_RUN = 1; // Only 1 reply per cron cycle — throttled by global action limiter
+const MAX_REPLIES_PER_DAY = 15; // Combined with tweets, stays well under global 30/day cap
 
 /** Extract rough topics from text for user memory and QT dedup */
 function extractTopicsFromText(text: string): string[] {
@@ -211,7 +211,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
     // Thread dedup — track how many replies per conversation in this batch
     const batchThreadReplies = new Map<string, number>();
-    const MAX_REPLIES_PER_THREAD = 10; // Safety net — ET uses judgment to disengage before this
+    const MAX_REPLIES_PER_THREAD = 3; // Max 3 replies per conversation per day — avoid thread-bombing
 
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {

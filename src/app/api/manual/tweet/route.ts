@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const pillar = body.pillar as ContentPillar;
     const isDryRun = body.dryRun === true;
+    const bypassThrottle = body.bypassThrottle === true;
     const previewText = body.text as string | undefined;
     const previewImageUrl = body.imageUrl as string | undefined;
     const scheduleHours = body.scheduleHours as number | undefined;
@@ -43,6 +44,17 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    // Global throttle check (skip for dry runs and scheduled, bypass with flag)
+    if (!isDryRun && !scheduleHours && !bypassThrottle) {
+      const { canAct } = await import("@/lib/store");
+      const throttle = await canAct();
+      if (!throttle.allowed) {
+        return NextResponse.json({
+          error: `Throttled: ${throttle.reason}. Use bypassThrottle:true to override.`,
+        }, { status: 429 });
+      }
     }
 
     if (isDryRun) {
@@ -133,6 +145,9 @@ export async function POST(request: Request) {
         hasImage,
       });
 
+      const { recordAction } = await import("@/lib/store");
+      await recordAction();
+
       return NextResponse.json({
         mode: "posted",
         tweet: {
@@ -155,6 +170,9 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    const { recordAction: recordAct } = await import("@/lib/store");
+    await recordAct();
 
     return NextResponse.json({
       mode: "posted",

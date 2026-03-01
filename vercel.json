@@ -3,15 +3,15 @@
   "crons": [
     {
       "path": "/api/cron/tweet",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/replies",
-      "schedule": "*/3 * * * *"
+      "schedule": "*/10 * * * *"
     },
     {
       "path": "/api/cron/notis",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/20 * * * *"
     },
     {
       "path": "/api/cron/reflect",
