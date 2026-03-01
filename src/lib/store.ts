@@ -611,3 +611,76 @@ export async function getScheduledTweets(): Promise<ScheduledTweet[]> {
     });
   } catch (e) { debugWarn("KV getScheduledTweets failed:", e); return []; }
 }
+
+// ============================================================
+// WATCHLIST ("NOTIS") — VIP accounts ET polls every 2 min
+// ============================================================
+
+const WATCHLIST_KEY = "watchlist";
+const WATCHLIST_LAST_SEEN_KEY = "watchlist_last_seen";
+
+export interface WatchlistAccount {
+  handle: string;       // @username (stored without @)
+  addedAt: string;      // ISO timestamp
+  note?: string;        // optional admin note
+}
+
+/**
+ * Add an account to the watchlist.
+ */
+export async function addWatchlistAccount(handle: string, note?: string): Promise<WatchlistAccount> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  if (!clean || clean.length > 30) throw new Error("Invalid handle");
+
+  const account: WatchlistAccount = {
+    handle: clean,
+    addedAt: new Date().toISOString(),
+    note,
+  };
+  await kv.hset(WATCHLIST_KEY, { [clean]: account });
+  return account;
+}
+
+/**
+ * Remove an account from the watchlist.
+ */
+export async function removeWatchlistAccount(handle: string): Promise<void> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  await kv.hdel(WATCHLIST_KEY, clean);
+  // Also clean up last seen tracking
+  await kv.hdel(WATCHLIST_LAST_SEEN_KEY, clean);
+}
+
+/**
+ * Get all watchlist accounts.
+ */
+export async function getWatchlist(): Promise<WatchlistAccount[]> {
+  try {
+    const all = await kv.hgetall<Record<string, WatchlistAccount>>(WATCHLIST_KEY);
+    if (!all) return [];
+    return Object.values(all).sort((a, b) =>
+      new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime()
+    );
+  } catch (e) { debugWarn("KV getWatchlist failed:", e); return []; }
+}
+
+/**
+ * Get the last seen tweet ID for a watchlist account.
+ */
+export async function getWatchlistLastSeen(handle: string): Promise<string | null> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  try {
+    const val = await kv.hget<string>(WATCHLIST_LAST_SEEN_KEY, clean);
+    return val ?? null;
+  } catch (e) { debugWarn("KV getWatchlistLastSeen failed:", e); return null; }
+}
+
+/**
+ * Update the last seen tweet ID for a watchlist account.
+ */
+export async function setWatchlistLastSeen(handle: string, tweetId: string): Promise<void> {
+  const clean = handle.replace(/^@/, "").toLowerCase().trim();
+  try {
+    await kv.hset(WATCHLIST_LAST_SEEN_KEY, { [clean]: tweetId });
+  } catch (e) { debugWarn("KV setWatchlistLastSeen failed:", e); }
+}
