@@ -24,7 +24,7 @@ import {
 } from "./store";
 
 // Max replies per cron run & per day
-const MAX_REPLIES_PER_RUN = 10;
+const MAX_REPLIES_PER_RUN = 4; // ~15s per reply (delay + API calls) × 4 = ~60s function limit
 const MAX_REPLIES_PER_DAY = 75;
 
 /**
@@ -240,8 +240,10 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
             await recordUserInteraction(mention.authorUsername);
           }
 
-          // Small delay between replies to avoid rate limits
-          await new Promise((r) => setTimeout(r, 2000));
+          // Random delay between replies (5-15s) to avoid rate limits and look human
+          const delayMs = 5000 + Math.random() * 10000;
+          console.log(`[ET Replies] Waiting ${Math.round(delayMs / 1000)}s before next reply...`);
+          await new Promise((r) => setTimeout(r, delayMs));
         }
       } catch (error) {
         console.error(`[ET Replies] Error processing mention ${mention.id}:`, error);
