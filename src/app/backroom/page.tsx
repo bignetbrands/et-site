@@ -99,6 +99,12 @@ export default function BackroomPage() {
   // Auto-reconnect on page load if wallet was previously connected
   useEffect(() => {
     const tryAutoConnect = async () => {
+      // If user explicitly disconnected, don't auto-reconnect
+      if (localStorage.getItem("et_backroom_disconnected")) {
+        setGateState("disconnected");
+        return;
+      }
+
       // Check sessionStorage for cached verification
       const cached = sessionStorage.getItem("et_backroom_verified");
       if (cached) {
@@ -162,6 +168,7 @@ export default function BackroomPage() {
     setGateState("connecting");
     setWalletName(detected.name);
     setErrorMsg("");
+    localStorage.removeItem("et_backroom_disconnected");
 
     try {
       const resp = await detected.provider.connect();
@@ -207,6 +214,7 @@ export default function BackroomPage() {
       try { detected.provider.disconnect(); } catch { /* ignore */ }
     }
     sessionStorage.removeItem("et_backroom_verified");
+    localStorage.setItem("et_backroom_disconnected", "1");
     setGateState("disconnected");
     setWalletAddress("");
     setTokenBalance(0);
