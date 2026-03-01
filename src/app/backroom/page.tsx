@@ -16,7 +16,7 @@ interface ChatMessage {
   content: string;
 }
 
-type GateState = "disconnected" | "connecting" | "checking" | "holder" | "not_holder" | "error";
+type GateState = "loading" | "disconnected" | "connecting" | "checking" | "holder" | "not_holder" | "error";
 
 // ============================================================
 // WALLET UTILS
@@ -54,7 +54,7 @@ async function checkTokenBalance(walletAddress: string): Promise<{ holder: boole
 
 export default function BackroomPage() {
   // Gate state
-  const [gateState, setGateState] = useState<GateState>("disconnected");
+  const [gateState, setGateState] = useState<GateState>("loading");
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [walletName, setWalletName] = useState<string>("");
   const [tokenBalance, setTokenBalance] = useState<number>(0);
@@ -96,6 +96,62 @@ export default function BackroomPage() {
   // WALLET CONNECTION
   // ============================================================
 
+  // Auto-reconnect on page load if wallet was previously connected
+  useEffect(() => {
+    const tryAutoConnect = async () => {
+      // Check sessionStorage for cached verification
+      const cached = sessionStorage.getItem("et_backroom_verified");
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.holder && data.wallet && Date.now() - data.ts < 3600000) { // 1hr TTL
+            setWalletAddress(data.wallet);
+            setTokenBalance(data.balance || 0);
+            setGateState("holder");
+            return;
+          }
+        } catch { /* invalid cache, continue */ }
+      }
+
+      // Try silent reconnect (Phantom supports onlyIfTrusted)
+      const detected = getProvider();
+      if (!detected) {
+        setGateState("disconnected");
+        return;
+      }
+
+      try {
+        const resp = await detected.provider.connect({ onlyIfTrusted: true });
+        const pubkey = resp.publicKey?.toString() || detected.provider.publicKey?.toString();
+        if (!pubkey) {
+          setGateState("disconnected");
+          return;
+        }
+
+        setWalletAddress(pubkey);
+        setWalletName(detected.name);
+        setGateState("checking");
+
+        const result = await checkTokenBalance(pubkey);
+        setTokenBalance(result.balance);
+
+        if (result.holder) {
+          setGateState("holder");
+          sessionStorage.setItem("et_backroom_verified", JSON.stringify({
+            holder: true, wallet: pubkey, balance: result.balance, ts: Date.now(),
+          }));
+        } else {
+          setGateState("not_holder");
+        }
+      } catch {
+        // Silent reconnect failed — user needs to manually connect
+        setGateState("disconnected");
+      }
+    };
+
+    tryAutoConnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const connectWallet = async () => {
     const detected = getProvider();
     if (!detected) {
@@ -126,6 +182,10 @@ export default function BackroomPage() {
 
       if (result.holder) {
         setGateState("holder");
+        // Cache verified state for seamless revisits
+        sessionStorage.setItem("et_backroom_verified", JSON.stringify({
+          holder: true, wallet: pubkey, balance: result.balance, ts: Date.now(),
+        }));
       } else {
         setGateState("not_holder");
       }
@@ -146,6 +206,7 @@ export default function BackroomPage() {
     if (detected?.provider?.disconnect) {
       try { detected.provider.disconnect(); } catch { /* ignore */ }
     }
+    sessionStorage.removeItem("et_backroom_verified");
     setGateState("disconnected");
     setWalletAddress("");
     setTokenBalance(0);
@@ -231,6 +292,24 @@ export default function BackroomPage() {
   // ============================================================
   // RENDER: GATE (not authenticated)
   // ============================================================
+
+  if (gateState === "loading") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.scanlines} />
+        <div style={styles.gateWrap}>
+          <div style={styles.gateBox}>
+            <div style={styles.gateIcon}>👽</div>
+            <div style={styles.gateTitle}>THE BACKROOM</div>
+            <div style={styles.gateStatus}>
+              <div style={styles.gateSpinner} />
+              initializing...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (gateState !== "holder") {
     return (
