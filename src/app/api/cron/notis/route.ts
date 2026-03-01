@@ -131,9 +131,25 @@ export async function GET(request: Request) {
           continue;
         }
 
-        // Post reply directly under their tweet
-        const replyId = await postReply(replyText, target.id);
-        console.log(`[Notis] ⚡ Replied to @${account.handle} tweet ${target.id}: "${replyText.substring(0, 60)}..."`);
+        // Post reply directly under their tweet (preferred)
+        let replyId: string;
+        let method = "reply";
+        try {
+          replyId = await postReply(replyText, target.id);
+          console.log(`[Notis] ⚡ Replied to @${account.handle} tweet ${target.id}: "${replyText.substring(0, 60)}..."`);
+        } catch (replyError: any) {
+          const code = replyError?.data?.status || replyError?.code || replyError?.statusCode;
+          if (code === 403) {
+            // Reply restricted — fall back to QT
+            console.warn(`[Notis] 403 — reply restricted on @${account.handle}'s tweet, falling back to QT`);
+            const { postQuoteTweet } = await import("@/lib/twitter");
+            replyId = await postQuoteTweet(replyText, target.id);
+            method = "quote (reply restricted)";
+            console.log(`[Notis] ⚡ QT'd @${account.handle} tweet ${target.id} (reply restricted)`);
+          } else {
+            throw replyError;
+          }
+        }
 
         // Record everything
         await markTweetQuoted(target.id);

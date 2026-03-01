@@ -501,22 +501,48 @@ export async function interactWithTarget(
 
     console.log(`[ET Target] Engaging ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
 
-    // 5. Always reply directly under the tweet
-    const replyId = await postReply(reactionText, interaction.tweetId);
-    await resolveTarget(handle);
-    await markTweetQuoted(interaction.tweetId);
-    await recordUserInteraction(handle);
-    console.log(`[ET Target] ✓ Posted reply ${replyId} under @${handle}'s tweet`);
+    // 5. Reply directly under the tweet (preferred)
+    try {
+      const replyId = await postReply(reactionText, interaction.tweetId);
+      await resolveTarget(handle);
+      await markTweetQuoted(interaction.tweetId);
+      await recordUserInteraction(handle);
+      console.log(`[ET Target] ✓ Posted reply ${replyId} under @${handle}'s tweet`);
 
-    await recordTweet({
-      id: replyId,
-      text: reactionText,
-      pillar: "human_observation",
-      postedAt: new Date().toISOString(),
-      hasImage: false,
-    });
+      await recordTweet({
+        id: replyId,
+        text: reactionText,
+        pillar: "human_observation",
+        postedAt: new Date().toISOString(),
+        hasImage: false,
+      });
 
-    return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId, method: "reply" };
+      return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId, method: "reply" };
+    } catch (replyError: any) {
+      const code = replyError?.data?.status || replyError?.code || replyError?.statusCode;
+
+      // 403 = reply restricted → fall back to QT
+      if (code === 403) {
+        console.warn(`[ET Target] 403 — reply restricted on @${handle}'s tweet, falling back to QT`);
+        const qtId = await postQuoteTweet(reactionText, interaction.tweetId);
+        await resolveTarget(handle);
+        await markTweetQuoted(interaction.tweetId);
+        await recordUserInteraction(handle);
+        console.log(`[ET Target] ✓ Posted QT ${qtId} (reply was restricted)`);
+
+        await recordTweet({
+          id: qtId,
+          text: reactionText,
+          pillar: "human_observation",
+          postedAt: new Date().toISOString(),
+          hasImage: false,
+        });
+
+        return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: qtId, method: "quote (reply restricted)" };
+      }
+
+      throw replyError; // re-throw non-403 errors to outer catch
+    }
   } catch (error: any) {
     const details = error?.data || error?.errors || error?.message || error;
     console.error(`[ET Target] Error interacting with @${handle}:`, JSON.stringify(details, null, 2));
@@ -562,11 +588,39 @@ export async function replyToSpecificTweet(
 
     console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
 
-    // 3. Post direct reply (NO quote tweet fallback — always reply under the tweet)
-    const replyId = await postReply(replyText, tweetId);
-    console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
-    await markTweetQuoted(tweetId);
-    return { success: true, tweetId, replyText, replyId, method: "reply" };
+    // 3. Post direct reply (preferred — shows up under their tweet)
+    try {
+      const replyId = await postReply(replyText, tweetId);
+      console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
+      await markTweetQuoted(tweetId);
+      return { success: true, tweetId, replyText, replyId, method: "reply" };
+    } catch (replyError: any) {
+      const code = replyError?.data?.status || replyError?.code || replyError?.statusCode;
+
+      // 403 = reply restricted (author limits who can reply) → QT is the only option
+      if (code === 403) {
+        console.warn(`[ET Reply] 403 — reply restricted on tweet ${tweetId}, falling back to quote tweet`);
+        try {
+          const cleanReply = stripLeadingMentions(replyText);
+          const qtId = await postQuoteTweet(cleanReply, tweetId);
+          await markTweetQuoted(tweetId);
+          console.log(`[ET Reply] ✓ Posted quote tweet ${qtId} (reply was restricted)`);
+          return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote (reply restricted)" };
+        } catch (qtError: any) {
+          const qtDetails = qtError?.data || qtError?.message || qtError;
+          console.error(`[ET Reply] Quote tweet also failed:`, JSON.stringify(qtDetails, null, 2));
+          return { success: false, error: `Reply restricted + quote tweet failed` };
+        }
+      }
+
+      // Other errors — surface them
+      const details = replyError?.data || replyError?.errors || replyError?.message || replyError;
+      console.error(`[ET Reply] Failed to reply to ${tweetId}:`, JSON.stringify(details, null, 2));
+      return {
+        success: false,
+        error: `Reply failed (${code}): ${JSON.stringify(details)}`,
+      };
+    }
   } catch (error: any) {
     const details = error?.data || error?.errors || error?.message || error;
     console.error(`[ET Reply] Failed to reply to ${tweetId}:`, JSON.stringify(details, null, 2));
