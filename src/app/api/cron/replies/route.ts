@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { processReplies, interactWithTarget } from "@/lib/orchestrator";
 import { isKillSwitchActive } from "@/lib/kill-switch";
-import { getNextTarget } from "@/lib/store";
+import { getNextTarget, getLastMentionId, setLastMentionId } from "@/lib/store";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -25,6 +25,34 @@ export async function GET(request: Request) {
       return NextResponse.json({
         processed: 0,
         reason: "Kill switch active",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // KV health check — if we can't persist reply tracking, don't process.
+    // Without working KV, hasReplied always returns false → re-replies to
+    // every mention every 15 minutes → spam.
+    try {
+      const probe = await getLastMentionId();
+      await setLastMentionId(probe ?? "health_check");
+      const verify = await getLastMentionId();
+      if (verify === null) {
+        console.error("[ET Replies Cron] KV write failed — refusing to process replies");
+        return NextResponse.json({
+          processed: 0,
+          reason: "KV unavailable — skipping to prevent duplicate replies",
+          timestamp: new Date().toISOString(),
+        });
+      }
+      // Restore original value if we overwrote with health_check
+      if (probe && verify === "health_check") {
+        await setLastMentionId(probe);
+      }
+    } catch (kvError) {
+      console.error("[ET Replies Cron] KV health check failed:", kvError);
+      return NextResponse.json({
+        processed: 0,
+        reason: "KV health check failed — skipping to prevent duplicate replies",
         timestamp: new Date().toISOString(),
       });
     }
