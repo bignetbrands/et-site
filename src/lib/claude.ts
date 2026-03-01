@@ -38,7 +38,8 @@ export async function generateTweet(
     usedStructures: string[];
     usedOpenings: string[];
   },
-  useRiddle?: boolean
+  useRiddle?: boolean,
+  selfAwarenessContext?: string,
 ): Promise<string> {
   const config = PILLAR_CONFIGS[pillar];
   const model = MODELS[config.model];
@@ -50,7 +51,7 @@ export async function generateTweet(
     messages: [
       {
         role: "user",
-        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers, memorySummary, useRiddle),
+        content: buildTweetPrompt(pillar, recentTweets, trendingContext, topPerformers, memorySummary, useRiddle, selfAwarenessContext),
       },
     ],
     temperature: 0.9,
@@ -138,6 +139,7 @@ export async function generateReply(
   conversationContext?: string,
   imageUrls?: string[],
   threadDepth?: number,
+  selfAwarenessContext?: string,
 ): Promise<string> {
   // Build message content — text + optional images
   const content: Array<{ type: string; source?: Record<string, string>; text?: string }> = [];
@@ -158,7 +160,7 @@ export async function generateReply(
   // Add the text prompt
   content.push({
     type: "text",
-    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, threadDepth),
+    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, threadDepth, selfAwarenessContext),
   });
 
   const response = await getClient().messages.create({

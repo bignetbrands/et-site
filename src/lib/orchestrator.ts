@@ -22,10 +22,29 @@ import {
   hasHitUserLimit,
   recordUserInteraction,
 } from "./store";
+import {
+  getSelfAwarenessForTweets,
+  getSelfAwarenessForReply,
+  formatSelfAwarenessForPrompt,
+  recordUserMemoryInteraction,
+} from "./self-awareness";
 
 // Max replies per cron run & per day
 const MAX_REPLIES_PER_RUN = 4; // ~15s per reply (delay + API calls) × 4 = ~60s function limit
 const MAX_REPLIES_PER_DAY = 75;
+
+/** Extract rough topics from text for user memory tracking */
+function extractTopicsFromText(text: string): string[] {
+  const lower = text.toLowerCase();
+  const topicBank = [
+    "seti", "boinc", "einstein", "ufo", "uap", "alien", "space", "moon",
+    "mars", "telescope", "signal", "disclosure", "congress", "hearing",
+    "crypto", "token", "sol", "solana", "degen", "chart", "pump",
+    "crash", "memory", "home", "planet", "parents", "loneliness",
+    "conspiracy", "area 51", "government", "coverup",
+  ];
+  return topicBank.filter(t => lower.includes(t));
+}
 
 /**
  * Strip leading @mentions from text so tweets appear in timeline, not replies.
@@ -71,6 +90,15 @@ export async function executeTweet(
     const topPerformers = await getTopPerformers();
     const memorySummary = await getTweetMemorySummary();
 
+    // 1b. Get self-awareness context (quirks, mood, journal, engagement patterns)
+    let selfAwarenessContext: string | undefined;
+    try {
+      const selfAwareness = await getSelfAwarenessForTweets();
+      selfAwarenessContext = formatSelfAwarenessForPrompt(selfAwareness);
+    } catch (e) {
+      console.warn("[ET] Self-awareness context failed, proceeding without:", e);
+    }
+
     // 2. Optionally fetch trending topics
     let trendingContext: string[] | undefined;
     if (useTrending) {
@@ -83,7 +111,7 @@ export async function executeTweet(
     }
 
     // 3. Generate tweet text via Claude
-    let tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary, useRiddle);
+    let tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary, useRiddle, selfAwarenessContext);
 
     if (!tweetText || tweetText.length > 280) {
       console.error(
@@ -329,6 +357,15 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     threadDepth = await getThreadReplyCount(mention.conversationId);
   }
 
+  // Get self-awareness context (user memory, quirks, mood)
+  let selfAwarenessContext: string | undefined;
+  try {
+    const selfAwareness = await getSelfAwarenessForReply(authorUsername);
+    selfAwarenessContext = formatSelfAwarenessForPrompt(selfAwareness);
+  } catch (e) {
+    console.warn("[ET Replies] Self-awareness context failed:", e);
+  }
+
   console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
 
   // Generate the reply — no proactive excuses. ET just replies naturally.
@@ -339,7 +376,8 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     authorUsername,
     conversationContext,
     mention.imageUrls,
-    threadDepth
+    threadDepth,
+    selfAwarenessContext
   );
 
   if (!replyText || replyText.length > 280) {
@@ -374,6 +412,14 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   const replyId = await postReply(replyText, mention.id);
   console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}`);
   await recordReply(mention.id);
+
+  // Record this interaction in user memory (non-blocking)
+  recordUserMemoryInteraction(
+    authorUsername,
+    mention.text,
+    replyText,
+    extractTopicsFromText(mention.text)
+  ).catch(e => console.warn("[ET Replies] User memory record failed:", e));
 
   return {
     mentionId: mention.id,

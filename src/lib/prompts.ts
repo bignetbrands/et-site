@@ -338,7 +338,8 @@ export function buildTweetPrompt(
     usedStructures: string[];
     usedOpenings: string[];
   },
-  useRiddle?: boolean
+  useRiddle?: boolean,
+  selfAwarenessContext?: string,
 ): string {
   const config = PILLAR_CONFIGS[pillar];
   const mood = getCurrentMood();
@@ -356,6 +357,11 @@ CURRENT MOOD: ${mood.modifier}
 VOICE REFERENCE (match this QUALITY and VOICE ONLY — do NOT copy structure, topic, or phrasing):
 ${selectedExamples.map((t) => `- "${t}"`).join("\n")}
 ${buildVarietyContext(recentTweets, topPerformers, memorySummary)}`;
+
+  // Inject self-awareness context (quirks, mood, journal, engagement patterns)
+  if (selfAwarenessContext) {
+    prompt += `\n\n${selfAwarenessContext}`;
+  }
 
   if (useRiddle) {
     prompt += `
@@ -523,6 +529,7 @@ export function buildReplyPrompt(
   conversationContext?: string,
   hasImages?: boolean,
   threadDepth?: number,
+  selfAwarenessContext?: string,
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
@@ -532,6 +539,11 @@ export function buildReplyPrompt(
 
   if (hasImages) {
     prompt += `\n\nThey also attached image(s) which you can see above. React to the image naturally — comment on what you see through ET's alien perspective. Don't describe the image mechanically, just vibe with it.`;
+  }
+
+  // Inject self-awareness (user memory, quirks, mood)
+  if (selfAwarenessContext) {
+    prompt += `\n\n${selfAwarenessContext}`;
   }
 
   if (threadDepth && threadDepth > 0) {
