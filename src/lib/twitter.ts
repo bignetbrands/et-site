@@ -1,5 +1,15 @@
 import { TwitterApi, type TwitterApiReadWrite } from "twitter-api-v2";
 
+// ⚠️ HARD HALT — set to true to block ALL Twitter API calls
+const TWITTER_HALTED = true;
+
+function assertNotHalted(action: string) {
+  if (TWITTER_HALTED) {
+    console.warn(`[Twitter] HALTED — blocked: ${action}`);
+    throw new Error(`Twitter API halted — ${action} blocked`);
+  }
+}
+
 let _rwClient: TwitterApiReadWrite | null = null;
 
 function getClient() {
@@ -31,6 +41,7 @@ export interface Mention {
  * Returns the tweet ID.
  */
 export async function postTweet(text: string): Promise<string> {
+  assertNotHalted("postTweet");
   const response = await getClient().v2.tweet(text);
   return response.data.id;
 }
@@ -42,6 +53,7 @@ export async function postReply(
   text: string,
   replyToId: string
 ): Promise<string> {
+  assertNotHalted("postReply");
   try {
     const response = await getClient().v2.tweet({
       text,
@@ -63,6 +75,7 @@ export async function postQuoteTweet(
   text: string,
   quoteTweetId: string
 ): Promise<string> {
+  assertNotHalted("postQuoteTweet");
   try {
     const response = await getClient().v2.tweet({
       text,
@@ -85,6 +98,7 @@ export async function postTweetWithImage(
   text: string,
   imageBuffer: Buffer
 ): Promise<string> {
+  assertNotHalted("postTweetWithImage");
   // Upload media via v1.1 (v2 doesn't support media upload directly)
   const mediaId = await getClient().v1.uploadMedia(imageBuffer, {
     mimeType: "image/png",
@@ -109,6 +123,7 @@ export async function postReplyWithImage(
   replyToId: string,
   imageBuffer: Buffer
 ): Promise<string> {
+  assertNotHalted("postReplyWithImage");
   // Upload media via v1.1
   const mediaId = await getClient().v1.uploadMedia(imageBuffer, {
     mimeType: "image/png",
@@ -143,6 +158,7 @@ export async function getMentions(
   sinceId?: string,
   maxResults: number = 20
 ): Promise<{ mentions: Mention[]; newestId?: string }> {
+  assertNotHalted("getMentions");
   const userId = await getOwnUserId();
 
   const params: Record<string, unknown> = {
@@ -222,6 +238,7 @@ export async function getMentions(
 export async function getTweet(
   tweetId: string
 ): Promise<{ text: string; authorId: string; authorUsername?: string } | null> {
+  assertNotHalted("getTweet");
   try {
     const tweet = await getClient().v2.singleTweet(tweetId, {
       "tweet.fields": "author_id,conversation_id",
@@ -249,6 +266,7 @@ export async function verifyCredentials(): Promise<{
   id: string;
   username: string;
 }> {
+  assertNotHalted("verifyCredentials");
   const me = await getClient().v2.me();
   return { id: me.data.id, username: me.data.username };
 }
@@ -257,6 +275,7 @@ export async function verifyCredentials(): Promise<{
  * Search for recent popular tweets in ET's topic areas.
  */
 export async function getTrendingContext(): Promise<string[]> {
+  assertNotHalted("getTrendingContext");
   const queries = [
     "UFO OR UAP OR alien disclosure -is:retweet lang:en",
     "SETI OR exoplanet OR telescope discovery -is:retweet lang:en",
@@ -305,6 +324,7 @@ export async function getUserRecentTweets(
   username: string,
   maxResults: number = 10
 ): Promise<Array<{ id: string; text: string; likes: number; createdAt?: string }>> {
+  assertNotHalted("getUserRecentTweets");
   try {
     // Use search API instead of userTimeline (more accessible on pay-per-use)
     const clean = username.replace(/^@/, "");
@@ -343,6 +363,7 @@ export async function batchGetRecentTweets(
   const result = new Map<string, Array<{ id: string; text: string; likes: number; createdAt?: string }>>();
 
   if (usernames.length === 0) return result;
+  assertNotHalted("batchGetRecentTweets");
 
   // Initialize empty arrays for all usernames
   const cleanNames = usernames.map(u => u.replace(/^@/, "").toLowerCase());
@@ -407,6 +428,7 @@ export async function searchNewsTweets(): Promise<Array<{
   retweets: number;
   hasLink: boolean;
 }>> {
+  assertNotHalted("searchNewsTweets");
   const queries = [
     "UFO sighting OR UAP footage OR alien discovery -is:retweet lang:en has:links",
     "UFO OR UAP congress OR disclosure hearing -is:retweet lang:en",
@@ -480,6 +502,7 @@ export async function getOwnTweetMetrics(): Promise<Array<{
   likes: number;
   retweets: number;
 }>> {
+  assertNotHalted("getOwnTweetMetrics");
   try {
     const results = await getClient().v2.search("from:etalienx -is:retweet -is:reply", {
       max_results: 50,
