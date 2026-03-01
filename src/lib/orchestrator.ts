@@ -501,82 +501,28 @@ export async function interactWithTarget(
 
     console.log(`[ET Target] Engaging ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
 
-    // 5. Decide method based on tweet age: reply if fresh, quote if old
-    const pickedTweet = tweetsToUse.find(t => t.id === interaction.tweetId) || tweetsToUse[0];
-    const tweetAgeMs = pickedTweet.createdAt ? Date.now() - new Date(pickedTweet.createdAt).getTime() : Infinity;
-    const FRESH_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
-    const isFresh = tweetAgeMs < FRESH_THRESHOLD_MS;
+    // 5. Always reply directly under the tweet
+    const replyId = await postReply(reactionText, interaction.tweetId);
+    await resolveTarget(handle);
+    await markTweetQuoted(interaction.tweetId);
+    await recordUserInteraction(handle);
+    console.log(`[ET Target] ✓ Posted reply ${replyId} under @${handle}'s tweet`);
 
-    if (isFresh) {
-      // FRESH TWEET → reply directly under it (feels like joining a live conversation)
-      console.log(`[ET Target] Tweet is ${Math.round(tweetAgeMs / 60000)}m old — replying directly`);
-      try {
-        const replyId = await postReply(reactionText, interaction.tweetId);
-        await resolveTarget(handle);
-        await markTweetQuoted(interaction.tweetId);
-        await recordUserInteraction(handle);
-        console.log(`[ET Target] Posted direct reply ${replyId} to @${handle}`);
+    await recordTweet({
+      id: replyId,
+      text: reactionText,
+      pillar: "human_observation",
+      postedAt: new Date().toISOString(),
+      hasImage: false,
+    });
 
-        await recordTweet({
-          id: replyId,
-          text: reactionText,
-          pillar: "human_observation",
-          postedAt: new Date().toISOString(),
-          hasImage: false,
-        });
-
-        return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId, method: "reply" };
-      } catch (replyError: any) {
-        const status = replyError?.data?.status || replyError?.code;
-        console.warn(`[ET Target] Direct reply failed (${status}), falling back to quote tweet...`);
-        // Fall through to quote tweet below
-      }
-    } else {
-      console.log(`[ET Target] Tweet is ${Math.round(tweetAgeMs / 60000)}m old — quote tweeting for visibility`);
-    }
-
-    // OLDER TWEET or reply fallback → quote tweet (gives ET's followers context)
-    try {
-      const qtId = await postQuoteTweet(reactionText, interaction.tweetId);
-      await resolveTarget(handle);
-      await markTweetQuoted(interaction.tweetId);
-      await recordUserInteraction(handle);
-      console.log(`[ET Target] Posted quote tweet ${qtId} for @${handle}`);
-
-      await recordTweet({
-        id: qtId,
-        text: reactionText,
-        pillar: "human_observation",
-        postedAt: new Date().toISOString(),
-        hasImage: false,
-      });
-
-      return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: qtId, method: "quote" };
-    } catch (qtError: any) {
-      const status = qtError?.data?.status || qtError?.code;
-      console.warn(`[ET Target] Quote tweet failed (${status}), trying standalone mention+link...`);
-
-      // 6. Fallback: standalone tweet with link (no leading @)
-      const tweetLink = `https://x.com/${handle}/status/${interaction.tweetId}`;
-      const maxTextLen = 280 - 23 - 2;
-      let text = reactionText;
-      if (text.length > maxTextLen) {
-        text = text.substring(0, maxTextLen - 3) + "...";
-      }
-      text = `${text}\n\n${tweetLink}`;
-
-      const tweetId = await postTweet(text);
-      await resolveTarget(handle);
-      await markTweetQuoted(interaction.tweetId);
-      await recordUserInteraction(handle);
-      console.log(`[ET Target] Posted standalone mention+link ${tweetId} for @${handle}`);
-      return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId: tweetId, method: "mention" };
-    }
-  } catch (error) {
-    console.error(`[ET Target] Error interacting with @${handle}:`, error);
+    return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId, method: "reply" };
+  } catch (error: any) {
+    const details = error?.data || error?.errors || error?.message || error;
+    console.error(`[ET Target] Error interacting with @${handle}:`, JSON.stringify(details, null, 2));
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: `Reply failed: ${error instanceof Error ? error.message : JSON.stringify(details)}`,
     };
   }
 }
@@ -616,46 +562,17 @@ export async function replyToSpecificTweet(
 
     console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
 
-    // 3. Try direct reply first
-    try {
-      const replyId = await postReply(replyText, tweetId);
-      console.log(`[ET Reply] Posted reply ${replyId} to tweet ${tweetId}`);
-      return { success: true, tweetId, replyText, replyId, method: "reply" };
-    } catch (replyError: any) {
-      const status = replyError?.data?.status || replyError?.code;
-      console.warn(`[ET Reply] Direct reply failed (${status}), trying quote tweet...`);
-
-      // 4. Fallback: quote tweet (strip leading @ so it shows in timeline)
-      try {
-        const cleanReply = stripLeadingMentions(replyText);
-        const qtId = await postQuoteTweet(cleanReply, tweetId);
-        await markTweetQuoted(tweetId);
-        console.log(`[ET Reply] Posted quote tweet ${qtId} for tweet ${tweetId}`);
-        return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
-      } catch (qtError: any) {
-        const qtStatus = qtError?.data?.status || qtError?.code;
-        console.warn(`[ET Reply] Quote tweet failed (${qtStatus}), posting as standalone+link...`);
-
-        // 5. Final fallback: standalone tweet with link (no leading @)
-        const tweetLink = `https://x.com/${author}/status/${tweetId}`;
-        const maxTextLen = 280 - 23 - 2;
-        const cleanReply = stripLeadingMentions(replyText);
-        const trimmedText = cleanReply.length > maxTextLen
-          ? cleanReply.substring(0, maxTextLen - 3) + "..."
-          : cleanReply;
-        const fullTweet = `${trimmedText}\n\n${tweetLink}`;
-
-        const mentionId = await postTweet(fullTweet);
-        await markTweetQuoted(tweetId);
-        console.log(`[ET Reply] Posted standalone+link ${mentionId}`);
-        return { success: true, tweetId, replyText: trimmedText, replyId: mentionId, method: "mention" };
-      }
-    }
-  } catch (error) {
-    console.error(`[ET Reply] Error:`, error);
+    // 3. Post direct reply (NO quote tweet fallback — always reply under the tweet)
+    const replyId = await postReply(replyText, tweetId);
+    console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
+    await markTweetQuoted(tweetId);
+    return { success: true, tweetId, replyText, replyId, method: "reply" };
+  } catch (error: any) {
+    const details = error?.data || error?.errors || error?.message || error;
+    console.error(`[ET Reply] Failed to reply to ${tweetId}:`, JSON.stringify(details, null, 2));
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: `Reply failed: ${error instanceof Error ? error.message : JSON.stringify(details)}`,
     };
   }
 }
