@@ -21,6 +21,9 @@ import {
   recordThreadReply,
   hasHitUserLimit,
   recordUserInteraction,
+  getRecentQtHistory,
+  recordQtReaction,
+  hasQuotedTopic,
 } from "./store";
 import {
   getSelfAwarenessForTweets,
@@ -33,15 +36,30 @@ import {
 const MAX_REPLIES_PER_RUN = 4; // ~15s per reply (delay + API calls) × 4 = ~60s function limit
 const MAX_REPLIES_PER_DAY = 75;
 
-/** Extract rough topics from text for user memory tracking */
+/** Extract rough topics from text for user memory and QT dedup */
 function extractTopicsFromText(text: string): string[] {
   const lower = text.toLowerCase();
   const topicBank = [
-    "seti", "boinc", "einstein", "ufo", "uap", "alien", "space", "moon",
-    "mars", "telescope", "signal", "disclosure", "congress", "hearing",
+    // SETI / science
+    "seti", "boinc", "einstein", "telescope", "signal", "exoplanet",
+    "james webb", "jwst", "mars", "moon", "asteroid",
+    // UFO / UAP
+    "ufo", "uap", "sighting", "orb", "tic tac",
+    // Disclosure / government
+    "congress", "hearing", "senate", "pentagon", "disclosure",
+    "whistleblower", "classified", "legislation",
+    "schumer", "rubio", "burchett", "grusch", "fravor",
+    // General alien/space
+    "alien", "space", "crash", "non-human", "reverse engineer",
+    // Crypto
     "crypto", "token", "sol", "solana", "degen", "chart", "pump",
-    "crash", "memory", "home", "planet", "parents", "loneliness",
-    "conspiracy", "area 51", "government", "coverup",
+    // Personal
+    "memory", "home", "planet", "parents", "loneliness",
+    // Conspiracy
+    "conspiracy", "area 51", "roswell", "government", "coverup", "cover-up",
+    // Ancient
+    "ancient", "archaeological", "pyramid", "hieroglyph", "nazca",
+    "artifact", "civilization", "megalith",
   ];
   return topicBank.filter(t => lower.includes(t));
 }
@@ -803,6 +821,13 @@ export async function dryRun(
 /**
  * Search for trending news and post a reaction (quote tweet or mention+link).
  * Uses fallback chain: quote tweet → standalone tweet with link.
+ *
+ * DEDUP LAYERS:
+ * 1. hasQuotedTweet() — exact tweet ID already QT'd
+ * 2. hasQuotedTopic() — topic-level dedup (≥3 shared topic tags)
+ * 3. Recent QT reactions injected into Claude prompt
+ * 4. checkSimilarity() — Claude-based text similarity
+ * 5. Deterministic keyword overlap against recent tweets
  */
 export async function reactToNews(): Promise<{
   success: boolean;
@@ -820,26 +845,45 @@ export async function reactToNews(): Promise<{
       return { success: false, error: "No news found" };
     }
 
-    console.log(`[ET News] Found ${newsItems.length} news items, picking best one...`);
+    console.log(`[ET News] Found ${newsItems.length} news items, filtering...`);
 
-    // 1b. Filter out already-quoted tweets AND authors we've already interacted with today
+    // 2. Filter: exact ID dedup + topic-level dedup + user limit
     const unseenNews: typeof newsItems = [];
     for (const item of newsItems) {
-      if (await hasQuotedTweet(item.id)) continue;
+      // Layer 1: Exact tweet ID
+      if (await hasQuotedTweet(item.id)) {
+        console.log(`[ET News] Skipping ${item.id} — already QT'd`);
+        continue;
+      }
+      // Layer 1b: User limit
       if (item.author && await hasHitUserLimit(item.author)) {
-        console.log(`[ET News] Skipping news from @${item.author} — already interacted today`);
+        console.log(`[ET News] Skipping @${item.author} — already interacted today`);
+        continue;
+      }
+      // Layer 2: Topic-level dedup
+      const topicMatch = await hasQuotedTopic(item.text);
+      if (topicMatch) {
+        console.log(`[ET News] Skipping "${item.text.substring(0, 50)}..." — topic already covered in QT: "${topicMatch.reactionText.substring(0, 50)}..."`);
         continue;
       }
       unseenNews.push(item);
     }
 
     if (unseenNews.length === 0) {
-      console.log("[ET News] All news tweets already quoted");
-      return { success: false, error: "All news already quoted" };
+      console.log("[ET News] All news tweets already covered (ID or topic)");
+      return { success: false, error: "All news already covered" };
     }
 
-    // 2. Have Claude pick one and generate reaction
-    const reaction = await generateNewsReaction(unseenNews);
+    // 3. Load recent QT history for Claude context (Layer 3)
+    const recentQts = await getRecentQtHistory(10);
+    const qtContext = recentQts.map(qt => ({
+      sourceText: qt.sourceText,
+      reactionText: qt.reactionText,
+      topics: qt.topics,
+    }));
+
+    // 4. Have Claude pick one and generate reaction (with QT history injected)
+    const reaction = await generateNewsReaction(unseenNews, qtContext);
     if (!reaction) {
       console.log("[ET News] Failed to generate reaction");
       return { success: false, error: "Failed to generate reaction" };
@@ -856,7 +900,7 @@ export async function reactToNews(): Promise<{
     // Strip leading @ so it shows in timeline
     const reactionText = stripLeadingMentions(reaction.reactionText);
 
-    // DEDUP CHECK — make sure this reaction isn't too similar to recent tweets
+    // Layer 4: Claude-based text similarity check
     const recentTweets = await getRecentTweets();
     const similarTo = await checkSimilarity(reactionText, recentTweets);
     if (similarTo) {
@@ -864,12 +908,25 @@ export async function reactToNews(): Promise<{
       return { success: false, error: `Dedup: too similar to existing tweet` };
     }
 
-    // 3. Try quote tweet first
+    // Layer 5: Deterministic keyword overlap check against recent QTs
+    const reactionTopics = extractTopicsFromText(reactionText);
+    for (const qt of recentQts.slice(0, 10)) {
+      const overlap = qt.topics.filter(t => reactionTopics.includes(t));
+      if (overlap.length >= 3) {
+        console.warn(`[ET News] DEDUP — reaction topics [${overlap.join(", ")}] overlap with recent QT. Skipping.`);
+        return { success: false, error: `Topic overlap with recent QT: ${overlap.join(", ")}` };
+      }
+    }
+
+    // Find source item for recording
+    const sourceItem = unseenNews.find(n => n.id === reaction.tweetId);
+
+    // 5. Try quote tweet first
     try {
       const tweetId = await postQuoteTweet(reactionText, reaction.tweetId);
       await markTweetQuoted(reaction.tweetId);
-      const newsAuthor = unseenNews.find(n => n.id === reaction.tweetId)?.author;
-      if (newsAuthor) await recordUserInteraction(newsAuthor);
+      const newsAuthor = sourceItem?.author || "unknown";
+      if (newsAuthor !== "unknown") await recordUserInteraction(newsAuthor);
       console.log(`[ET News] Quote tweeted: ${tweetId}`);
 
       await recordTweet({
@@ -880,13 +937,22 @@ export async function reactToNews(): Promise<{
         hasImage: false,
       });
 
+      // Record rich QT history for future dedup
+      await recordQtReaction({
+        sourceTweetId: reaction.tweetId,
+        sourceText: sourceItem?.text || "",
+        reactionText,
+        topics: extractTopicsFromText(`${sourceItem?.text || ""} ${reactionText}`),
+        author: newsAuthor,
+        quotedAt: new Date().toISOString(),
+      });
+
       return { success: true, tweetId, reactionText, sourceTweetId: reaction.tweetId, method: "quote" };
     } catch (quoteErr) {
       console.warn("[ET News] Quote tweet failed, falling back to mention+link");
     }
 
-    // 4. Fallback: standalone tweet with link
-    const sourceItem = unseenNews.find(n => n.id === reaction.tweetId);
+    // 6. Fallback: standalone tweet with link
     const author = sourceItem?.author || "unknown";
     const linkUrl = `https://x.com/${author}/status/${reaction.tweetId}`;
 
@@ -909,6 +975,16 @@ export async function reactToNews(): Promise<{
       pillar: "disclosure_conspiracy",
       postedAt: new Date().toISOString(),
       hasImage: false,
+    });
+
+    // Record rich QT history
+    await recordQtReaction({
+      sourceTweetId: reaction.tweetId,
+      sourceText: sourceItem?.text || "",
+      reactionText,
+      topics: extractTopicsFromText(`${sourceItem?.text || ""} ${reactionText}`),
+      author,
+      quotedAt: new Date().toISOString(),
     });
 
     return { success: true, tweetId, reactionText, sourceTweetId: reaction.tweetId, method: "mention" };

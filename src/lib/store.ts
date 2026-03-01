@@ -484,10 +484,21 @@ export async function markTargetInteracted(handle: string): Promise<void> {
 }
 
 // ============================================================
-// QUOTED TWEET TRACKING
+// QUOTED TWEET TRACKING (with topic-level dedup)
 // ============================================================
 
 const QUOTED_TWEETS_KEY = "quoted_tweet_ids";
+const QT_HISTORY_KEY = "et:qt_history";
+
+/** Rich QT record — stores what ET reacted to and what he said */
+export interface QtRecord {
+  sourceTweetId: string;
+  sourceText: string;        // what the original tweet said
+  reactionText: string;      // what ET said
+  topics: string[];          // extracted topic tags
+  author: string;
+  quotedAt: string;
+}
 
 export async function hasQuotedTweet(tweetId: string): Promise<boolean> {
   try {
@@ -501,6 +512,65 @@ export async function markTweetQuoted(tweetId: string): Promise<void> {
     await kv.sadd(QUOTED_TWEETS_KEY, tweetId);
     await kv.expire(QUOTED_TWEETS_KEY, 2592000);
   } catch (e) { debugWarn("KV markTweetQuoted failed:", e); }
+}
+
+/** Record a rich QT history entry (topics + reaction text) */
+export async function recordQtReaction(record: QtRecord): Promise<void> {
+  try {
+    const history = await getRecentQtHistory(30);
+    history.unshift(record);
+    await kv.set(QT_HISTORY_KEY, history.slice(0, 50), { ex: 2592000 }); // 30 days
+  } catch (e) { debugWarn("KV recordQtReaction failed:", e); }
+}
+
+/** Get recent QT history with topics and reactions */
+export async function getRecentQtHistory(count: number = 15): Promise<QtRecord[]> {
+  try {
+    const data = await kv.get<QtRecord[]>(QT_HISTORY_KEY);
+    return (data || []).slice(0, count);
+  } catch (e) { debugWarn("KV getRecentQtHistory failed:", e); return []; }
+}
+
+/** Check if a news topic has already been covered by a recent QT */
+export async function hasQuotedTopic(newsText: string): Promise<QtRecord | null> {
+  const newsTopics = extractNewsTopics(newsText);
+  if (newsTopics.length === 0) return null;
+
+  const history = await getRecentQtHistory(20);
+
+  for (const qt of history) {
+    // Count overlapping topics
+    const overlap = qt.topics.filter(t => newsTopics.includes(t));
+    if (overlap.length >= 3) {
+      return qt; // topic already covered
+    }
+  }
+  return null;
+}
+
+/** Extract topic tags from news text for dedup matching */
+function extractNewsTopics(text: string): string[] {
+  const lower = text.toLowerCase();
+  const topicBank = [
+    // Disclosure / government
+    "congress", "hearing", "senate", "pentagon", "dod", "aaro", "disclosure",
+    "classified", "whistleblower", "foia", "inspector general", "legislation",
+    "schumer", "rubio", "burchett", "luna", "grusch", "fravor", "graves",
+    // UAP/UFO events
+    "ufo", "uap", "sighting", "orb", "tic tac", "triangle", "jellyfish",
+    "crash retrieval", "non-human", "biologics", "reverse engineer",
+    // Space / science
+    "seti", "einstein@home", "boinc", "exoplanet", "signal", "radio telescope",
+    "james webb", "jwst", "mars", "moon", "asteroid", "comet",
+    "nasa", "esa", "spacex", "starship",
+    // Ancient / archaeology
+    "ancient", "archaeological", "pyramid", "hieroglyph", "nazca", "tomb",
+    "artifact", "civilization", "megalith", "stonehenge",
+    // General themes
+    "cover-up", "coverup", "conspiracy", "mj-12", "area 51", "roswell",
+    "abduction", "encounter", "phenomenon",
+  ];
+  return topicBank.filter(t => lower.includes(t));
 }
 
 export async function resolveTarget(handle: string): Promise<void> {

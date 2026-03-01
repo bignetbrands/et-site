@@ -41,6 +41,22 @@ export async function GET(request: Request) {
       const scheduled = dueTweets[0]; // Post one per cron run
       console.log(`[ET Cron] Posting scheduled tweet: "${scheduled.text.substring(0, 60)}..."`);
 
+      // DEDUP CHECK — verify scheduled tweet is still unique at post time
+      const { getRecentTweets } = await import("@/lib/store");
+      const { checkSimilarity } = await import("@/lib/claude");
+      const recentTweets = await getRecentTweets();
+      const similarTo = await checkSimilarity(scheduled.text, recentTweets);
+      if (similarTo) {
+        console.warn(`[ET Cron] Scheduled tweet too similar to recent: "${similarTo.substring(0, 60)}...". Removing from queue.`);
+        await removeScheduledTweet(scheduled);
+        return NextResponse.json({
+          posted: false,
+          scheduled: true,
+          reason: `Scheduled tweet removed — too similar to: "${similarTo.substring(0, 60)}..."`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       let tweetId: string;
       let hasImage = false;
 

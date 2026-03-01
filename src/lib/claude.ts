@@ -252,7 +252,8 @@ export async function decideIfImageWorthy(
  * Returns the tweet ID to quote and the reaction text.
  */
 export async function generateNewsReaction(
-  newsItems: Array<{ text: string; id: string; author: string; likes: number }>
+  newsItems: Array<{ text: string; id: string; author: string; likes: number }>,
+  recentQtReactions?: Array<{ sourceText: string; reactionText: string; topics: string[] }>
 ): Promise<{ tweetId: string; reactionText: string } | null> {
   const { buildNewsReactionPrompt } = await import("./prompts");
 
@@ -263,7 +264,7 @@ export async function generateNewsReaction(
     messages: [
       {
         role: "user",
-        content: buildNewsReactionPrompt(newsItems),
+        content: buildNewsReactionPrompt(newsItems, recentQtReactions),
       },
     ],
     temperature: 0.85,

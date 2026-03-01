@@ -297,15 +297,32 @@ Respond with ONLY "yes" or "no". Nothing else.`;
 // ============================================================
 
 export function buildNewsReactionPrompt(
-  newsItems: Array<{ text: string; id: string; author: string; likes: number }>
+  newsItems: Array<{ text: string; id: string; author: string; likes: number }>,
+  recentQtReactions?: Array<{ sourceText: string; reactionText: string; topics: string[] }>
 ): string {
   const items = newsItems
     .map((n, i) => `${i + 1}. [id:${n.id}] @${n.author} (${n.likes} likes): "${n.text.substring(0, 200)}"`)
     .join("\n");
 
-  return `You found these trending news tweets about UFOs, aliens, space discoveries, or ancient findings:
+  let prompt = `You found these trending news tweets about UFOs, aliens, space discoveries, or ancient findings:
 
-${items}
+${items}`;
+
+  // Inject recent QT history so Claude knows what ET has already said
+  if (recentQtReactions && recentQtReactions.length > 0) {
+    const qtList = recentQtReactions.slice(0, 10).map((qt, i) =>
+      `${i + 1}. Topic: [${qt.topics.join(", ")}] — You said: "${qt.reactionText.substring(0, 120)}..." about: "${qt.sourceText.substring(0, 80)}..."`
+    ).join("\n");
+
+    prompt += `
+
+YOUR RECENT QUOTE TWEETS (you already reacted to these — DO NOT cover the same ground):
+${qtList}
+
+⚠️ If a news item covers the SAME topic/event as something you already reacted to above, SKIP IT and pick something different. Don't just reword what you already said.`;
+  }
+
+  prompt += `
 
 Pick the ONE tweet that's most interesting for ET to react to — something where your alien perspective adds genuine value, humor, or insight. This should feel like you stumbled across it and couldn't resist commenting.
 
@@ -321,7 +338,10 @@ Rules:
 - Keep it under 250 characters
 - If it's about a UFO sighting, you were probably there
 - If it's about ancient aliens, you might have opinions
-- If it's a government disclosure, you've been waiting for this`;
+- If it's a government disclosure, you've been waiting for this
+- DO NOT repeat anything similar to your recent quote tweets listed above`;
+
+  return prompt;
 }
 
 // ============================================================
