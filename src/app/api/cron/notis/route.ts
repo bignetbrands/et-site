@@ -139,15 +139,26 @@ export async function GET(request: Request) {
           console.log(`[Notis] ⚡ Replied to @${account.handle} tweet ${target.id}: "${replyText.substring(0, 60)}..."`);
         } catch (replyError: any) {
           const code = replyError?.data?.status || replyError?.code || replyError?.statusCode;
-          if (code === 403) {
-            // Reply restricted — fall back to QT
-            console.warn(`[Notis] 403 — reply restricted on @${account.handle}'s tweet, falling back to QT`);
+          console.warn(`[Notis] Reply failed (${code}), trying quote tweet...`);
+
+          try {
             const { postQuoteTweet } = await import("@/lib/twitter");
             replyId = await postQuoteTweet(replyText, target.id);
-            method = "quote (reply restricted)";
-            console.log(`[Notis] ⚡ QT'd @${account.handle} tweet ${target.id} (reply restricted)`);
-          } else {
-            throw replyError;
+            method = "quote";
+            console.log(`[Notis] ⚡ QT'd @${account.handle} tweet ${target.id}`);
+          } catch (qtError: any) {
+            const qtCode = qtError?.data?.status || qtError?.code;
+            console.warn(`[Notis] QT failed (${qtCode}), posting standalone+link...`);
+
+            const { postTweet } = await import("@/lib/twitter");
+            const tweetLink = `https://x.com/${account.handle}/status/${target.id}`;
+            const maxTextLen = 280 - 23 - 2;
+            const trimmedText = replyText.length > maxTextLen
+              ? replyText.substring(0, maxTextLen - 3) + "..."
+              : replyText;
+            replyId = await postTweet(`${trimmedText}\n\n${tweetLink}`);
+            method = "standalone+link";
+            console.log(`[Notis] ⚡ Posted standalone+link ${replyId} for @${account.handle}`);
           }
         }
 
