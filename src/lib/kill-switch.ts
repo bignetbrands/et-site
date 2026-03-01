@@ -5,8 +5,9 @@ const KILL_SWITCH_KEY = "et:kill_switch";
 
 export async function isKillSwitchActive(): Promise<boolean> {
   try {
-    const val = await kv.get<string>(KILL_SWITCH_KEY);
-    return val === "true";
+    const val = await kv.get(KILL_SWITCH_KEY);
+    // @vercel/kv auto-deserializes: "true" → boolean true, "false" → boolean false
+    return val === true || val === "true";
   } catch (e) {
     debugWarn("Kill switch read failed:", e);
     return false;
