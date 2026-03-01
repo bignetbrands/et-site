@@ -165,7 +165,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
     // Thread dedup — track how many replies per conversation in this batch
     const batchThreadReplies = new Map<string, number>();
-    const MAX_REPLIES_PER_THREAD = 2; // Max 2 replies per thread per day
+    const MAX_REPLIES_PER_THREAD = 10; // Safety net — ET uses judgment to disengage before this
 
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
@@ -178,7 +178,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
       if (mentionAuthor) {
         const userLimitHit = await hasHitUserLimit(mentionAuthor);
         if (userLimitHit) {
-          console.log(`[ET Replies] User limit — skipping @${mentionAuthor} (already 2+ interactions today)`);
+          console.log(`[ET Replies] User limit — skipping @${mentionAuthor} (hit daily interaction limit)`);
           await recordReply(mention.id);
           lastProcessedId = mention.id;
           results.push({
@@ -321,7 +321,13 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     }
   }
 
-  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}`);
+  // Get thread depth for ET's judgment
+  let threadDepth = 0;
+  if (mention.conversationId) {
+    threadDepth = await getThreadReplyCount(mention.conversationId);
+  }
+
+  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
 
   // Generate the reply — no proactive excuses. ET just replies naturally.
   // If the user calls him out for being slow, Claude will see that in the
@@ -330,7 +336,8 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     mention.text,
     authorUsername,
     conversationContext,
-    mention.imageUrls
+    mention.imageUrls,
+    threadDepth
   );
 
   if (!replyText || replyText.length > 280) {
@@ -343,6 +350,21 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       replyId: "",
       skipped: true,
       skipReason: `Invalid reply: ${replyText?.length || 0} chars`,
+    };
+  }
+
+  // ET decided to disengage from this thread
+  if (replyText.trim().toUpperCase() === "SKIP") {
+    console.log(`[ET Replies] ET chose to disengage from @${authorUsername}'s thread (depth: ${threadDepth})`);
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: `ET disengaged (thread depth: ${threadDepth})`,
     };
   }
 

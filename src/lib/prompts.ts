@@ -522,6 +522,7 @@ export function buildReplyPrompt(
   authorUsername: string,
   conversationContext?: string,
   hasImages?: boolean,
+  threadDepth?: number,
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
@@ -533,7 +534,14 @@ export function buildReplyPrompt(
     prompt += `\n\nThey also attached image(s) which you can see above. React to the image naturally — comment on what you see through ET's alien perspective. Don't describe the image mechanically, just vibe with it.`;
   }
 
-  prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply.`;
+  if (threadDepth && threadDepth > 0) {
+    prompt += `\n\nTHREAD DEPTH: You've already replied ${threadDepth} time(s) in this conversation thread today.`;
+    if (threadDepth >= 3) {
+      prompt += ` Use your judgment — if the banter is going in circles, getting silly with no substance, or the conversation has run its course, respond with SKIP (just that word, nothing else) and we'll move on. Only keep going if there's genuinely something new or interesting to say.`;
+    }
+  }
+
+  prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply (or SKIP to disengage).`;
 
   return prompt;
 }

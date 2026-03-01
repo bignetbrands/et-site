@@ -329,7 +329,7 @@ export async function recordThreadReply(conversationId: string): Promise<void> {
 // ============================================================
 
 const USER_INTERACTIONS_KEY = "user_interactions";
-const MAX_INTERACTIONS_PER_USER_PER_DAY = 2;
+const MAX_INTERACTIONS_PER_USER_PER_DAY = 10; // Safety net — ET uses judgment to keep it natural
 
 export async function getUserInteractionCount(username: string): Promise<number> {
   const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;

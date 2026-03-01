@@ -137,6 +137,7 @@ export async function generateReply(
   authorUsername: string,
   conversationContext?: string,
   imageUrls?: string[],
+  threadDepth?: number,
 ): Promise<string> {
   // Build message content — text + optional images
   const content: Array<{ type: string; source?: Record<string, string>; text?: string }> = [];
@@ -157,7 +158,7 @@ export async function generateReply(
   // Add the text prompt
   content.push({
     type: "text",
-    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0),
+    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, threadDepth),
   });
 
   const response = await getClient().messages.create({
