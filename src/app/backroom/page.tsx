@@ -1,6 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// $ET token mint on Solana
+const ET_MINT = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
+const RPC_URL = "https://api.mainnet-beta.solana.com";
+
 interface Suggestion {
   id: string;
   text: string;
@@ -16,7 +20,65 @@ interface ChatMessage {
   content: string;
 }
 
+type GateState = "disconnected" | "connecting" | "checking" | "holder" | "not_holder" | "error";
+
+// ============================================================
+// WALLET UTILS
+// ============================================================
+
+function getProvider(): { name: string; provider: any } | null {
+  if (typeof window === "undefined") return null;
+  const w = window as any;
+  if (w.phantom?.solana?.isPhantom) return { name: "Phantom", provider: w.phantom.solana };
+  if (w.solflare?.isSolflare) return { name: "Solflare", provider: w.solflare };
+  if (w.solana?.isPhantom) return { name: "Phantom", provider: w.solana };
+  if (w.backpack?.isBackpack) return { name: "Backpack", provider: w.backpack };
+  return null;
+}
+
+async function checkTokenBalance(walletAddress: string): Promise<number> {
+  // Use RPC directly to avoid heavy imports in client bundle
+  const body = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "getTokenAccountsByOwner",
+    params: [
+      walletAddress,
+      { mint: ET_MINT },
+      { encoding: "jsonParsed" },
+    ],
+  };
+
+  const res = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (!data.result?.value?.length) return 0;
+
+  let total = 0;
+  for (const account of data.result.value) {
+    const amount = account.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+    if (amount) total += amount;
+  }
+  return total;
+}
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
+
 export default function BackroomPage() {
+  // Gate state
+  const [gateState, setGateState] = useState<GateState>("disconnected");
+  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [walletName, setWalletName] = useState<string>("");
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Chat state
   const [messages, setMessages] = useState<Array<{ text: string; who: "et" | "user" }>>([
     { text: "you found the backroom. this is where the community talks to me directly. you can chat, or if you've got ideas for how to make $ET better — drop them here. i'll process them into the suggestion board for everyone to vote on. what's on your mind?", who: "et" },
   ]);
@@ -48,6 +110,70 @@ export default function BackroomPage() {
     return () => clearInterval(interval);
   }, [loadSuggestions]);
 
+  // ============================================================
+  // WALLET CONNECTION
+  // ============================================================
+
+  const connectWallet = async () => {
+    const detected = getProvider();
+    if (!detected) {
+      setErrorMsg("No Solana wallet detected. Install Phantom, Solflare, or Backpack to continue.");
+      return;
+    }
+
+    setGateState("connecting");
+    setWalletName(detected.name);
+    setErrorMsg("");
+
+    try {
+      const resp = await detected.provider.connect();
+      const pubkey = resp.publicKey?.toString() || detected.provider.publicKey?.toString();
+
+      if (!pubkey) {
+        setGateState("error");
+        setErrorMsg("Wallet connected but no public key returned. Try again.");
+        return;
+      }
+
+      setWalletAddress(pubkey);
+      setGateState("checking");
+
+      // Check $ET balance
+      const balance = await checkTokenBalance(pubkey);
+      setTokenBalance(balance);
+
+      if (balance > 0) {
+        setGateState("holder");
+      } else {
+        setGateState("not_holder");
+      }
+    } catch (err: any) {
+      if (err?.code === 4001 || err?.message?.includes("rejected")) {
+        setGateState("disconnected");
+        setErrorMsg("Connection cancelled. Click connect when you're ready.");
+      } else {
+        setGateState("error");
+        setErrorMsg("Connection failed. Please try again.");
+        console.error("[Backroom] Wallet error:", err);
+      }
+    }
+  };
+
+  const disconnect = () => {
+    const detected = getProvider();
+    if (detected?.provider?.disconnect) {
+      try { detected.provider.disconnect(); } catch { /* ignore */ }
+    }
+    setGateState("disconnected");
+    setWalletAddress("");
+    setTokenBalance(0);
+    setErrorMsg("");
+  };
+
+  // ============================================================
+  // CHAT
+  // ============================================================
+
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -57,27 +183,19 @@ export default function BackroomPage() {
     setMessages(prev => [...prev, { text, who: "user" }]);
     const newHistory: ChatMessage[] = [...chatHistory, { role: "user", content: text }];
     setChatHistory(newHistory);
-
-    // Show typing
     setMessages(prev => [...prev, { text: "...", who: "et" }]);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: newHistory,
-          mode: "backroom",
-        }),
+        body: JSON.stringify({ messages: newHistory, mode: "backroom" }),
       });
       const data = await res.json();
       const reply = data.reply || "ET's signal dropped. try again.";
-
-      // Remove typing, add reply
       setMessages(prev => [...prev.slice(0, -1), { text: reply, who: "et" }]);
       setChatHistory(prev => [...prev, { role: "assistant", content: reply }]);
 
-      // If ET detected a suggestion, auto-submit it
       if (data.suggestion) {
         try {
           await fetch("/api/backroom/suggestions", {
@@ -87,7 +205,7 @@ export default function BackroomPage() {
               action: "submit",
               text,
               processedText: data.suggestion,
-              submittedBy: "anon",
+              submittedBy: walletAddress ? walletAddress.slice(0, 8) + "..." : "anon",
             }),
           });
           loadSuggestions();
@@ -128,21 +246,137 @@ export default function BackroomPage() {
     }
   };
 
+  // ============================================================
+  // RENDER: GATE (not authenticated)
+  // ============================================================
+
+  if (gateState !== "holder") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.scanlines} />
+        <div style={styles.gateWrap}>
+          <div style={styles.gateBox}>
+            <div style={styles.gateIcon}>👽</div>
+            <div style={styles.gateTitle}>THE BACKROOM</div>
+            <div style={styles.gateSub}>
+              token-gated access — $ET holders only
+            </div>
+
+            <div style={styles.gateDivider} />
+
+            {gateState === "disconnected" && (
+              <>
+                <div style={styles.gateDesc}>
+                  connect your Solana wallet to verify you hold <span style={{ color: "#39ff14" }}>$ET</span> tokens. this grants access to chat with ET directly and vote on community suggestions.
+                </div>
+                <button onClick={connectWallet} style={styles.gateBtn}>
+                  CONNECT WALLET
+                </button>
+              </>
+            )}
+
+            {gateState === "connecting" && (
+              <div style={styles.gateStatus}>
+                <div style={styles.gateSpinner} />
+                connecting to {walletName}...
+              </div>
+            )}
+
+            {gateState === "checking" && (
+              <div style={styles.gateStatus}>
+                <div style={styles.gateSpinner} />
+                verifying $ET holdings...
+              </div>
+            )}
+
+            {gateState === "not_holder" && (
+              <>
+                <div style={styles.gateWarn}>
+                  wallet connected but no $ET tokens found.
+                </div>
+                <div style={{ ...styles.gateDesc, marginTop: "12px" }}>
+                  you need to hold <span style={{ color: "#39ff14" }}>$ET</span> to access the backroom. this is where the community shapes the project.
+                </div>
+                <div style={styles.gateActions}>
+                  <a
+                    href="https://trade.padre.gg/trade/solana/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF"
+                    target="_blank"
+                    style={styles.gateBtn}
+                  >
+                    GET $ET
+                  </a>
+                  <button onClick={disconnect} style={styles.gateBtnGhost}>
+                    DISCONNECT
+                  </button>
+                </div>
+                <div style={styles.gateWalletInfo}>
+                  connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </div>
+              </>
+            )}
+
+            {gateState === "error" && (
+              <>
+                <div style={styles.gateWarn}>{errorMsg}</div>
+                <button onClick={() => { setGateState("disconnected"); setErrorMsg(""); }} style={styles.gateBtnGhost}>
+                  TRY AGAIN
+                </button>
+              </>
+            )}
+
+            {errorMsg && gateState === "disconnected" && (
+              <div style={{ ...styles.gateWarn, marginTop: "12px" }}>{errorMsg}</div>
+            )}
+
+            <div style={styles.gateDivider} />
+
+            {/* Security notice */}
+            <div style={styles.gateNotice}>
+              <div style={styles.gateNoticeTitle}>🔒 how this works</div>
+              <div style={styles.gateNoticeText}>
+                connecting your wallet is <span style={{ color: "#39ff14" }}>read-only</span>. we only check your public address to verify you hold $ET tokens. this site will never:
+              </div>
+              <ul style={styles.gateNoticeList}>
+                <li><span style={{ color: "#ff3c3c" }}>✕</span> request permission to move, transfer, or spend your tokens</li>
+                <li><span style={{ color: "#ff3c3c" }}>✕</span> ask you to sign any transaction</li>
+                <li><span style={{ color: "#ff3c3c" }}>✕</span> access your private keys or seed phrase</li>
+                <li><span style={{ color: "#ff3c3c" }}>✕</span> store your wallet data on our servers</li>
+              </ul>
+              <div style={styles.gateNoticeText}>
+                your wallet address is only used client-side to query the Solana blockchain for your $ET balance. no data leaves your browser.
+              </div>
+            </div>
+
+            <a href="/" style={styles.gateBack}>← back to site</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // RENDER: AUTHENTICATED (holder)
+  // ============================================================
+
   return (
     <div style={styles.page}>
-      {/* Scanlines */}
       <div style={styles.scanlines} />
 
       {/* Header */}
       <div style={styles.header}>
         <a href="/" style={styles.backLink}>← back to site</a>
         <div style={styles.headerTitle}>THE BACKROOM</div>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          style={styles.suggestionsToggle}
-        >
-          {sidebarOpen ? "✕ close" : `◈ suggestions (${suggestions.length})`}
-        </button>
+        <div style={styles.headerRight}>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={styles.suggestionsToggle}
+          >
+            {sidebarOpen ? "✕ close" : `◈ suggestions (${suggestions.length})`}
+          </button>
+          <button onClick={disconnect} style={styles.disconnectBtn} title="Disconnect wallet">
+            {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)} ✕
+          </button>
+        </div>
       </div>
 
       <div style={styles.layout}>
@@ -158,10 +392,7 @@ export default function BackroomPage() {
 
           <div style={styles.chatMessages}>
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                style={msg.who === "et" ? styles.msgEt : styles.msgUser}
-              >
+              <div key={i} style={msg.who === "et" ? styles.msgEt : styles.msgUser}>
                 {msg.text === "..." ? (
                   <span style={{ color: "#5a8a52", fontStyle: "italic" }}>thinking...</span>
                 ) : msg.text}
@@ -223,7 +454,7 @@ export default function BackroomPage() {
                     </button>
                   </div>
                   <div style={styles.suggestionMeta}>
-                    <span style={{ color: statusColor(s.status), textTransform: "uppercase", fontWeight: 700 }}>
+                    <span style={{ color: statusColor(s.status), textTransform: "uppercase" as const, fontWeight: 700 }}>
                       {s.status}
                     </span>
                     <span>{new Date(s.submittedAt).toLocaleDateString()}</span>
@@ -237,6 +468,10 @@ export default function BackroomPage() {
     </div>
   );
 }
+
+// ============================================================
+// STYLES
+// ============================================================
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -253,6 +488,157 @@ const styles: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.015) 2px, rgba(0,255,0,0.015) 4px)",
   },
+
+  // GATE
+  gateWrap: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+  },
+  gateBox: {
+    width: "100%",
+    maxWidth: "440px",
+    textAlign: "center" as const,
+  },
+  gateIcon: {
+    fontSize: "48px",
+    marginBottom: "16px",
+    filter: "drop-shadow(0 0 20px rgba(57,255,20,0.3))",
+  },
+  gateTitle: {
+    fontFamily: "'Silkscreen', cursive",
+    fontSize: "22px",
+    color: "#39ff14",
+    letterSpacing: "6px",
+    textShadow: "0 0 20px rgba(57,255,20,0.4)",
+    marginBottom: "8px",
+  },
+  gateSub: {
+    fontSize: "10px",
+    color: "#5a8a52",
+    letterSpacing: "3px",
+    textTransform: "uppercase" as const,
+  },
+  gateDivider: {
+    height: "1px",
+    background: "#1a3a1a",
+    margin: "20px 0",
+  },
+  gateDesc: {
+    fontSize: "11px",
+    color: "#8ab882",
+    lineHeight: "1.8",
+    padding: "0 12px",
+  },
+  gateBtn: {
+    display: "inline-block",
+    marginTop: "20px",
+    padding: "14px 36px",
+    background: "rgba(57,255,20,0.08)",
+    border: "1px solid #39ff14",
+    color: "#39ff14",
+    fontFamily: "'Silkscreen', cursive",
+    fontSize: "12px",
+    letterSpacing: "3px",
+    cursor: "pointer",
+    transition: "all 0.3s",
+    textDecoration: "none",
+    textTransform: "uppercase" as const,
+  },
+  gateBtnGhost: {
+    display: "inline-block",
+    marginTop: "12px",
+    padding: "10px 24px",
+    background: "transparent",
+    border: "1px solid #1a3a1a",
+    color: "#5a8a52",
+    fontFamily: "'Space Mono', monospace",
+    fontSize: "10px",
+    letterSpacing: "2px",
+    cursor: "pointer",
+    textTransform: "uppercase" as const,
+  },
+  gateActions: {
+    display: "flex",
+    gap: "12px",
+    justifyContent: "center",
+    marginTop: "8px",
+  },
+  gateStatus: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    fontSize: "11px",
+    color: "#5a8a52",
+    letterSpacing: "1px",
+    padding: "20px 0",
+  },
+  gateSpinner: {
+    width: "14px",
+    height: "14px",
+    border: "2px solid #1a3a1a",
+    borderTop: "2px solid #39ff14",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
+  },
+  gateWarn: {
+    fontSize: "11px",
+    color: "#ffaa00",
+    padding: "12px 16px",
+    background: "rgba(255,170,0,0.06)",
+    border: "1px solid rgba(255,170,0,0.2)",
+    lineHeight: "1.6",
+  },
+  gateWalletInfo: {
+    marginTop: "12px",
+    fontSize: "9px",
+    color: "#3a5a32",
+    letterSpacing: "1px",
+  },
+  gateNotice: {
+    textAlign: "left" as const,
+    padding: "16px",
+    background: "rgba(10,21,10,0.5)",
+    border: "1px solid #1a3a1a",
+  },
+  gateNoticeTitle: {
+    fontFamily: "'Silkscreen', cursive",
+    fontSize: "10px",
+    color: "#39ff14",
+    letterSpacing: "2px",
+    marginBottom: "10px",
+    textShadow: "0 0 6px rgba(57,255,20,0.3)",
+  },
+  gateNoticeText: {
+    fontSize: "10px",
+    color: "#8ab882",
+    lineHeight: "1.7",
+    letterSpacing: "0.3px",
+  },
+  gateNoticeList: {
+    margin: "8px 0 8px 16px",
+    padding: 0,
+    fontSize: "9px",
+    color: "#5a8a52",
+    lineHeight: "1.9",
+    letterSpacing: "0.5px",
+    listStyle: "none",
+  },
+  gateBack: {
+    display: "inline-block",
+    marginTop: "20px",
+    color: "#3a5a32",
+    textDecoration: "none",
+    fontSize: "10px",
+    letterSpacing: "2px",
+    textTransform: "uppercase" as const,
+    fontFamily: "'Space Mono', monospace",
+  },
+
+  // HEADER
   header: {
     display: "flex",
     alignItems: "center",
@@ -279,6 +665,11 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "4px",
     textShadow: "0 0 12px rgba(57,255,20,0.4)",
   },
+  headerRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
   suggestionsToggle: {
     background: "rgba(57,255,20,0.06)",
     border: "1px solid #1a3a1a",
@@ -290,6 +681,18 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textTransform: "uppercase" as const,
   },
+  disconnectBtn: {
+    background: "transparent",
+    border: "1px solid #1a3a1a",
+    color: "#5a8a52",
+    fontFamily: "'Space Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1px",
+    padding: "6px 10px",
+    cursor: "pointer",
+  },
+
+  // LAYOUT
   layout: {
     display: "flex",
     height: "calc(100vh - 49px)",
@@ -397,6 +800,8 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "1px",
     textAlign: "center",
   },
+
+  // SIDEBAR
   sidebar: {
     width: "340px",
     background: "rgba(3,10,3,0.96)",
@@ -473,22 +878,3 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#5a8a52",
   },
 };
-
-// Mobile responsive override — sidebar as overlay on small screens
-if (typeof window !== "undefined") {
-  const mq = window.matchMedia("(max-width: 768px)");
-  if (mq.matches) {
-    styles.sidebar = {
-      ...styles.sidebar,
-      position: "fixed",
-      top: "49px",
-      right: 0,
-      bottom: 0,
-      zIndex: 50,
-      transform: "translateX(100%)",
-    };
-    styles.sidebarOpen = {
-      transform: "translateX(0)",
-    };
-  }
-}
