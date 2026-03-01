@@ -11,16 +11,12 @@ import { debug, debugWarn, critical } from "./debug";
 export async function kvHealthCheck(): Promise<boolean> {
   try {
     const testKey = "et:kv_health";
-    const testVal = Date.now().toString();
-    await kv.set(testKey, testVal, { ex: 60 }); // auto-expires in 60s
+    const testVal = `health_${Date.now()}`;  // prefix prevents auto-deserialize to number
+    await kv.set(testKey, testVal, { ex: 60 });
     const verify = await kv.get<string>(testKey);
     return verify === testVal;
   } catch (error) {
-    const kvUrl = process.env.KV_REST_API_URL || "(not set)";
-    const upstashUrl = process.env.UPSTASH_REDIS_REST_URL || "(not set)";
     console.error(`[KV Health] FAILED: ${error instanceof Error ? error.message : error}`);
-    console.error(`[KV Health] KV_REST_API_URL starts with: ${kvUrl.substring(0, 30)}...`);
-    console.error(`[KV Health] UPSTASH_REDIS_REST_URL starts with: ${upstashUrl.substring(0, 30)}...`);
     return false;
   }
 }
