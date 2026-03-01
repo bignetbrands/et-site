@@ -488,8 +488,9 @@ async function postAndRecord(
 }
 
 /**
- * Interact with a target account — find a fresh tweet and quote tweet it.
- * Prefers tweets under 5 minutes old so readers get full context via quote.
+ * Interact with a target account — find a tweet and engage with it.
+ * Fresh tweets (under 30 min): reply directly under the tweet (natural, conversational).
+ * Older tweets: quote tweet (gives ET's followers context they wouldn't otherwise see).
  */
 export async function interactWithTarget(
   handle: string
@@ -560,9 +561,43 @@ export async function interactWithTarget(
       return { success: false, error: `Dedup: too similar to existing tweet` };
     }
 
-    console.log(`[ET Target] Quote tweeting ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
+    console.log(`[ET Target] Engaging ${interaction.tweetId}: "${reactionText.substring(0, 60)}..."`);
 
-    // 5. Post as quote tweet (primary method)
+    // 5. Decide method based on tweet age: reply if fresh, quote if old
+    const pickedTweet = tweetsToUse.find(t => t.id === interaction.tweetId) || tweetsToUse[0];
+    const tweetAgeMs = pickedTweet.createdAt ? Date.now() - new Date(pickedTweet.createdAt).getTime() : Infinity;
+    const FRESH_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+    const isFresh = tweetAgeMs < FRESH_THRESHOLD_MS;
+
+    if (isFresh) {
+      // FRESH TWEET → reply directly under it (feels like joining a live conversation)
+      console.log(`[ET Target] Tweet is ${Math.round(tweetAgeMs / 60000)}m old — replying directly`);
+      try {
+        const replyId = await postReply(reactionText, interaction.tweetId);
+        await resolveTarget(handle);
+        await markTweetQuoted(interaction.tweetId);
+        await recordUserInteraction(handle);
+        console.log(`[ET Target] Posted direct reply ${replyId} to @${handle}`);
+
+        await recordTweet({
+          id: replyId,
+          text: reactionText,
+          pillar: "human_observation",
+          postedAt: new Date().toISOString(),
+          hasImage: false,
+        });
+
+        return { success: true, tweetId: interaction.tweetId, replyText: reactionText, replyId, method: "reply" };
+      } catch (replyError: any) {
+        const status = replyError?.data?.status || replyError?.code;
+        console.warn(`[ET Target] Direct reply failed (${status}), falling back to quote tweet...`);
+        // Fall through to quote tweet below
+      }
+    } else {
+      console.log(`[ET Target] Tweet is ${Math.round(tweetAgeMs / 60000)}m old — quote tweeting for visibility`);
+    }
+
+    // OLDER TWEET or reply fallback → quote tweet (gives ET's followers context)
     try {
       const qtId = await postQuoteTweet(reactionText, interaction.tweetId);
       await resolveTarget(handle);
