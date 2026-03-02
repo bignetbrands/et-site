@@ -348,6 +348,7 @@ export default function BackroomPage() {
     return (
       <div style={styles.page}>
         <div style={styles.scanlines} />
+        <img src="/et-dance.gif" alt="" style={styles.floatingEt} />
         <div style={styles.gateWrap}>
           <div style={styles.gateBox}>
             <div style={styles.gateIcon}>👽</div>
@@ -366,6 +367,7 @@ export default function BackroomPage() {
     return (
       <div style={styles.page}>
         <div style={styles.scanlines} />
+        <img src="/et-dance.gif" alt="" style={styles.floatingEt} />
         <div style={styles.gateWrap}>
           <div style={styles.gateBox}>
             <div style={styles.gateIcon}>👽</div>
@@ -473,6 +475,7 @@ export default function BackroomPage() {
   return (
     <div style={styles.page}>
       <div style={styles.scanlines} />
+      <img src="/et-dance.gif" alt="" style={styles.floatingEt} />
 
       {/* Header */}
       <div style={styles.header}>
@@ -595,6 +598,16 @@ export default function BackroomPage() {
 // ============================================================
 
 const styles: Record<string, React.CSSProperties> = {
+  floatingEt: {
+    position: "fixed",
+    bottom: "16px",
+    right: "16px",
+    width: "90px",
+    zIndex: 50,
+    opacity: 0.8,
+    pointerEvents: "none",
+    filter: "drop-shadow(0 0 12px rgba(57,255,20,0.3))",
+  },
   page: {
     background: "#010501",
     color: "#c8f7c0",
