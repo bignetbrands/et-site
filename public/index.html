@@ -1902,60 +1902,96 @@
   };
 
   // Rewards registration (localStorage for now — backend later)
-  const REWARDS_KEY = 'et_rewards_registrations';
-  function getRegistrations() {
-    try { return JSON.parse(localStorage.getItem(REWARDS_KEY) || '[]'); } catch(e) { return []; }
-  }
-  function saveRegistration(wallet, boinc) {
-    const regs = getRegistrations();
-    const existing = regs.findIndex(r => r.wallet === wallet);
-    if (existing >= 0) { regs[existing].boinc = boinc; }
-    else { regs.push({ wallet, boinc, credits: 0, registered: Date.now() }); }
-    localStorage.setItem(REWARDS_KEY, JSON.stringify(regs));
-    return regs;
-  }
+  // ============ REWARDS: Registration + Leaderboard ============
 
-  // Registration handler — feature in progress
-  document.getElementById('rewardsRegister').addEventListener('click', function() {
+  // Register handler — calls real API
+  document.getElementById('rewardsRegister').addEventListener('click', async function() {
+    const walletInput = document.getElementById('rewardsWallet');
+    const boincInput = document.getElementById('rewardsBoinc');
     const status = document.getElementById('rewardsStatus');
-    status.innerHTML = `
-      <div style="padding:16px 0 4px;text-align:center;">
-        <div style="font-family:'Silkscreen',cursive;font-size:13px;color:var(--green);letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 10px var(--green-dim);">🔥 WE'RE COOKING</div>
-        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">this feature is under active development</div>
-        <div style="background:rgba(2,8,2,0.6);border:1px solid var(--panel-border);height:24px;position:relative;overflow:hidden;">
-          <div style="width:57%;height:100%;background:linear-gradient(90deg,rgba(57,255,20,0.15),rgba(57,255,20,0.3));border-right:2px solid var(--green);transition:width 1s ease;"></div>
-          <span style="position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;font-family:'Silkscreen',cursive;font-size:11px;color:var(--green);letter-spacing:2px;text-shadow:0 0 8px var(--green-dim);">57%</span>
-        </div>
-        <div style="font-size:8px;color:var(--text-dim);letter-spacing:1px;margin-top:8px;line-height:1.7;">registration + reward claims coming soon<br>join <span style="color:var(--green);">Einstein@home</span> in the meantime — your credits will count</div>
-      </div>`;
-  });
+    const btn = this;
 
-  // Render leaderboard from localStorage
-  function renderLeaderboard() {
-    const regs = getRegistrations();
-    const container = document.getElementById('rewardsLeaderboard');
-    const membersEl = document.getElementById('rewardsPoolMembers');
-    membersEl.textContent = regs.length;
-    if (regs.length === 0) {
-      container.innerHTML = '<div class="rewards-lb-empty">No contributors yet.<br>Be the first to register and start earning.</div>';
+    const wallet = walletInput.value.trim();
+    const einsteinId = boincInput.value.trim();
+
+    if (!wallet || wallet.length < 32) {
+      status.innerHTML = '<span style="color:#ff3c3c;">enter a valid Solana wallet address</span>';
       return;
     }
-    const sorted = [...regs].sort((a,b) => (b.credits||0) - (a.credits||0));
-    const totalCredits = sorted.reduce((sum,r) => sum + (r.credits||0), 0);
-    document.getElementById('rewardsPoolCredits').textContent = totalCredits.toLocaleString();
-    container.innerHTML = sorted.map((r, i) => {
-      const share = totalCredits > 0 ? ((r.credits||0) / totalCredits * 100).toFixed(1) + '%' : '—';
-      const shortWallet = r.wallet.slice(0,4) + '...' + r.wallet.slice(-4);
-      return `<div class="rewards-lb-row">
-        <span class="rewards-lb-rank">${i+1}</span>
-        <span class="rewards-lb-user" title="${r.boinc} — ${r.wallet}">${r.boinc} <span style="color:var(--text-dim);font-size:8px;">(${shortWallet})</span></span>
-        <span class="rewards-lb-credits">${(r.credits||0).toLocaleString()}</span>
-        <span class="rewards-lb-share">${share}</span>
-      </div>`;
-    }).join('');
+    if (!einsteinId || !/^\d+$/.test(einsteinId)) {
+      status.innerHTML = '<span style="color:#ff3c3c;">enter a numeric Einstein@home User ID</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'VERIFYING...';
+    status.innerHTML = '<span style="color:var(--text-dim);">checking Einstein@home account...</span>';
+
+    try {
+      const res = await fetch('/api/rewards/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet, einsteinId }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        status.innerHTML = `
+          <div style="padding:12px 0;text-align:center;">
+            <div style="font-family:'Silkscreen',cursive;font-size:13px;color:var(--green);letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 10px var(--green-dim);">✓ REGISTERED</div>
+            <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;line-height:1.8;">
+              einstein@home: <span style="color:var(--green);">${data.name}</span><br>
+              total credits: <span style="color:var(--green);">${Math.floor(data.totalCredit).toLocaleString()}</span>
+            </div>
+          </div>`;
+        walletInput.value = '';
+        boincInput.value = '';
+        loadLeaderboard(); // refresh
+      } else {
+        status.innerHTML = `<span style="color:#ffaa00;">${data.error || 'Registration failed'}</span>`;
+      }
+    } catch (e) {
+      status.innerHTML = '<span style="color:#ff3c3c;">network error — try again</span>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'REGISTER';
+  });
+
+  // Leaderboard — fetch from API
+  async function loadLeaderboard() {
+    const container = document.getElementById('rewardsLeaderboard');
+    const membersEl = document.getElementById('rewardsPoolMembers');
+    const creditsEl = document.getElementById('rewardsPoolCredits');
+
+    try {
+      const res = await fetch('/api/rewards/leaderboard');
+      const data = await res.json();
+      const { leaderboard, stats } = data;
+
+      membersEl.textContent = stats.totalMembers;
+      creditsEl.textContent = Math.floor(stats.totalCredits).toLocaleString();
+
+      if (!leaderboard || leaderboard.length === 0) {
+        container.innerHTML = '<div class="rewards-lb-empty">No contributors yet.<br>Be the first to register and start earning.</div>';
+        return;
+      }
+
+      container.innerHTML = leaderboard.map(r => {
+        const share = r.share.toFixed(1) + '%';
+        return `<div class="rewards-lb-row">
+          <span class="rewards-lb-rank">${r.rank}</span>
+          <span class="rewards-lb-user" title="${r.name} — ${r.wallet}">${r.name} <span style="color:var(--text-dim);font-size:8px;">(${r.wallet})</span></span>
+          <span class="rewards-lb-credits">${Math.floor(r.totalCredit).toLocaleString()}</span>
+          <span class="rewards-lb-share">${share}</span>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      container.innerHTML = '<div class="rewards-lb-empty">Failed to load leaderboard.</div>';
+    }
   }
 
-  renderLeaderboard();
+  loadLeaderboard();
 
   function copyCA() {
     navigator.clipboard.writeText('A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF').then(() => {
