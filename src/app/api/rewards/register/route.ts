@@ -4,38 +4,45 @@ import { kv } from "@vercel/kv";
 export const dynamic = "force-dynamic";
 
 const REGISTRATIONS_KEY = "et:rewards:registrations";
+const ET_TEAM_ID = "233793";
+const ET_TEAM_URL = "https://einsteinathome.org/community/teams/233793";
 
 export interface Registration {
   wallet: string;
   einsteinId: string;
   einsteinName: string;
   totalCredit: number;
-  recentCredit: number;  // RAC (recent average credit)
+  recentCredit: number;
   registeredAt: string;
   lastSynced: string;
 }
 
 /** Fetch user info from Einstein@home BOINC XML API */
-async function fetchEinsteinUser(userId: string): Promise<{ name: string; totalCredit: number; recentCredit: number } | null> {
+async function fetchEinsteinUser(userId: string): Promise<{
+  name: string;
+  totalCredit: number;
+  recentCredit: number;
+  teamId: string;
+} | null> {
   try {
     const url = `https://einsteinathome.org/show_user.php?userid=${encodeURIComponent(userId)}&format=xml`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     const text = await res.text();
 
-    // Simple XML parsing for the fields we need
     const nameMatch = text.match(/<name>([^<]*)<\/name>/);
-    // Also try <n> tag which is used in some BOINC versions
     const nMatch = text.match(/<n>([^<]*)<\/n>/);
     const totalMatch = text.match(/<total_credit>([\d.]+)<\/total_credit>/);
     const recentMatch = text.match(/<expavg_credit>([\d.]+)<\/expavg_credit>/);
+    const teamMatch = text.match(/<teamid>(\d+)<\/teamid>/);
 
     const name = nameMatch?.[1] || nMatch?.[1];
-    if (!name && !totalMatch) return null; // User not found
+    if (!name && !totalMatch) return null;
 
     return {
       name: name || `User ${userId}`,
       totalCredit: parseFloat(totalMatch?.[1] || "0"),
       recentCredit: parseFloat(recentMatch?.[1] || "0"),
+      teamId: teamMatch?.[1] || "0",
     };
   } catch (err) {
     console.error(`[Rewards] Failed to fetch Einstein@home user ${userId}:`, err);
@@ -47,7 +54,6 @@ export async function POST(request: Request) {
   try {
     const { wallet, einsteinId } = await request.json();
 
-    // Validate inputs
     if (!wallet || typeof wallet !== "string" || wallet.length < 32 || wallet.length > 44) {
       return NextResponse.json({ error: "Invalid Solana wallet address" }, { status: 400 });
     }
@@ -65,13 +71,21 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
+    // Verify user is on Team $ET
+    if (eUser.teamId !== ET_TEAM_ID) {
+      return NextResponse.json({
+        error: `You must join Team $ET on Einstein@home before registering. Go to ${ET_TEAM_URL} and click "Join this team", then try again.`,
+        teamRequired: true,
+        teamUrl: ET_TEAM_URL,
+      }, { status: 403 });
+    }
+
     // Load existing registrations
     const registrations = await kv.get<Registration[]>(REGISTRATIONS_KEY) || [];
 
     // Check for duplicate wallet
     const existingWallet = registrations.findIndex(r => r.wallet === wallet);
     if (existingWallet >= 0) {
-      // Update existing registration
       registrations[existingWallet].einsteinId = id;
       registrations[existingWallet].einsteinName = eUser.name;
       registrations[existingWallet].totalCredit = eUser.totalCredit;
