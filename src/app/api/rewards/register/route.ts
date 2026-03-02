@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid Solana wallet address" }, { status: 400 });
     }
     if (!einsteinId || typeof einsteinId !== "string" || !/^\d+$/.test(einsteinId.trim())) {
-      return NextResponse.json({ error: "Einstein@home User ID must be numeric" }, { status: 400 });
+      return NextResponse.json({ error: "BOINC ID must be numeric (found on your Account Credentials page)" }, { status: 400 });
     }
 
     const id = einsteinId.trim();
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     const eUser = await fetchEinsteinUser(id);
     if (!eUser) {
       return NextResponse.json({
-        error: "User not found on Einstein@home. Check your User ID (numeric, from your profile URL).",
+        error: "User not found. Make sure you're using your BOINC ID (Account Credentials page), not the number from your profile URL.",
       }, { status: 404 });
     }
 

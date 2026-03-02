@@ -652,14 +652,14 @@
 
       <div class="rewards-form" id="rewardsForm">
         <div class="rewards-form-title">Register for Rewards</div>
-        <div class="rewards-form-desc">Link your Solana wallet to your Einstein@home account. Your User ID is the number in your profile URL: einsteinathome.org/user/<span style="color:var(--green)">12345678</span></div>
+        <div class="rewards-form-desc">Link your Solana wallet to your Einstein@home BOINC account. Your <span style="color:var(--green)">BOINC ID</span> is found on your Account Credentials page — it's NOT the number in your profile URL.</div>
         <div class="rewards-input-group">
           <label class="rewards-label">Solana Wallet Address</label>
           <input type="text" class="rewards-input" id="rewardsWallet" placeholder="e.g. 7xKX...3mFv" maxlength="44" autocomplete="off" spellcheck="false">
         </div>
         <div class="rewards-input-group">
-          <label class="rewards-label">Einstein@home User ID</label>
-          <input type="text" class="rewards-input" id="rewardsBoinc" placeholder="Numeric ID from your profile URL (e.g. 12345678)" autocomplete="off" spellcheck="false">
+          <label class="rewards-label">Einstein@home BOINC ID</label>
+          <input type="text" class="rewards-input" id="rewardsBoinc" placeholder="e.g. 1062611 (found on Account Credentials page)" autocomplete="off" spellcheck="false">
         </div>
         <button class="rewards-submit" id="rewardsRegister">REGISTER</button>
         <div class="rewards-status" id="rewardsStatus"></div>
@@ -1919,7 +1919,7 @@
       return;
     }
     if (!einsteinId || !/^\d+$/.test(einsteinId)) {
-      status.innerHTML = '<span style="color:#ff3c3c;">enter a numeric Einstein@home User ID</span>';
+      status.innerHTML = '<span style="color:#ff3c3c;">enter your numeric BOINC ID (found on Account Credentials page)</span>';
       return;
     }
 
