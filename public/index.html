@@ -459,11 +459,11 @@
 <!-- BACKROOM OVERLAY — fullscreen research hub -->
 <div class="backroom-overlay" id="backroomOverlay">
   <canvas id="galaxySectionCanvas"></canvas>
-  <button class="backroom-back" id="backroomBack">← Exit Backroom</button>
+  <button class="backroom-back" id="backroomBack">← Exit Explore</button>
 
   <!-- Top-left HUD -->
   <div class="galaxy-section-hud" id="galaxySectionHud">
-    <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 10px var(--green-dim);">THE BACKROOM</div>
+    <div style="font-family:'Silkscreen',cursive;font-size:14px;color:var(--green);letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 10px var(--green-dim);">EXPLORE</div>
     <div>milky way — <span>interactive galactic map</span></div>
     <div>data: <span>nasa exoplanet archive (live)</span></div>
     <div id="galaxySectionStatus">zoom: <span>1.0x</span></div>
@@ -716,7 +716,7 @@
 <div class="page-wrapper hidden" id="pageWrapper">
   <nav>
     <div class="nav-logo">$ET</div>
-    <div class="nav-links"><a href="#backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search & Earn</a><a href="https://x.com/etalienx" target="_blank">Talk to ET</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
+    <div class="nav-links"><a href="#backroom">Explore</a><a href="/backroom">Backroom</a><a href="javascript:void(0)" onclick="openOnboarding()">Join Search & Earn</a><a href="https://x.com/etalienx" target="_blank">Talk to ET</a><a href="#trade">Trade</a><a href="#community">Community</a></div>
   </nav>
   <section class="hero">
     <div class="beam"></div>
@@ -725,7 +725,8 @@
     </div>
     <p class="hero-tagline">the search for <span>extraterrestrial</span> life</p>
     <div class="cta-group">
-      <a href="javascript:void(0)" class="btn btn-primary" id="enterBackroom">◈ Enter Backroom</a>
+      <a href="javascript:void(0)" class="btn btn-primary" id="enterBackroom">◈ Explore</a>
+      <a href="/backroom" class="btn btn-ghost">🔒 Backroom</a>
       <a href="javascript:void(0)" class="btn btn-ghost" onclick="openOnboarding()">✦ Join the Search & Earn</a>
       <a href="https://x.com/etalienx" target="_blank" class="btn btn-ghost">👽 Talk to ET</a>
     </div>
