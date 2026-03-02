@@ -7,19 +7,18 @@ const SUGGESTIONS_KEY = "et:backroom:suggestions";
 
 export interface Suggestion {
   id: string;
-  text: string;           // ET's processed version of the suggestion
-  originalText: string;   // what the user actually said
+  text: string;
+  originalText: string;
   status: "pending" | "acknowledged" | "implemented" | "rejected";
   votes: number;
+  voters: string[];
   submittedAt: string;
-  submittedBy: string;    // wallet address or "anon"
+  submittedBy: string;
 }
 
-/** GET /api/backroom/suggestions — list all suggestions */
 export async function GET() {
   try {
     const suggestions = await kv.get<Suggestion[]>(SUGGESTIONS_KEY) || [];
-    // Sort by votes descending
     suggestions.sort((a, b) => b.votes - a.votes);
     return NextResponse.json({ suggestions });
   } catch (e) {
@@ -28,7 +27,6 @@ export async function GET() {
   }
 }
 
-/** POST /api/backroom/suggestions — submit or vote */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -41,39 +39,45 @@ export async function POST(request: Request) {
       }
 
       const suggestions = await kv.get<Suggestion[]>(SUGGESTIONS_KEY) || [];
-
-      // Max 50 suggestions
       if (suggestions.length >= 50) {
-        return NextResponse.json({ error: "Suggestion board is full. Vote on existing ones!" }, { status: 400 });
+        return NextResponse.json({ error: "Suggestion board is full." }, { status: 400 });
       }
 
+      const voterId = submittedBy || "anon";
       const suggestion: Suggestion = {
         id: `sug_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         text: processedText,
         originalText: text,
         status: "pending",
-        votes: 1, // auto-vote by submitter
+        votes: 1,
+        voters: [voterId],
         submittedAt: new Date().toISOString(),
-        submittedBy: submittedBy || "anon",
+        submittedBy: voterId,
       };
 
       suggestions.push(suggestion);
       await kv.set(SUGGESTIONS_KEY, suggestions);
-
       return NextResponse.json({ success: true, suggestion });
     }
 
     if (action === "vote") {
-      const { id } = body;
+      const { id, voterId } = body;
       if (!id) return NextResponse.json({ error: "Missing suggestion id" }, { status: 400 });
 
+      const voter = voterId || "anon";
       const suggestions = await kv.get<Suggestion[]>(SUGGESTIONS_KEY) || [];
       const idx = suggestions.findIndex(s => s.id === id);
       if (idx === -1) return NextResponse.json({ error: "Suggestion not found" }, { status: 404 });
 
+      if (!suggestions[idx].voters) suggestions[idx].voters = [];
+
+      if (suggestions[idx].voters.includes(voter)) {
+        return NextResponse.json({ error: "Already voted", votes: suggestions[idx].votes, alreadyVoted: true }, { status: 409 });
+      }
+
+      suggestions[idx].voters.push(voter);
       suggestions[idx].votes += 1;
       await kv.set(SUGGESTIONS_KEY, suggestions);
-
       return NextResponse.json({ success: true, votes: suggestions[idx].votes });
     }
 

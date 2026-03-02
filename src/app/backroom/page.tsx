@@ -7,6 +7,7 @@ interface Suggestion {
   originalText: string;
   status: string;
   votes: number;
+  voters: string[];
   submittedAt: string;
   submittedBy: string;
 }
@@ -304,17 +305,26 @@ export default function BackroomPage() {
     setSending(false);
   };
 
+  const getVoterId = () => walletAddress ? walletAddress.slice(0, 8) + "..." : "anon";
+
+  const hasVoted = (s: Suggestion) => {
+    const vid = getVoterId();
+    return s.voters?.includes(vid) || false;
+  };
+
   const vote = async (id: string) => {
+    const vid = getVoterId();
     try {
       const res = await fetch("/api/backroom/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "vote", id }),
+        body: JSON.stringify({ action: "vote", id, voterId: vid }),
       });
       const data = await res.json();
+      if (data.alreadyVoted) return; // already voted, ignore
       if (data.success) {
         setSuggestions(prev =>
-          prev.map(s => s.id === id ? { ...s, votes: data.votes } : s)
+          prev.map(s => s.id === id ? { ...s, votes: data.votes, voters: [...(s.voters || []), vid] } : s)
             .sort((a, b) => b.votes - a.votes)
         );
       }
@@ -553,11 +563,15 @@ export default function BackroomPage() {
                   <div style={styles.suggestionTop}>
                     <div style={styles.suggestionText}>{s.text}</div>
                     <button
-                      onClick={() => vote(s.id)}
-                      style={styles.voteBtn}
-                      title="Vote for this suggestion"
+                      onClick={() => !hasVoted(s) && vote(s.id)}
+                      style={{
+                        ...styles.voteBtn,
+                        ...(hasVoted(s) ? { opacity: 0.35, cursor: "default", borderColor: "#0a3d00" } : {}),
+                      }}
+                      title={hasVoted(s) ? "You already voted" : "Vote for this suggestion"}
+                      disabled={hasVoted(s)}
                     >
-                      ▲ {s.votes}
+                      {hasVoted(s) ? "✓" : "▲"} {s.votes}
                     </button>
                   </div>
                   <div style={styles.suggestionMeta}>
