@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     let liveTweets: Array<{ text: string; created_at?: string; likes: number; retweets: number }> = [];
     try {
-      const results = await client.v2.search("from:etalienx -is:retweet", {
+      const results = await client.v2.search("from:etfoundyou -is:retweet", {
         max_results: 100,
         "tweet.fields": "public_metrics,created_at",
         sort_order: "recency",

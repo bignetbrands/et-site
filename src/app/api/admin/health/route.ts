@@ -54,8 +54,8 @@ export async function GET(request: Request) {
   try {
     results.shadowban = {
       note: "Twitter is currently halted — cannot run live shadowban check. Use manual checks.",
-      manualCheckUrl: "https://search.x.com/search?q=from%3Aetalienx&src=typed_query&f=live",
-      incognitoTest: "Search 'from:etalienx' in an incognito/private browser window. If 0 results, you're search-banned.",
+      manualCheckUrl: "https://search.x.com/search?q=from%3Aetfoundyou&src=typed_query&f=live",
+      incognitoTest: "Search 'from:etfoundyou' in an incognito/private browser window. If 0 results, you're search-banned.",
     };
   } catch {
     results.shadowban = { status: "check_failed" };
