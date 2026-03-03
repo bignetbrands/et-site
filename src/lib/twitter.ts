@@ -1,7 +1,7 @@
 import { TwitterApi, type TwitterApiReadWrite } from "twitter-api-v2";
 
 // ⚠️ HARD HALT — set to true to block ALL Twitter API calls
-const TWITTER_HALTED = true;
+const TWITTER_HALTED = false;
 
 function assertNotHalted(action: string) {
   if (TWITTER_HALTED) {
