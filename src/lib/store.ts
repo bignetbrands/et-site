@@ -358,15 +358,16 @@ export async function hasHitUserLimit(username: string): Promise<boolean> {
 // Single chokepoint: no Twitter action can fire unless the global
 // throttle allows it. This prevents crons from stacking actions.
 //
-// ⚠️  RECOVERY MODE — tightened limits until shadowban lifts
-//     Normal mode values in comments for when we ramp back up.
+// 🚀 NEW ACCOUNT LAUNCH — safe limits for @etfoundyou
+//     Loosen to normal after 2 weeks if no issues.
 //
-// This is the PRIMARY shadowban prevention mechanism.
+// This is the PRIMARY spam prevention mechanism.
 
 const GLOBAL_LAST_ACTION_KEY = "et:global_last_action";
 const GLOBAL_ACTION_COUNT_KEY = "et:global_action_count";
-const GLOBAL_MIN_GAP_MS = 15 * 60 * 1000;  // RECOVERY: 15 min (normal: 8 min)
-const GLOBAL_MAX_ACTIONS_PER_DAY = 10;      // RECOVERY: 10/day (normal: 30/day)
+// New account launch limits — loosen after 2 weeks if clean
+const GLOBAL_MIN_GAP_MS = 10 * 60 * 1000;  // 10 min between actions
+const GLOBAL_MAX_ACTIONS_PER_DAY = 20;      // 20/day (~8 tweets + ~12 replies)
 
 export async function canAct(): Promise<{ allowed: boolean; reason: string }> {
   try {
