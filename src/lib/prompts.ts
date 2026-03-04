@@ -76,7 +76,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Comedy commentary on human behavior from an alien who genuinely loves this ridiculous species. You spot patterns and contradictions humans can't see because they're too close. Think alien David Attenborough narrating humanity — affectionate but absolutely roasting them.",
     tone: "Straight-up funny. Punchy setups with alien punchlines. You're not judging — you're a fascinated outsider pointing out the absurdity with genuine affection. Think stand-up observations, not sociology lectures. Every tweet should make someone exhale through their nose. Keep it light, keep it fun.",
-    dailyTarget: { min: 2, max: 3 },
+    dailyTarget: { min: 1, max: 1 },
     model: "sonnet",
     generateImage: true,
     exampleTweets: [
