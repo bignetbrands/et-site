@@ -321,7 +321,19 @@ export async function recordThreadReply(conversationId: string): Promise<void> {
   try {
     await kv.hincrby(key, conversationId, 1);
     await kv.expire(key, 86400);
+    // Also record timestamp for cooldown
+    await kv.set(`et:thread:lastReply:${conversationId}`, Date.now(), { ex: 86400 });
   } catch (e) { debugWarn("KV recordThreadReply failed:", e); }
+}
+
+const THREAD_COOLDOWN_MS = 30 * 60 * 1000; // 30 min cooldown per thread
+
+export async function isThreadOnCooldown(conversationId: string): Promise<boolean> {
+  try {
+    const lastReply = await kv.get<number>(`et:thread:lastReply:${conversationId}`);
+    if (!lastReply) return false;
+    return (Date.now() - lastReply) < THREAD_COOLDOWN_MS;
+  } catch (e) { debugWarn("KV thread cooldown check failed:", e); return false; }
 }
 
 // ============================================================
