@@ -33,7 +33,8 @@ import {
 } from "./self-awareness";
 
 // Max replies per cron run & per day
-const MAX_REPLIES_PER_RUN = 1; // Only 1 reply per cron cycle
+const MAX_REPLIES_PER_RUN = 2; // 2 replies per cron cycle
+const MAX_REPLIES_PER_CATCHUP = 5; // Catch-up mode processes more
 const MAX_REPLIES_PER_DAY = 15; // Engagement-first: 15 replies/day
 
 /** Extract rough topics from text for user memory and QT dedup */
@@ -205,7 +206,8 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     console.log(`[ET Replies] Found ${mentions.length} new mentions`);
 
     // Process mentions (reply to oldest first for natural ordering)
-    const toProcess = mentions.reverse().slice(0, MAX_REPLIES_PER_RUN);
+    const batchLimit = catchUp ? MAX_REPLIES_PER_CATCHUP : MAX_REPLIES_PER_RUN;
+    const toProcess = mentions.reverse().slice(0, batchLimit);
     const remainingBudget = MAX_REPLIES_PER_DAY - dailyCount;
     let lastProcessedId: string | null = null;
 
