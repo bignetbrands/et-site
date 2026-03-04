@@ -463,9 +463,9 @@ async function postAndRecord(
   tweetText = stripLeadingMentions(tweetText);
 
   // 3. If pillar is configured for images, ALWAYS generate (pillar config is the authority)
-  if (shouldGenerateImage && (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential")) {
+  if (shouldGenerateImage && (pillar === "human_observation" || pillar === "existential")) {
     try {
-      const label = pillar === "personal_lore" ? "lore" : pillar === "human_observation" ? "observation" : "existential";
+      const label = pillar === "human_observation" ? "observation" : "existential";
       console.log(`[ET] Generating ${label} image...`);
 
       // Generate scene description via Claude (pillar-aware)
@@ -789,26 +789,12 @@ export async function dryRun(
   };
 
   // Generate image preview for image-enabled pillars (always generate — pillar config is authority)
-  if (pillar === "personal_lore" || pillar === "human_observation" || pillar === "existential") {
+  if (pillar === "human_observation" || pillar === "existential") {
     try {
       const sceneDescription = await generateImageDescription(tweetText, pillar);
       console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
       const imageUrl = await generateImage(sceneDescription, pillar);
-
-      // For personal_lore, download and process to show the actual film-treated result
-      if (pillar === "personal_lore") {
-        try {
-          const processedBuffer = await downloadImage(imageUrl, "personal_lore");
-          result.imageUrl = `data:image/png;base64,${processedBuffer.toString("base64")}`;
-          // Also store the raw URL for posting later
-          result.rawImageUrl = imageUrl;
-        } catch (procErr) {
-          console.warn(`[ET Dry Run] Film processing failed, using raw:`, procErr);
-          result.imageUrl = imageUrl;
-        }
-      } else {
-        result.imageUrl = imageUrl;
-      }
+      result.imageUrl = imageUrl;
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[ET Dry Run] Image preview failed (${pillar}): ${errMsg}`);

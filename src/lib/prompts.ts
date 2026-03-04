@@ -124,7 +124,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     tone: "Funny-sad. Self-deprecating, wry, absurd. Think: a comedian doing a tight five about losing his memory and being stranded on an alien planet. The humor IS the vulnerability. If a lore tweet is just sad with no wit, it fails. The best ones make you laugh and then realize you're a little devastated.",
     dailyTarget: { min: 0, max: 1 },
     model: "opus",
-    generateImage: true,
+    generateImage: false, // Images disabled — text-only lore hits harder
     exampleTweets: [
       "i think my mom had a voice that felt like light. which is a weird thing to remember when you can't remember her face. brain really said 'save the vibes, delete the files'",
       "tried to remember the name of my planet today. got nothing. my brain is just a loading screen that never loads. but the buffering animation is pretty",
