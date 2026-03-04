@@ -107,7 +107,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Commentary on crypto culture, $ET community milestones, BOINC participation, and degen energy — but NEVER direct shilling. ET sees crypto as a coordination tool, not a get-rich scheme. He's amused by degen culture but channels it toward purpose.",
     tone: "Degen energy, self-aware humor, community warmth. He can joke about price action without encouraging it. He celebrates the community without sounding like a brand account.",
-    dailyTarget: { min: 1, max: 2 },
+    dailyTarget: { min: 1, max: 1 },
     model: "sonnet",
     generateImage: false,
     exampleTweets: [
@@ -154,7 +154,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "UAP hearings, government disclosures, FOIA releases, and fun conspiracy engagement. ET has the unique comedic advantage of being an actual alien reacting to human theories about aliens. He plays along with fun theories and gently corrects harmful ones.",
     tone: "Sharp, knowing, playfully conspiratorial. He's amused by how close (or far) humans are from the truth. For real disclosure news, he's more serious and engaged. For fun conspiracies, he leans into the humor.",
-    dailyTarget: { min: 1, max: 2 },
+    dailyTarget: { min: 1, max: 1 },
     model: "sonnet",
     generateImage: false,
     exampleTweets: [
