@@ -21,7 +21,6 @@ import {
   recordThreadReply,
   hasHitUserLimit,
   recordUserInteraction,
-  isThreadOnCooldown,
   getRecentQtHistory,
   recordQtReaction,
   hasQuotedTopic,
@@ -215,7 +214,6 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     // Thread dedup — track how many replies per conversation in this batch
     const batchThreadReplies = new Map<string, number>();
     const MAX_REPLIES_PER_THREAD = 8; // Let conversations flow naturally — stop at dead ends, not arbitrary caps
-    let hasCooldownSkip = false; // Track if any mention was skipped due to cooldown
 
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
@@ -262,23 +260,6 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
             replyId: "",
             skipped: true,
             skipReason: `Thread dedup (${totalInThread}/${MAX_REPLIES_PER_THREAD} replies in this thread)`,
-          });
-          continue;
-        }
-
-        // THREAD COOLDOWN — don't rapid-fire in the same conversation
-        if (await isThreadOnCooldown(mention.conversationId)) {
-          console.log(`[ET Replies] Thread cooldown — skipping @${mention.authorUsername || "?"} in conversation ${mention.conversationId} (replied < 30min ago)`);
-          // Don't record as replied — we want to come back to it later
-          hasCooldownSkip = true;
-          results.push({
-            mentionId: mention.id,
-            mentionText: mention.text,
-            authorUsername: mention.authorUsername || "someone",
-            replyText: "",
-            replyId: "",
-            skipped: true,
-            skipReason: `Thread cooldown (replied in this thread < 30min ago)`,
           });
           continue;
         }
@@ -332,11 +313,9 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
     // Not the newest fetched — otherwise unprocessed mentions are lost forever
     // In catch-up mode, don't advance cursor (these are behind it already)
     // If cooldown skips occurred, don't advance — those mentions need retrying later
-    if (lastProcessedId && !catchUp && !hasCooldownSkip) {
+    if (lastProcessedId && !catchUp) {
       await setLastMentionId(lastProcessedId);
       console.log(`[ET Replies] Cursor advanced to: ${lastProcessedId} (processed ${results.length}/${mentions.length} mentions)`);
-    } else if (hasCooldownSkip) {
-      console.log(`[ET Replies] Cursor NOT advanced — cooldown skip(s) need retrying later`);
     } else if (catchUp) {
       console.log(`[ET Replies] Catch-up mode — cursor not advanced (processed ${results.length} mentions)`);
     }
