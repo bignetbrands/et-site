@@ -41,9 +41,9 @@ export async function GET(request: Request) {
       });
     }
 
-    // Random skip for human-like response timing (~50% skip rate)
-    // With 10-min cron: replies arrive 10-20 min after mention
-    if (Math.random() < 0.5) {
+    // Random skip for human-like response timing (~30% skip rate)
+    // With 10-min cron: replies arrive 10-14 min after mention on average
+    if (Math.random() < 0.3) {
       console.log("[ET Replies Cron] Random skip — adding human delay");
       return NextResponse.json({
         processed: 0,

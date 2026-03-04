@@ -367,7 +367,7 @@ const GLOBAL_LAST_ACTION_KEY = "et:global_last_action";
 const GLOBAL_ACTION_COUNT_KEY = "et:global_action_count";
 // New account launch limits — loosen after 2 weeks if clean
 const GLOBAL_MIN_GAP_MS = 10 * 60 * 1000;  // 10 min between actions
-const GLOBAL_MAX_ACTIONS_PER_DAY = 20;      // 20/day (~8 tweets + ~12 replies)
+const GLOBAL_MAX_ACTIONS_PER_DAY = 25;      // Engagement-first: ~4 tweets + ~15 replies + headroom
 
 export async function canAct(): Promise<{ allowed: boolean; reason: string }> {
   try {
