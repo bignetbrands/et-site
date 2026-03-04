@@ -358,7 +358,7 @@ export async function hasHitUserLimit(username: string): Promise<boolean> {
 // Single chokepoint: no Twitter action can fire unless the global
 // throttle allows it. This prevents crons from stacking actions.
 //
-// 🚀 NEW ACCOUNT LAUNCH — safe limits for @etfoundyou
+// 🚀 Engagement-first limits for @etalienx
 //     Loosen to normal after 2 weeks if no issues.
 //
 // This is the PRIMARY spam prevention mechanism.

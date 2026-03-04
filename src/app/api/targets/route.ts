@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     }
 
     // Don't allow targeting ET's own account
-    if (clean === "etfoundyou") {
+    if (clean === "etalienx") {
       return NextResponse.json(
         { error: "ET can't target himself. that's just a mirror." },
         { status: 400 }

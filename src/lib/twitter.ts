@@ -571,7 +571,7 @@ export async function getOwnTweetMetrics(): Promise<Array<{
 }>> {
   assertNotHalted("getOwnTweetMetrics");
   try {
-    const results = await getClient().v2.search("from:etfoundyou -is:retweet -is:reply", {
+    const results = await getClient().v2.search("from:etalienx -is:retweet -is:reply", {
       max_results: 50,
       "tweet.fields": "public_metrics,created_at",
       sort_order: "recency",
@@ -610,7 +610,7 @@ export async function checkShadowban(): Promise<{
   assertNotHalted("checkShadowban");
 
   try {
-    const results = await getClient().v2.search("from:etfoundyou", {
+    const results = await getClient().v2.search("from:etalienx", {
       max_results: 10,
       sort_order: "recency",
       "tweet.fields": "created_at",

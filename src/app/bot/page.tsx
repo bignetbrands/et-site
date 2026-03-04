@@ -537,7 +537,7 @@ export default function BotDashboard() {
             </span>
           </div>
           <div style={{ fontSize: "10px", color: "#4a6a4a", lineHeight: "1.6" }}>
-            Fetches new @etfoundyou mentions → generates in-character replies via Claude → posts them.
+            Fetches new @etalienx mentions → generates in-character replies via Claude → posts them.
             Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
             <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
           </div>
