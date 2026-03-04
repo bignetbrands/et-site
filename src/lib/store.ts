@@ -329,7 +329,7 @@ export async function recordThreadReply(conversationId: string): Promise<void> {
 // ============================================================
 
 const USER_INTERACTIONS_KEY = "user_interactions";
-const MAX_INTERACTIONS_PER_USER_PER_DAY = 3; // Max 3 replies to same person per day
+const MAX_INTERACTIONS_PER_USER_PER_DAY = 10; // Let conversations develop naturally
 
 export async function getUserInteractionCount(username: string): Promise<number> {
   const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;

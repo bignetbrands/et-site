@@ -213,7 +213,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
     // Thread dedup — track how many replies per conversation in this batch
     const batchThreadReplies = new Map<string, number>();
-    const MAX_REPLIES_PER_THREAD = 3; // Max 3 replies per conversation per day — avoid thread-bombing
+    const MAX_REPLIES_PER_THREAD = 8; // Let conversations flow naturally — stop at dead ends, not arbitrary caps
 
     for (const mention of toProcess) {
       if (results.length >= remainingBudget) {
