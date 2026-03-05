@@ -26,6 +26,8 @@ export default function BotDashboard() {
   const [watchlist, setWatchlist] = useState<Array<{ handle: string; addedAt: string; note?: string }>>([]);
   const [watchlistLoaded, setWatchlistLoaded] = useState(false);
   const [vipUsers, setVipUsers] = useState<string[]>([]);
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [dashLoading, setDashLoading] = useState(false);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -69,6 +71,19 @@ export default function BotDashboard() {
         setVipUsers(data.vipUsers || []);
       }
     } catch (e) { /* silent */ }
+  }, [secret]);
+
+  // Load dashboard status
+  const loadDashboard = useCallback(async () => {
+    setDashLoading(true);
+    try {
+      const res = await fetch("/api/admin/status", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setDashboard(data);
+      }
+    } catch (e) { /* silent */ }
+    setDashLoading(false);
   }, [secret]);
 
   // Toggle kill switch
@@ -137,7 +152,15 @@ export default function BotDashboard() {
     checkStatus();
     loadWatchlist();
     loadVipUsers();
+    loadDashboard();
   };
+
+  // Auto-refresh dashboard every 60s
+  useEffect(() => {
+    if (!authenticated) return;
+    const interval = setInterval(loadDashboard, 60000);
+    return () => clearInterval(interval);
+  }, [authenticated, loadDashboard]);
 
   if (!authenticated) {
     return (
@@ -194,6 +217,161 @@ export default function BotDashboard() {
             {loading === "kill" ? "..." : killSwitch ? "▶ RESUME ET" : "⏸ PAUSE ET"}
           </button>
         </div>
+
+        {/* Dashboard */}
+        {dashboard && (
+          <div style={{ ...styles.panel, marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={styles.panelTitle}>◈ SYSTEM DASHBOARD</div>
+              <button
+                onClick={loadDashboard}
+                disabled={dashLoading}
+                style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}
+              >
+                {dashLoading ? "..." : "↻ REFRESH"}
+              </button>
+            </div>
+
+            {/* Blockers */}
+            <div style={{ marginBottom: "14px" }}>
+              {dashboard.blockers.map((b: string, i: number) => (
+                <div key={i} style={{
+                  padding: "6px 10px",
+                  marginBottom: "4px",
+                  background: b.includes("✅") ? "rgba(0,255,100,0.05)" : b.includes("⏳") ? "rgba(255,200,0,0.05)" : "rgba(255,0,0,0.05)",
+                  border: `1px solid ${b.includes("✅") ? "#1a3a1a" : b.includes("⏳") ? "#3a3a1a" : "#3a1a1a"}`,
+                  borderRadius: "2px",
+                  fontSize: "11px",
+                  color: b.includes("✅") ? "#39ff14" : b.includes("⏳") ? "#ffcc00" : "#ff4444",
+                  fontFamily: "monospace",
+                }}>
+                  {b}
+                </div>
+              ))}
+            </div>
+
+            {/* Gauges */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+              {[
+                {
+                  label: "ACTIONS",
+                  value: dashboard.actions.today,
+                  max: dashboard.actions.limit,
+                  color: dashboard.actions.remaining < 5 ? "#ff4444" : "#39ff14",
+                },
+                {
+                  label: "REPLIES",
+                  value: dashboard.replies.today,
+                  max: dashboard.replies.limit,
+                  color: dashboard.replies.remaining < 5 ? "#ff4444" : "#39ff14",
+                },
+                {
+                  label: "TWEETS",
+                  value: dashboard.tweets.today,
+                  max: 6,
+                  color: "#39ff14",
+                },
+              ].map((g, i) => (
+                <div key={i} style={{
+                  background: "#0a0f0a",
+                  border: "1px solid #1a2a1a",
+                  borderRadius: "2px",
+                  padding: "10px",
+                  textAlign: "center" as const,
+                }}>
+                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>{g.label}</div>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: g.color, fontFamily: "monospace" }}>
+                    {g.value}<span style={{ fontSize: "11px", color: "#3a5a3a" }}>/{g.max}</span>
+                  </div>
+                  <div style={{
+                    height: "3px",
+                    background: "#1a2a1a",
+                    borderRadius: "2px",
+                    marginTop: "6px",
+                    overflow: "hidden",
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${Math.min(100, (g.value / g.max) * 100)}%`,
+                      background: g.color,
+                      borderRadius: "2px",
+                      transition: "width 0.3s",
+                    }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Timing */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+              <div style={{
+                background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST ACTION</span>
+                <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
+                  {dashboard.throttle.lastActionMinAgo !== null ? `${dashboard.throttle.lastActionMinAgo}m ago` : "never"}
+                </span>
+              </div>
+              <div style={{
+                background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST TWEET</span>
+                <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
+                  {dashboard.tweets.lastTweetMinAgo !== null ? `${dashboard.tweets.lastTweetMinAgo}m ago` : "never"}
+                </span>
+              </div>
+            </div>
+
+            {/* Pillar Counts */}
+            <div style={{ marginBottom: "14px" }}>
+              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>PILLARS TODAY</div>
+              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
+                {Object.entries(dashboard.tweets.pillarCounts || {}).map(([pillar, count]: [string, any]) => (
+                  <div key={pillar} style={{
+                    background: count > 0 ? "rgba(0,255,100,0.08)" : "#0a0f0a",
+                    border: `1px solid ${count > 0 ? "#1a3a1a" : "#151f15"}`,
+                    borderRadius: "2px",
+                    padding: "4px 8px",
+                    fontSize: "9px",
+                    fontFamily: "monospace",
+                    color: count > 0 ? "#39ff14" : "#3a5a3a",
+                  }}>
+                    {pillar.replace("_", " ").replace("disclosure conspiracy", "disclosure")}: {String(count)}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* User Interactions */}
+            {dashboard.userInteractions && dashboard.userInteractions.length > 0 && (
+              <div>
+                <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>USER INTERACTIONS TODAY</div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "3px" }}>
+                  {dashboard.userInteractions.map((u: any) => (
+                    <div key={u.username} style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "4px 8px", background: "#0a0f0a", borderRadius: "2px",
+                      fontSize: "10px", fontFamily: "monospace",
+                    }}>
+                      <span style={{ color: u.isVip ? "#ffd700" : "#39ff14" }}>
+                        {u.isVip ? "⭐ " : ""}@{u.username}
+                      </span>
+                      <span style={{ color: u.count >= u.limit ? "#ff4444" : "#3a5a3a" }}>
+                        {u.count}/{u.limit} {u.count >= u.limit ? "⛔" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ fontSize: "8px", color: "#2a3a2a", textAlign: "right" as const, marginTop: "8px" }}>
+              updated {new Date(dashboard.timestamp).toLocaleTimeString()} · auto-refreshes every 60s
+            </div>
+          </div>
+        )}
 
         {/* Main Grid */}
         <div style={styles.grid}>
