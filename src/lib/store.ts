@@ -341,7 +341,35 @@ export async function isThreadOnCooldown(conversationId: string): Promise<boolea
 // ============================================================
 
 const USER_INTERACTIONS_KEY = "user_interactions";
-const MAX_INTERACTIONS_PER_USER_PER_DAY = 10; // Let conversations develop naturally
+const MAX_INTERACTIONS_PER_USER_PER_DAY = 10; // Default limit
+const VIP_INTERACTIONS_PER_USER_PER_DAY = 30; // VIP users get more
+const VIP_USERS_KEY = "et:vip_users";
+
+export async function getVipUsers(): Promise<string[]> {
+  try {
+    const users = await kv.smembers(VIP_USERS_KEY);
+    return (users || []).map((u: unknown) => String(u).toLowerCase());
+  } catch (e) { debugWarn("KV getVipUsers failed:", e); return []; }
+}
+
+export async function addVipUser(username: string): Promise<void> {
+  try {
+    await kv.sadd(VIP_USERS_KEY, username.toLowerCase());
+  } catch (e) { debugWarn("KV addVipUser failed:", e); }
+}
+
+export async function removeVipUser(username: string): Promise<void> {
+  try {
+    await kv.srem(VIP_USERS_KEY, username.toLowerCase());
+  } catch (e) { debugWarn("KV removeVipUser failed:", e); }
+}
+
+export async function isVipUser(username: string): Promise<boolean> {
+  try {
+    const result = await kv.sismember(VIP_USERS_KEY, username.toLowerCase());
+    return result === 1;
+  } catch (e) { debugWarn("KV isVipUser failed:", e); return false; }
+}
 
 export async function getUserInteractionCount(username: string): Promise<number> {
   const key = `${USER_INTERACTIONS_KEY}:${new Date().toISOString().split("T")[0]}`;
@@ -361,7 +389,9 @@ export async function recordUserInteraction(username: string): Promise<void> {
 
 export async function hasHitUserLimit(username: string): Promise<boolean> {
   const count = await getUserInteractionCount(username);
-  return count >= MAX_INTERACTIONS_PER_USER_PER_DAY;
+  const vip = await isVipUser(username);
+  const limit = vip ? VIP_INTERACTIONS_PER_USER_PER_DAY : MAX_INTERACTIONS_PER_USER_PER_DAY;
+  return count >= limit;
 }
 
 // ============================================================

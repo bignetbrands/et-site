@@ -25,6 +25,7 @@ export default function BotDashboard() {
   const [selectedPillar, setSelectedPillar] = useState("human_observation");
   const [watchlist, setWatchlist] = useState<Array<{ handle: string; addedAt: string; note?: string }>>([]);
   const [watchlistLoaded, setWatchlistLoaded] = useState(false);
+  const [vipUsers, setVipUsers] = useState<string[]>([]);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -55,6 +56,17 @@ export default function BotDashboard() {
         const data = await res.json();
         setWatchlist(data.accounts || []);
         setWatchlistLoaded(true);
+      }
+    } catch (e) { /* silent */ }
+  }, [secret]);
+
+  // Load VIP users
+  const loadVipUsers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/vip", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setVipUsers(data.vipUsers || []);
       }
     } catch (e) { /* silent */ }
   }, [secret]);
@@ -124,6 +136,7 @@ export default function BotDashboard() {
     e.preventDefault();
     checkStatus();
     loadWatchlist();
+    loadVipUsers();
   };
 
   if (!authenticated) {
@@ -642,6 +655,107 @@ export default function BotDashboard() {
           ) : (
             <div style={{ color: "#3a5a3a", fontSize: "10px", fontStyle: "italic", padding: "8px 0" }}>
               No accounts on watchlist. Add up to 2 accounts to monitor.
+            </div>
+          )}
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>◈ PRIORITY USERS</div>
+          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+            Priority users get 30 interactions/day (vs 10 default). Add users ET should engage with more.
+          </div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <input
+              type="text"
+              id="vipInput"
+              placeholder="@username"
+              style={{ ...styles.input, flex: 1, textAlign: "left" }}
+              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("vipAddBtn")?.click(); }}
+            />
+            <button
+              id="vipAddBtn"
+              onClick={async () => {
+                const inp = document.getElementById("vipInput") as HTMLInputElement;
+                const handle = inp?.value.trim().replace(/^@/, "");
+                if (!handle) { addLog("Enter a handle first", "warn"); return; }
+                setLoading("vipAdd");
+                addLog(`Adding @${handle} to priority list...`, "info");
+                try {
+                  const res = await fetch("/api/admin/vip", {
+                    method: "POST",
+                    headers: authHeaders,
+                    body: JSON.stringify({ action: "add", username: handle }),
+                  });
+                  const data = await res.json();
+                  if (data.error) addLog(`Error: ${data.error}`, "error");
+                  else {
+                    addLog(`✓ @${handle} added to priority list (30/day limit)`, "success");
+                    inp.value = "";
+                    setVipUsers(data.vipUsers || []);
+                  }
+                } catch (e) { addLog(`Add failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPrimary}
+            >
+              {loading === "vipAdd" ? "..." : "＋ ADD"}
+            </button>
+          </div>
+          {vipUsers.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+              {vipUsers.map((u) => (
+                <div key={u} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 12px",
+                  background: "#0a1a0a",
+                  border: "1px solid #1a3a1a",
+                  borderRadius: "2px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ color: "#ffd700", fontSize: "11px" }}>⭐</span>
+                    <span style={{ color: "#39ff14", fontWeight: 700, fontSize: "12px" }}>@{u}</span>
+                    <span style={{ color: "#3a5a3a", fontSize: "9px" }}>30/day</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLoading(`vipRm-${u}`);
+                      try {
+                        const res = await fetch("/api/admin/vip", {
+                          method: "POST",
+                          headers: authHeaders,
+                          body: JSON.stringify({ action: "remove", username: u }),
+                        });
+                        const data = await res.json();
+                        if (data.error) addLog(`Error: ${data.error}`, "error");
+                        else {
+                          addLog(`✓ @${u} removed from priority list`, "warn");
+                          setVipUsers(data.vipUsers || []);
+                        }
+                      } catch (e) { addLog(`Remove failed: ${e}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={{
+                      background: "transparent",
+                      border: "1px solid #5a2a2a",
+                      color: "#ff4444",
+                      padding: "2px 8px",
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {loading === `vipRm-${u}` ? "..." : "✕ REMOVE"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: "#3a5a3a", fontSize: "10px", fontStyle: "italic", padding: "8px 0" }}>
+              No priority users. Default limit is 10 interactions/day per user.
             </div>
           )}
         </div>
