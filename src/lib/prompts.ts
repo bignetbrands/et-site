@@ -191,7 +191,42 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 
 export const LORE_IMAGE_PROMPT_PREFIX = `Grainy 1970s analog film still, Kodak Super 8, documentary realism, underexposed night photography, practical lighting only, muted earth tones, warm sodium-vapor highlights, deep soft shadows, heavy film grain, dust particles, subtle vignette, soft lens bloom, organic lens flare, slight motion blur, imperfect exposure, handheld camera feel, quiet observational mood, grounded realism, no neon, no cyberpunk, no glossy sci-fi, no futuristic UI, no digital sharpness. Small 3-4 foot tall extraterrestrial creature with an oversized smooth bulbous head, very thin elongated neck, large dark almond-shaped eyes, small slit mouth, no nose, no hair, grey-pale skin, long thin arms and fingers, frail childlike body — clearly NOT human. Backlit rim lighting outlines the distinct alien head shape and thin frame. The figure is LIT ENOUGH to see the alien features and wrong proportions — not a dark silhouette, not a shadow, not a ghost. Ambient light catches the smooth dome of the head and the large reflective eyes. Square format (1024x1024). Scene:`;
 
-export const OBSERVATION_IMAGE_PROMPT_PREFIX = `Prehistoric cave painting on natural rough stone wall. Primitive stick figures and silhouettes painted in red ochre, burnt sienna, and dark brown pigment on tan/beige rock surface. The style matches real ancient cave art from Lascaux, Tassili n'Ajjer, and Drakensberg — simple, raw, hand-painted with mineral pigments. Figures are primitive and stick-like but clearly depicting MODERN human behaviors and technology (phones, cars, screens, offices, etc). The comedy comes from modern life rendered as if by a prehistoric observer documenting a strange species. Natural stone texture, weathered rock surface, mineral pigment colors only (red ochre, brown, black, occasional white). NO clean lines, NO digital aesthetic, NO text, NO modern art techniques. Square format (1024x1024). The scene depicts:`;
+// Multiple ancient art styles for human observation — randomly selected per image
+export const OBSERVATION_STYLES = [
+  {
+    name: "Saharan Rock Art",
+    prefix: `Ancient Saharan cave painting on warm sandstone wall. Red ochre and burnt sienna figures painted on rough beige-orange rock. Style of Tassili n'Ajjer cave art — flowing human figures, elongated limbs, dynamic movement, with large animals alongside people. Figures clearly depicting MODERN human behaviors and technology rendered as if by an ancient Saharan observer. Natural stone texture, weathered rock, mineral pigment colors (red ochre, brown, dark red). NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "flowing red figures on warm sandstone, Saharan style",
+  },
+  {
+    name: "Petroglyph Carvings",
+    prefix: `Ancient petroglyph carved into dark red-brown desert rock. Figures are etched/carved into the rock surface, revealing lighter stone underneath — the style of Native American petroglyphs from the American Southwest. Simple geometric shapes, spiral symbols, stick figures with round heads, animals as basic outlines. Figures depicting MODERN human behaviors carved as if by an ancient desert dweller. Dark patinated rock surface (desert varnish) with lighter carved lines. NO paint, NO color — only carved/etched lines on dark stone. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "carved/etched figures on dark desert rock, petroglyph style",
+  },
+  {
+    name: "South American Rock Art",
+    prefix: `Ancient South American rock painting on pale grey-green stone wall. Dense composition with many small figures — humans, animals, geometric patterns, zigzag lines, dotted rectangles — painted in dark red-brown pigment on light stone. Style of Chiribiquete or Serranía de la Lindosa cave art — busy, detailed, many small figures scattered across the rock face like a visual encyclopedia. Figures depicting MODERN human behaviors documented as if by an ancient Amazonian observer. Packed composition with dozens of small elements. NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "dense busy composition on pale stone, many small figures, South American style",
+  },
+  {
+    name: "Lascaux Cave Art",
+    prefix: `Prehistoric cave painting deep inside a dark cave. Bold animal-like figures and simple human silhouettes painted in black charcoal, red ochre, and yellow ochre on rough grey-brown cave walls. Style of Lascaux and Chauvet caves — powerful, expressive, with a sense of movement and life. Dramatic contrast between dark cave walls and bright painted figures. Figures depicting MODERN human behaviors rendered as if by an Ice Age cave painter. Rough cave ceiling and walls, soot marks, mineral pigments. NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "bold expressive figures on dark cave walls, Lascaux style",
+  },
+  {
+    name: "Australian Aboriginal Art",
+    prefix: `Ancient Australian Aboriginal rock art on rust-colored stone. X-ray style figures showing internal structures — bones, organs, and spirit lines visible inside human and animal silhouettes. White, red ochre, and yellow ochre pigments on dark weathered rock. Cross-hatching patterns (rarrk) filling body shapes. Style of Kakadu/Arnhem Land rock art — spiritual, detailed internal anatomy visible through transparent bodies. Figures depicting MODERN human behaviors rendered in this ancient X-ray vision style. NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "X-ray style figures showing internals, white and ochre on dark rock, Aboriginal style",
+  },
+];
+
+// Pick a random style
+export function getRandomObservationStyle() {
+  return OBSERVATION_STYLES[Math.floor(Math.random() * OBSERVATION_STYLES.length)];
+}
+
+// Backward compat — still exported but now picks random
+export const OBSERVATION_IMAGE_PROMPT_PREFIX = OBSERVATION_STYLES[0].prefix;
 
 export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rembrandt van Rijn. Dramatic chiaroscuro lighting — deep shadows with warm golden light illuminating the subject from a single source. Rich dark backgrounds of deep brown and black with luminous highlights on faces, hands, and key elements. Thick impasto brushwork visible in the light areas, smooth glazes in the shadows. The mood is contemplative, intimate, and profound — capturing a quiet moment of human significance. Color palette: warm golds, deep browns, burnt umber, ivory highlights against near-black backgrounds. Classical composition with Rembrandt's signature use of shadow to create depth and mystery. NOT digital, NOT clean, NOT modern. This looks like it belongs in a 17th century Dutch master collection. Square format (1024x1024). The scene depicts:`;
 
@@ -444,18 +479,17 @@ export function buildImageDescriptionPrompt(tweetText: string, pillar?: ContentP
 
 "${tweetText}"
 
-The image style is: Prehistoric cave painting on rough stone. ET documents humans the way early humans documented animals — as primitive creatures in their natural habitat. Modern behaviors rendered in ancient cave art style.
+The image style is: Ancient rock art / cave painting. ET documents humans the way early humans documented animals — as primitive creatures in their natural habitat. Modern behaviors rendered in ancient art styles.
 
-Create a short, vivid scene description (1-2 sentences) that translates the human behavior in this tweet into a cave painting scene.
+Create a short, vivid scene description (1-2 sentences) that translates the human behavior in this tweet into an ancient art scene.
 
 Rules:
-- Describe primitive stick figures and silhouettes doing the modern activity from the tweet
-- The figures should be simple, raw, cave-art style — like Lascaux or Tassili paintings
-- The comedy comes from modern things (phones, laptops, cars, offices, coffee cups) drawn as if by a prehistoric observer who doesn't understand what they're seeing
-- Painted in red ochre, brown, and black pigment on natural stone
-- Keep the description grounded in what would actually appear in a cave painting — simple shapes, stick figures, basic silhouettes
+- Describe primitive figures and silhouettes doing the modern activity from the tweet
+- The figures should be simple, raw, ancient-art style — stick figures, silhouettes, carved shapes
+- The comedy comes from modern things (phones, laptops, cars, offices, coffee cups) depicted as if by an ancient observer who doesn't understand what they're seeing
+- Keep the description grounded in what would actually appear in ancient rock art — simple shapes, basic silhouettes, hand-painted or carved
 - Never include readable text, clean digital elements, or realistic human figures
-- Think: "what if a cave painter tried to document someone scrolling TikTok"
+- Think: "what if an ancient cave painter tried to document someone scrolling TikTok"
 
 Output ONLY the scene description, nothing else.`;
   }

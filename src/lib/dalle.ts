@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { LORE_IMAGE_PROMPT_PREFIX, OBSERVATION_IMAGE_PROMPT_PREFIX, EXISTENTIAL_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, EXISTENTIAL_IMAGE_PROMPT_PREFIX } from "./prompts";
 import { ContentPillar } from "@/types";
 import { applyFilmGrain } from "./film-process";
 
@@ -16,7 +16,7 @@ function getClient(): OpenAI {
  * Generate an image using DALL-E 3 for the given pillar.
  * - personal_lore: 1970s Kodak Super 8 documentary realism — ET silhouetted, muted earth tones, practical lighting
  *   → Post-processed with real film grain, vignette, scan lines, color degradation
- * - human_observation: Prehistoric cave painting of modern behavior
+ * - human_observation: Randomly selected ancient art style (Saharan, Petroglyph, South American, Lascaux, Aboriginal)
  * - existential: Abstract Picasso/Dalí surrealism with futuristic warp
  * Returns the image URL (temporary — must be downloaded before posting).
  */
@@ -25,8 +25,12 @@ export async function generateImage(
   pillar: ContentPillar = "personal_lore"
 ): Promise<string> {
   let prefix: string;
+  let styleName = "";
   if (pillar === "human_observation") {
-    prefix = OBSERVATION_IMAGE_PROMPT_PREFIX;
+    const style = getRandomObservationStyle();
+    prefix = style.prefix;
+    styleName = style.name;
+    console.log(`[DALL-E] Observation style: ${styleName}`);
   } else if (pillar === "existential") {
     prefix = EXISTENTIAL_IMAGE_PROMPT_PREFIX;
   } else {
