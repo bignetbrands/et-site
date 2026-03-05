@@ -1,12 +1,27 @@
 // app/api/meme-tweets/route.ts
-// Analyzes a meme image with Claude and returns 5 tweet suggestions
-// Caches results per image URL to avoid repeat API calls
+// Generates, persists, and tracks tweet suggestions per meme image
+// Uses Vercel KV so tweets are shared across all users
 
 import { NextResponse } from "next/server";
+import { kv } from "@vercel/kv";
 
-// In-memory cache: imageUrl -> { tweets, timestamp }
-const cache = new Map<string, { tweets: string[]; timestamp: number }>();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — meme analysis doesn't change
+const KV_PREFIX = "et:meme-tweets:";
+
+interface StoredTweet {
+  text: string;
+  usedCount: number;
+}
+
+interface StoredMemeData {
+  tweets: StoredTweet[];
+  createdAt: number;
+}
+
+// Extract a stable image ID from CDN URL
+function imageKey(url: string): string {
+  const match = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
+  return match ? match[1] : Buffer.from(url).toString("base64").slice(0, 40);
+}
 
 const SYSTEM_PROMPT = `You are ET, an alien stranded on Earth. You're writing tweets to share meme images about yourself and your $ET token on Solana. 
 
@@ -30,18 +45,52 @@ Generate exactly 5 different tweet options. Each should be a different vibe:
 
 Respond ONLY with a JSON array of 5 strings. No markdown, no backticks, no explanation.`;
 
+// GET — retrieve saved tweets for an image (by imageId query param)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const imageId = searchParams.get("imageId");
+  if (!imageId) {
+    return NextResponse.json({ error: "imageId required" }, { status: 400 });
+  }
+  try {
+    const data = await kv.get<StoredMemeData>(`${KV_PREFIX}${imageId}`);
+    if (data) {
+      return NextResponse.json({ tweets: data.tweets, cached: true });
+    }
+    return NextResponse.json({ tweets: null });
+  } catch {
+    return NextResponse.json({ tweets: null });
+  }
+}
+
+// POST — generate tweets for an image (or return saved ones)
 export async function POST(request: Request) {
   try {
-    const { imageUrl } = await request.json();
+    const body = await request.json();
+    const { imageUrl, action, tweetIndex } = body;
+
+    // Mark a tweet as used
+    if (action === "use" && imageUrl && typeof tweetIndex === "number") {
+      const id = imageKey(imageUrl);
+      const data = await kv.get<StoredMemeData>(`${KV_PREFIX}${id}`);
+      if (data && data.tweets[tweetIndex]) {
+        data.tweets[tweetIndex].usedCount += 1;
+        await kv.set(`${KV_PREFIX}${id}`, data, { ex: 30 * 24 * 60 * 60 }); // 30 days
+        return NextResponse.json({ success: true, tweet: data.tweets[tweetIndex] });
+      }
+      return NextResponse.json({ error: "Tweet not found" }, { status: 404 });
+    }
 
     if (!imageUrl) {
       return NextResponse.json({ error: "imageUrl required" }, { status: 400 });
     }
 
-    // Check cache
-    const cached = cache.get(imageUrl);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return NextResponse.json({ tweets: cached.tweets, cached: true });
+    const id = imageKey(imageUrl);
+
+    // Check KV for existing tweets
+    const existing = await kv.get<StoredMemeData>(`${KV_PREFIX}${id}`);
+    if (existing) {
+      return NextResponse.json({ tweets: existing.tweets, cached: true });
     }
 
     // Fetch the image as base64
@@ -52,7 +101,6 @@ export async function POST(request: Request) {
     const imgBuffer = await imgRes.arrayBuffer();
     const base64 = Buffer.from(imgBuffer).toString("base64");
 
-    // Determine media type
     const contentType = imgRes.headers.get("content-type") || "image/jpeg";
     const mediaType = contentType.includes("png") ? "image/png" : "image/jpeg";
 
@@ -74,16 +122,9 @@ export async function POST(request: Request) {
             content: [
               {
                 type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType,
-                  data: base64,
-                },
+                source: { type: "base64", media_type: mediaType, data: base64 },
               },
-              {
-                type: "text",
-                text: "Write 5 tweet options for sharing this meme image. JSON array only.",
-              },
+              { type: "text", text: "Write 5 tweet options for sharing this meme image. JSON array only." },
             ],
           },
         ],
@@ -97,16 +138,14 @@ export async function POST(request: Request) {
     const claudeData = await claudeRes.json();
     const text = claudeData.content?.[0]?.text || "[]";
 
-    // Parse JSON response
-    let tweets: string[];
+    let rawTweets: string[];
     try {
       const cleaned = text.replace(/```json|```/g, "").trim();
-      tweets = JSON.parse(cleaned);
-      if (!Array.isArray(tweets)) throw new Error("Not an array");
-      tweets = tweets.slice(0, 5).map((t: string) => String(t).trim());
+      rawTweets = JSON.parse(cleaned);
+      if (!Array.isArray(rawTweets)) throw new Error("Not an array");
+      rawTweets = rawTweets.slice(0, 5).map((t: string) => String(t).trim());
     } catch {
-      // Fallback tweets if parsing fails
-      tweets = [
+      rawTweets = [
         "$ET 👽 we out here",
         "ngl this goes hard. $ET",
         "the search continues. $ET",
@@ -115,23 +154,23 @@ export async function POST(request: Request) {
       ];
     }
 
-    // Cache results
-    cache.set(imageUrl, { tweets, timestamp: Date.now() });
+    // Store with usedCount
+    const storedTweets: StoredTweet[] = rawTweets.map(t => ({ text: t, usedCount: 0 }));
+    const storeData: StoredMemeData = { tweets: storedTweets, createdAt: Date.now() };
+    await kv.set(`${KV_PREFIX}${id}`, storeData, { ex: 30 * 24 * 60 * 60 }); // 30 days
 
-    return NextResponse.json({ tweets, cached: false });
+    return NextResponse.json({ tweets: storedTweets, cached: false });
   } catch (error) {
     console.error("[/api/meme-tweets] Error:", error);
 
-    // Return fallback tweets on error
-    return NextResponse.json({
-      tweets: [
-        "$ET 👽 we out here",
-        "ngl this goes hard. $ET",
-        "the search continues. $ET",
-        "ET sees you 👽",
-        "phone home or die trying. $ET",
-      ],
-      error: true,
-    });
+    const fallback = [
+      "$ET 👽 we out here",
+      "ngl this goes hard. $ET",
+      "the search continues. $ET",
+      "ET sees you 👽",
+      "phone home or die trying. $ET",
+    ].map(t => ({ text: t, usedCount: 0 }));
+
+    return NextResponse.json({ tweets: fallback, error: true });
   }
 }

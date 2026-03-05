@@ -148,7 +148,7 @@ function MemeGallery() {
     setSelectedTweet("$ET 👽");
     setTweetOptions([]);
     setTweetLoading(true);
-    // Fetch AI tweet suggestions
+    // Fetch AI tweet suggestions (persisted in KV)
     const hiRes = url.replace("width=600", "width=3840");
     fetch("/api/meme-tweets", {
       method: "POST",
@@ -159,15 +159,39 @@ function MemeGallery() {
       .then(data => {
         if (data.tweets && data.tweets.length) {
           setTweetOptions(data.tweets);
-          setSelectedTweet(data.tweets[0]);
+          setSelectedTweet(data.tweets[0].text || data.tweets[0]);
         }
       })
       .catch(() => {
-        const fb = ["$ET 👽 we out here", "ngl this goes hard. $ET", "the search continues. $ET", "ET sees you 👽", "phone home or die trying. $ET"];
+        const fb = [
+          { text: "$ET 👽 we out here", usedCount: 0 },
+          { text: "ngl this goes hard. $ET", usedCount: 0 },
+          { text: "the search continues. $ET", usedCount: 0 },
+          { text: "ET sees you 👽", usedCount: 0 },
+          { text: "phone home or die trying. $ET", usedCount: 0 },
+        ];
         setTweetOptions(fb);
-        setSelectedTweet(fb[0]);
+        setSelectedTweet(fb[0].text);
       })
       .finally(() => setTweetLoading(false));
+  };
+
+  const markTweetUsed = (index) => {
+    if (!shareUrl) return;
+    const hiRes = shareUrl.replace("width=600", "width=3840");
+    fetch("/api/meme-tweets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: hiRes, action: "use", tweetIndex: index }),
+    })
+      .then(r => r.json())
+      .then(() => {
+        // Optimistically update count
+        setTweetOptions(prev => prev.map((t, i) =>
+          i === index ? { ...t, usedCount: (t.usedCount || 0) + 1 } : t
+        ));
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -252,18 +276,58 @@ function MemeGallery() {
                 <div style={s.tweetOptionsLoading}>🛸 ET is writing tweets...</div>
               ) : (
                 <div style={s.tweetOptionsList}>
-                  {tweetOptions.map((tweet, i) => (
-                    <button
-                      key={i}
-                      style={{
-                        ...s.tweetOption,
-                        ...(selectedTweet === tweet ? s.tweetOptionSelected : {}),
-                      }}
-                      onClick={() => setSelectedTweet(tweet)}
-                    >
-                      {tweet}
-                    </button>
-                  ))}
+                  {tweetOptions.map((tweet, i) => {
+                    const text = tweet.text || tweet;
+                    const used = tweet.usedCount || 0;
+                    const isSelected = selectedTweet === text;
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+                        <button
+                          style={{
+                            ...s.tweetOption,
+                            ...(isSelected ? s.tweetOptionSelected : {}),
+                            flex: 1,
+                            borderTopRightRadius: 0,
+                            borderBottomRightRadius: 0,
+                            borderRight: "none",
+                            textAlign: "left",
+                          }}
+                          onClick={() => setSelectedTweet(text)}
+                        >
+                          {text}
+                          {used > 0 && (
+                            <span style={{ marginLeft: 8, fontSize: "9px", opacity: 0.5, color: "#00ff64" }}>
+                              used {used}x
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          title="Tweet this"
+                          style={{
+                            background: isSelected ? "rgba(0,255,100,0.12)" : "rgba(255,255,255,0.03)",
+                            border: isSelected ? "1px solid rgba(0,255,100,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                            borderLeft: "none",
+                            borderTopRightRadius: 6,
+                            borderBottomRightRadius: 6,
+                            padding: "0 10px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            transition: "all 0.2s",
+                          }}
+                          onClick={() => {
+                            markTweetUsed(i);
+                            const encoded = encodeURIComponent(text);
+                            window.open(`https://x.com/intent/tweet?text=${encoded}`, "_blank");
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(29,155,240,0.15)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? "rgba(0,255,100,0.12)" : "rgba(255,255,255,0.03)"; }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -280,6 +344,9 @@ function MemeGallery() {
               style={s.shareCta}
               onClick={() => {
                 const text = encodeURIComponent(selectedTweet || "$ET 👽");
+                // Mark selected tweet as used
+                const idx = tweetOptions.findIndex(t => (t.text || t) === selectedTweet);
+                if (idx >= 0) markTweetUsed(idx);
                 window.open(`https://x.com/intent/tweet?text=${text}`, "_blank");
               }}
             >
