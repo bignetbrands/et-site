@@ -16,8 +16,8 @@ import { isKillSwitchActive } from "@/lib/kill-switch";
 
 export const dynamic = "force-dynamic";
 
-const MAX_REPLIES_PER_DAY = 30;
-const GLOBAL_MAX_ACTIONS_PER_DAY = 40;
+const MAX_REPLIES_PER_DAY = 50;
+const GLOBAL_MAX_ACTIONS_PER_DAY = 60;
 const GLOBAL_MIN_GAP_MS = 10 * 60 * 1000;
 const MAX_INTERACTIONS_PER_USER_PER_DAY = 10;
 const VIP_INTERACTIONS_PER_USER_PER_DAY = 30;

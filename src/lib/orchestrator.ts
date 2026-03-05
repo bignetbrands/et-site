@@ -35,7 +35,7 @@ import {
 // Max replies per cron run & per day
 const MAX_REPLIES_PER_RUN = 1; // 1 reply per cron cycle (cron runs every 10 min = natural spacing)
 const MAX_REPLIES_PER_CATCHUP = 2; // Catch-up: 2 max per manual trigger
-const MAX_REPLIES_PER_DAY = 30; // Engagement-first: 30 replies/day
+const MAX_REPLIES_PER_DAY = 50; // Engagement-first: 30 replies/day
 
 /** Extract rough topics from text for user memory and QT dedup */
 function extractTopicsFromText(text: string): string[] {
