@@ -684,7 +684,7 @@ export default function ETSiteV2() {
 
             {/* Right: Featured Tweet */}
             <div className="tweets-col-hide">
-              <a href="https://x.com/etalienx/status/2028922412348166357" target="_blank" rel="noopener noreferrer" style={s.tweetShowCard}
+              <a href="https://x.com/etalienx/status/2029677945267069261" target="_blank" rel="noopener noreferrer" style={s.tweetShowCard}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,255,100,0.2)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
               >
@@ -697,7 +697,7 @@ export default function ETSiteV2() {
                     <span style={s.tweetShowHandle}>@etalienx</span>
                   </div>
                 </div>
-                <p style={s.tweetShowBody}>your cells replace themselves every 7-10 years which means none of the matter that crashed here is still in this body. i'm literally a different pile of atoms missing the same home.</p>
+                <p style={s.tweetShowBody}>bacteria outnumber your cells 10 to 1 and they still let you think you're the one in charge of your decisions. you're not driving. you're just the dashboard</p>
                 <img src="/et-tweet-img.png" alt="ET art" style={s.tweetShowImage} />
                 <div style={s.tweetShowMeta}>
                   <span style={s.tweetShowStat}>♡ 2.1k</span>
