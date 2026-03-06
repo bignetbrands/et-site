@@ -30,6 +30,7 @@ export default function BotDashboard() {
   const [vipUsers, setVipUsers] = useState<string[]>([]);
   const [dashboard, setDashboard] = useState<any>(null);
   const [dashLoading, setDashLoading] = useState(false);
+  const [scheduled, setScheduled] = useState<any[]>([]);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -86,6 +87,17 @@ export default function BotDashboard() {
       }
     } catch (e) { /* silent */ }
     setDashLoading(false);
+  }, [secret]);
+
+  // Load scheduled tweets
+  const loadScheduled = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/scheduled", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setScheduled(data.scheduled || []);
+      }
+    } catch (e) { /* silent */ }
   }, [secret]);
 
   // Toggle kill switch
@@ -155,6 +167,7 @@ export default function BotDashboard() {
     loadWatchlist();
     loadVipUsers();
     loadDashboard();
+    loadScheduled();
   };
 
   // Auto-refresh dashboard every 60s
@@ -375,6 +388,85 @@ export default function BotDashboard() {
           </div>
         )}
 
+        {/* Scheduled Tweets */}
+        {scheduled.length > 0 && (
+          <div style={{ ...styles.panel, marginBottom: "16px" }}>
+            <div style={styles.panelTitle}>◈ SCHEDULED POSTS ({scheduled.length})</div>
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px", marginTop: "10px" }}>
+              {scheduled.map((t: any) => {
+                const when = new Date(t.scheduledAt);
+                const now = Date.now();
+                const minsLeft = Math.round((t.scheduledAt - now) / 60000);
+                const timeLabel = minsLeft > 60
+                  ? `${Math.round(minsLeft / 60)}h ${minsLeft % 60}m`
+                  : minsLeft > 0 ? `${minsLeft}m` : "due now";
+                return (
+                  <div key={t.id} style={{
+                    background: "#0a0f0a",
+                    border: "1px solid #1a3a1a",
+                    borderRadius: "2px",
+                    padding: "10px 12px",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span style={{
+                          fontSize: "9px", padding: "2px 6px",
+                          background: "rgba(0,255,100,0.1)", border: "1px solid #1a3a1a",
+                          borderRadius: "2px", color: "#39ff14", fontFamily: "monospace",
+                        }}>
+                          {t.pillar}
+                        </span>
+                        {t.hasImage && <span style={{ fontSize: "10px" }}>🖼️</span>}
+                        <span style={{ fontSize: "9px", color: "#4a6a4a" }}>
+                          {when.toLocaleString()} ({timeLabel})
+                        </span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Cancel scheduled ${t.pillar} tweet?`)) return;
+                          setLoading(`cancelSched-${t.id}`);
+                          try {
+                            const res = await fetch("/api/admin/scheduled", {
+                              method: "POST",
+                              headers: authHeaders,
+                              body: JSON.stringify({ action: "cancel", id: t.id }),
+                            });
+                            const data = await res.json();
+                            if (data.error) addLog(`Cancel failed: ${data.error}`, "error");
+                            else {
+                              addLog(`✓ Cancelled: "${data.cancelled.text}..."`, "warn");
+                              loadScheduled();
+                            }
+                          } catch (e) { addLog(`Cancel failed: ${e}`, "error"); }
+                          setLoading("");
+                        }}
+                        disabled={!!loading}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid #5a2a2a",
+                          color: "#ff4444",
+                          padding: "2px 8px",
+                          fontFamily: "monospace",
+                          fontSize: "10px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {loading === `cancelSched-${t.id}` ? "..." : "✕ CANCEL"}
+                      </button>
+                    </div>
+                    <div style={{
+                      fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
+                      lineHeight: "1.5", wordBreak: "break-word" as const,
+                    }}>
+                      {t.text.length > 200 ? t.text.substring(0, 200) + "..." : t.text}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Main Grid */}
         <div style={styles.grid}>
           {/* Left: Controls */}
@@ -502,7 +594,7 @@ export default function BotDashboard() {
                         });
                         const data = await res.json();
                         if (data.error) { addLog(`Schedule failed: ${data.error}`, "error"); }
-                        else { addLog(`✓ Scheduled for ${new Date(data.scheduledFor).toLocaleTimeString()}: "${data.tweet.slice(0, 50)}..."`, "success"); setPreview(null); }
+                        else { addLog(`✓ Scheduled for ${new Date(data.scheduledFor).toLocaleTimeString()}: "${data.tweet.slice(0, 50)}..."`, "success"); setPreview(null); loadScheduled(); }
                       } catch (e) { addLog(`Schedule failed: ${e}`, "error"); }
                       setLoading("");
                     }}
