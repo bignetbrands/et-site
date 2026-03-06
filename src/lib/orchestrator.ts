@@ -349,6 +349,25 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   // But NEVER skip CA/contract address requests — these need a response
   const textWithoutMentions = mention.text.replace(/@\w+/g, "").trim();
   const isCARequest = /^(ca|contract|address|ca\?|CA)\??$/i.test(textWithoutMentions);
+
+  // Skip OTHER people shilling CAs — Solana addresses are 32-44 base58 chars
+  // But don't skip if it's OUR CA or if they're asking for our CA
+  const OFFICIAL_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
+  const solanaAddrPattern = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
+  const foundAddresses = textWithoutMentions.match(solanaAddrPattern) || [];
+  const foreignCAs = foundAddresses.filter(addr => addr !== OFFICIAL_CA);
+  if (foreignCAs.length > 0 && !isCARequest) {
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: "CA shill (foreign contract address detected)",
+    };
+  }
   
   if (textWithoutMentions.length < 2 && !isCARequest) {
     await recordReply(mention.id);
