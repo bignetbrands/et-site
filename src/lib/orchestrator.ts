@@ -13,6 +13,8 @@ import {
   setLastMentionId,
   hasReplied,
   recordReply,
+  hasRepliedToParent,
+  recordParentReplied,
   getDailyReplyCount,
   incrementDailyReplyCount,
   hasQuotedTweet,
@@ -332,7 +334,7 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 async function processOneMention(mention: Mention): Promise<ReplyResult> {
   const authorUsername = mention.authorUsername || "someone";
 
-  // Skip if already replied
+  // Skip if already replied to this mention
   if (await hasReplied(mention.id)) {
     return {
       mentionId: mention.id,
@@ -342,6 +344,24 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       replyId: "",
       skipped: true,
       skipReason: "Already replied",
+    };
+  }
+
+  // SECOND DEDUP LAYER: Skip if ET already replied to a mention from this same author
+  // about this same parent tweet. Catches race conditions / KV inconsistency.
+  // Uses parent_tweet:author combo so different users can still mention ET on the same tweet.
+  const parentKey = mention.inReplyToId || mention.conversationId;
+  const parentAuthorKey = parentKey ? `${parentKey}:${authorUsername.toLowerCase()}` : null;
+  if (parentAuthorKey && await hasRepliedToParent(parentAuthorKey)) {
+    await recordReply(mention.id); // Mark this mention too
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: "Already replied to this user on this tweet",
     };
   }
 
@@ -452,6 +472,12 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   const replyId = await postReply(replyText, mention.id);
   console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}`);
   await recordReply(mention.id);
+
+  // Record parent+author for second dedup layer
+  const postedParentKey = mention.inReplyToId || mention.conversationId;
+  if (postedParentKey) {
+    await recordParentReplied(`${postedParentKey}:${authorUsername.toLowerCase()}`);
+  }
 
   // Record this interaction in user memory (non-blocking)
   recordUserMemoryInteraction(

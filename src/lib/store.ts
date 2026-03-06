@@ -279,6 +279,26 @@ export async function hasReplied(mentionId: string): Promise<boolean> {
   } catch (e) { debugWarn("KV read failed:", e); return false; }
 }
 
+// Second dedup layer: track which parent tweets ET has replied to
+// This catches cases where the same parent gets multiple mentions
+const REPLIED_PARENTS_KEY = "replied_parents";
+
+export async function hasRepliedToParent(parentId: string): Promise<boolean> {
+  if (!parentId) return false;
+  try {
+    const result = await kv.sismember(REPLIED_PARENTS_KEY, parentId);
+    return result === 1;
+  } catch (e) { debugWarn("KV hasRepliedToParent failed:", e); return false; }
+}
+
+export async function recordParentReplied(parentId: string): Promise<void> {
+  if (!parentId) return;
+  try {
+    await kv.sadd(REPLIED_PARENTS_KEY, parentId);
+    await kv.expire(REPLIED_PARENTS_KEY, 604800); // 7 days
+  } catch (e) { debugWarn("KV recordParentReplied failed:", e); }
+}
+
 export async function recordReply(mentionId: string): Promise<void> {
   try {
     await kv.sadd(REPLIED_KEY, mentionId);
