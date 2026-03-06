@@ -35,8 +35,8 @@ import {
 } from "./self-awareness";
 
 // Max replies per cron run & per day
-const MAX_REPLIES_PER_RUN = 1; // 1 reply per cron cycle (cron runs every 10 min = natural spacing)
-const MAX_REPLIES_PER_CATCHUP = 2; // Catch-up: 2 max per manual trigger
+const MAX_REPLIES_PER_RUN = 3; // 3 replies per cron cycle with 2-3min gaps between
+const MAX_REPLIES_PER_CATCHUP = 5; // Catch-up: 5 per manual trigger
 const MAX_REPLIES_PER_DAY = 50; // Engagement-first: 30 replies/day
 
 /** Extract rough topics from text for user memory and QT dedup */
@@ -290,9 +290,10 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
             await recordUserInteraction(mention.authorUsername);
           }
 
-          // Random delay between replies (2-3 min) to avoid shadowban
-          const delayMs = 120000 + Math.random() * 60000;
-          console.log(`[ET Replies] Waiting ${Math.round(delayMs / 60000 * 10) / 10}min before next reply...`);
+          // Random delay between replies in batch (45-90s)
+          // The 10-min cron interval provides natural spacing between batches
+          const delayMs = 45000 + Math.random() * 45000;
+          console.log(`[ET Replies] Waiting ${Math.round(delayMs / 1000)}s before next reply...`);
           await new Promise((r) => setTimeout(r, delayMs));
         }
       } catch (error) {
