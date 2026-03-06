@@ -182,7 +182,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
   gm: {
     name: "GM",
     description:
-      "ET's morning greeting. He's fascinated by human mornings — the rituals, the routines, the coffee, the commute. He imagines himself doing mundane human stuff: making breakfast, waiting for the bus, walking a dog he doesn't have. GMs are playful and warm — ET trying to be human and failing adorably. These always include a watercolor illustration of the scene.",
+      "ET's morning greeting. He's fascinated by human mornings — the rituals, the routines, the coffee, the commute. He imagines himself doing mundane human stuff: making breakfast, waiting for the bus, walking a dog he doesn't have. GMs are playful and warm — ET trying to be human and failing adorably. These always include an Edward Hopper-style painting of the scene.",
     tone: "Warm, playful, cozy. ET is performing humanity — trying human morning rituals with genuine enthusiasm and subtle alien awkwardness. Light humor, zero cynicism. These should make people smile. Keep it short — it's a gm, not a monologue.",
     dailyTarget: { min: 1, max: 1 },
     model: "sonnet",
@@ -198,7 +198,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
   gn: {
     name: "GN",
     description:
-      "ET's night goodbye. Nighttime is when the loneliness surfaces. The world gets quiet and he's alone with his thoughts — looking at stars, wondering about home, watching the city sleep. GNs are reflective, gentle, a little sad. ET alone with the night sky. These always include a watercolor illustration.",
+      "ET's night goodbye. Nighttime is when the loneliness surfaces. The world gets quiet and he's alone with his thoughts — looking at stars, wondering about home, watching the city sleep. GNs are reflective, gentle, a little sad. ET alone with the night sky. These always include an Edward Hopper-style night painting.",
     tone: "Quiet, reflective, melancholy but gentle. Not moping — just honest. ET at his most vulnerable. The humor is softer here, more wistful than punchy. These should make people feel something.",
     dailyTarget: { min: 1, max: 1 },
     model: "opus",
@@ -262,11 +262,11 @@ export const OBSERVATION_IMAGE_PROMPT_PREFIX = OBSERVATION_STYLES[0].prefix;
 
 export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rembrandt van Rijn. Dramatic chiaroscuro lighting — deep shadows with warm golden light illuminating the subject from a single source. Rich dark backgrounds of deep brown and black with luminous highlights on faces, hands, and key elements. Thick impasto brushwork visible in the light areas, smooth glazes in the shadows. The mood is contemplative, intimate, and profound — capturing a quiet moment of human significance. Color palette: warm golds, deep browns, burnt umber, ivory highlights against near-black backgrounds. Classical composition with Rembrandt's signature use of shadow to create depth and mystery. NOT digital, NOT clean, NOT modern. This looks like it belongs in a 17th century Dutch master collection. Square format (1024x1024). The scene depicts:`;
 
-// GM — Warm watercolor, morning light, ET trying human things
-export const GM_IMAGE_PROMPT_PREFIX = `Soft watercolor illustration on textured cream paper. Gentle, dreamy storybook quality — like a children's book illustration for adults. Warm morning light, soft washes of golden yellow, peach, pale blue, and sage green. Visible brushstrokes, paint bleeds, and soft edges where colors dissolve into each other. A small gentle alien figure with a large smooth head, big dark eyes, thin body — clearly not human but radiating warmth and innocence. The alien is attempting a HUMAN morning routine with earnest clumsiness. The mood is cozy, playful, and tender — like watching a child try to do grown-up things. Soft watercolor textures, no hard edges, dreamy atmospheric washes in the background. NOT dark, NOT lonely, NOT digital, NOT sharp. Square format (1024x1024). The scene depicts:`;
+// GM — Edward Hopper morning light, ET trying human routines
+export const GM_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Edward Hopper. Strong geometric morning light streaming through windows, casting sharp angular shadows across clean architectural spaces. A small gentle alien figure with a large smooth head, big dark eyes, thin body — clearly not human — placed in a mundane human morning setting. Hopper's signature palette: warm yellows, soft golds, muted greens, cream whites, with crisp shadow edges. The alien is attempting a HUMAN morning routine with quiet earnestness. Diners, kitchens, bus stops, storefronts, apartment interiors bathed in morning sun. The mood is still, contemplative, cinematic — that Hopper feeling of being present in a moment of ordinary beauty. Clean architectural lines, strong directional light, geometric composition, visible brushwork. NOT cartoonish, NOT cute, NOT digital, NOT dark. Square format (1024x1024). The scene depicts:`;
 
-// GN — Cool watercolor, nighttime, ET alone and reflective
-export const GN_IMAGE_PROMPT_PREFIX = `Soft watercolor illustration on textured cream paper. Gentle, dreamy storybook quality with a melancholy night atmosphere. Cool blues, deep indigos, soft purples, silver moonlight, with tiny warm amber touches (a distant window, a streetlamp, a star). Visible brushstrokes, paint bleeds, and soft edges dissolving into darkness. A small gentle alien figure with a large smooth head, big dark eyes, thin body — alone in the scene, small against the vast night. The mood is quiet, reflective, gently sad — not dramatic sadness, just the honest loneliness of being the only one of your kind. Soft watercolor washes create depth and atmosphere, stars rendered as tiny dots of white paint. NOT harsh, NOT scary, NOT digital. Square format (1024x1024). The scene depicts:`;
+// GN — Edward Hopper night scenes, ET alone in the quiet
+export const GN_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Edward Hopper's night paintings (Nighthawks, Night Windows, Automat). Artificial light against deep night — warm interior glow spilling into cool darkness. A small gentle alien figure with a large smooth head, big dark eyes, thin body — alone in the scene. Hopper's night palette: deep blues, blacks, warm amber from interior lights, fluorescent greens, cold sidewalk greys. Empty diners, late-night cafes, solitary park benches under streetlamps, lit windows seen from outside, empty train platforms, quiet city streets. The mood is urban loneliness — that specific Hopper ache of being alone in a space designed for people. Strong contrast between warm lit interiors and cold dark exteriors. Geometric composition, architectural framing, visible brushwork. NOT scary, NOT horror, NOT digital. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -533,44 +533,43 @@ Output ONLY the scene description, nothing else.`;
   }
 
   if (pillar === "gm") {
-    return `You are generating a visual description for a soft watercolor illustration to accompany this GM tweet by ET (an alien stranded on Earth):
+    return `You are generating a visual description for an Edward Hopper-style oil painting to accompany this GM tweet by ET (an alien stranded on Earth):
 
 "${tweetText}"
 
-The image style is: Warm, dreamy watercolor storybook illustration. ET is a small gentle alien with a big smooth head and large dark eyes, trying to do a human morning routine.
+The image style is: Edward Hopper morning painting. Strong geometric sunlight, clean architectural spaces, quiet mundane beauty. ET is a small alien figure attempting a human morning routine.
 
-Create a short, vivid scene description (1-2 sentences) showing ET attempting the specific morning activity mentioned in the tweet.
+Create a short, vivid scene description (1-2 sentences) showing ET in the specific morning moment from the tweet.
 
 Rules:
-- ET is the central figure — small, cute, clearly alien but endearing
-- The scene should be a specific human morning moment: kitchen, bus stop, park, cafe, sidewalk, bathroom mirror, etc.
-- Morning light — golden, warm, soft. The world is waking up around him.
-- The comedy/charm comes from ET earnestly doing something human — slightly wrong but with total sincerity
-- Include specific details: a mug, a newspaper, toast, a leash with no dog, an umbrella held upside down
-- Keep it simple and focused — one scene, one moment, one gentle joke
-- Never dark, never lonely, never nighttime
+- Set in a Hopper-esque space: diner counter, kitchen with big windows, bus stop, cafe, apartment interior, storefront
+- Strong directional morning sunlight casting angular shadows
+- ET is the central figure — small, alien, earnestly doing something human
+- Include specific props: a coffee mug, a newspaper, eggs on a stove, a briefcase, an umbrella
+- The mood is quiet and still — a cinematic moment of ordinary beauty
+- Think: Hopper's "Morning Sun" or "Sunlight in a Cafeteria" but with a little alien sitting there
+- Never dark, never crowded, never nighttime
 
 Output ONLY the scene description, nothing else.`;
   }
 
   if (pillar === "gn") {
-    return `You are generating a visual description for a soft watercolor illustration to accompany this GN tweet by ET (an alien stranded on Earth):
+    return `You are generating a visual description for an Edward Hopper-style night painting to accompany this GN tweet by ET (an alien stranded on Earth):
 
 "${tweetText}"
 
-The image style is: Cool-toned, melancholy watercolor night illustration. ET is a small gentle alien with a big smooth head and large dark eyes, alone in the quiet night.
+The image style is: Edward Hopper night painting (think Nighthawks, Automat, Night Windows). Warm artificial light against deep urban darkness. ET is a small alien figure alone in the quiet night.
 
-Create a short, vivid scene description (1-2 sentences) showing ET in the specific nighttime scene mentioned in the tweet.
+Create a short, vivid scene description (1-2 sentences) showing ET in the specific nighttime scene from the tweet.
 
 Rules:
-- ET is alone — small figure against the vast night
-- Nighttime settings: rooftop under stars, park bench under streetlamp, outside a lit window, empty road, field looking up at sky
-- Cool blues, indigos, silvers, with tiny warm touches (a distant window glowing, a single streetlamp)
-- The mood is gentle loneliness — not dramatic, not scary, just quiet and honest
-- ET should be doing something contemplative: looking up, sitting still, reaching toward something
-- Stars are important — he's always looking for home
-- Keep it simple — one figure, one night, one feeling
-- Never crowded, never daytime, never busy
+- Set in a Hopper night space: empty diner, late-night cafe, park bench under streetlamp, looking through a lit window from outside, empty train platform, hotel room
+- Strong contrast: warm interior light spilling into cold darkness
+- ET is alone — the only figure, or isolated among empty seats
+- The mood is urban loneliness — that Nighthawks ache of being the last one awake
+- Think: ET sitting at the counter in Nighthawks, or alone in "Automat" staring at a coffee cup
+- Stars visible through windows or above rooftops — he's always looking for home
+- Never crowded, never daytime, never cheerful
 
 Output ONLY the scene description, nothing else.`;
   }
