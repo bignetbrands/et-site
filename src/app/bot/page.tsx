@@ -421,38 +421,72 @@ export default function BotDashboard() {
                           {when.toLocaleString()} ({timeLabel})
                         </span>
                       </div>
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`Cancel scheduled ${t.pillar} tweet?`)) return;
-                          setLoading(`cancelSched-${t.id}`);
-                          try {
-                            const res = await fetch("/api/admin/scheduled", {
-                              method: "POST",
-                              headers: authHeaders,
-                              body: JSON.stringify({ action: "cancel", id: t.id }),
-                            });
-                            const data = await res.json();
-                            if (data.error) addLog(`Cancel failed: ${data.error}`, "error");
-                            else {
-                              addLog(`✓ Cancelled: "${data.cancelled.text}..."`, "warn");
-                              loadScheduled();
-                            }
-                          } catch (e) { addLog(`Cancel failed: ${e}`, "error"); }
-                          setLoading("");
-                        }}
-                        disabled={!!loading}
-                        style={{
-                          background: "transparent",
-                          border: "1px solid #5a2a2a",
-                          color: "#ff4444",
-                          padding: "2px 8px",
-                          fontFamily: "monospace",
-                          fontSize: "10px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {loading === `cancelSched-${t.id}` ? "..." : "✕ CANCEL"}
-                      </button>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Publish this ${t.pillar} tweet NOW?`)) return;
+                            setLoading(`pubSched-${t.id}`);
+                            try {
+                              const res = await fetch("/api/admin/scheduled", {
+                                method: "POST",
+                                headers: authHeaders,
+                                body: JSON.stringify({ action: "publish", id: t.id }),
+                              });
+                              const data = await res.json();
+                              if (data.error) addLog(`Publish failed: ${data.error}`, "error");
+                              else {
+                                addLog(`✓ Published: "${data.tweet.text}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success");
+                                loadScheduled();
+                              }
+                            } catch (e) { addLog(`Publish failed: ${e}`, "error"); }
+                            setLoading("");
+                          }}
+                          disabled={!!loading}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid #1a3a1a",
+                            color: "#39ff14",
+                            padding: "2px 8px",
+                            fontFamily: "monospace",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {loading === `pubSched-${t.id}` ? "..." : "🚀 POST NOW"}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Cancel scheduled ${t.pillar} tweet?`)) return;
+                            setLoading(`cancelSched-${t.id}`);
+                            try {
+                              const res = await fetch("/api/admin/scheduled", {
+                                method: "POST",
+                                headers: authHeaders,
+                                body: JSON.stringify({ action: "cancel", id: t.id }),
+                              });
+                              const data = await res.json();
+                              if (data.error) addLog(`Cancel failed: ${data.error}`, "error");
+                              else {
+                                addLog(`✓ Cancelled: "${data.cancelled.text}..."`, "warn");
+                                loadScheduled();
+                              }
+                            } catch (e) { addLog(`Cancel failed: ${e}`, "error"); }
+                            setLoading("");
+                          }}
+                          disabled={!!loading}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid #5a2a2a",
+                            color: "#ff4444",
+                            padding: "2px 8px",
+                            fontFamily: "monospace",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {loading === `cancelSched-${t.id}` ? "..." : "✕ CANCEL"}
+                        </button>
+                      </div>
                     </div>
                     <div style={{
                       fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",

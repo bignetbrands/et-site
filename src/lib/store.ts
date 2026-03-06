@@ -803,9 +803,41 @@ export async function getDueScheduledTweets(): Promise<ScheduledTweet[]> {
 }
 
 export async function removeScheduledTweet(tweet: ScheduledTweet): Promise<void> {
+  // Must match the exact stored string — fetch raw members and find by id
   try {
-    await kv.zrem(SCHEDULED_KEY, JSON.stringify(tweet));
+    const raw = await kv.zrange(SCHEDULED_KEY, 0, "+inf", { byScore: true });
+    if (!raw || raw.length === 0) return;
+    for (const item of raw) {
+      const str = typeof item === "string" ? item : JSON.stringify(item);
+      try {
+        const parsed = typeof item === "string" ? JSON.parse(item) : item;
+        if (parsed.id === tweet.id) {
+          await kv.zrem(SCHEDULED_KEY, str);
+          console.log(`[KV] Removed scheduled tweet: ${tweet.id}`);
+          return;
+        }
+      } catch { /* skip unparseable */ }
+    }
+    console.warn(`[KV] Could not find scheduled tweet ${tweet.id} to remove`);
   } catch (e) { debugWarn("KV removeScheduledTweet failed:", e); }
+}
+
+export async function removeScheduledTweetById(id: string): Promise<ScheduledTweet | null> {
+  try {
+    const raw = await kv.zrange(SCHEDULED_KEY, 0, "+inf", { byScore: true });
+    if (!raw || raw.length === 0) return null;
+    for (const item of raw) {
+      const str = typeof item === "string" ? item : JSON.stringify(item);
+      try {
+        const parsed: ScheduledTweet = typeof item === "string" ? JSON.parse(item) : item as unknown as ScheduledTweet;
+        if (parsed.id === id) {
+          await kv.zrem(SCHEDULED_KEY, str);
+          return parsed;
+        }
+      } catch { /* skip */ }
+    }
+    return null;
+  } catch (e) { debugWarn("KV removeScheduledTweetById failed:", e); return null; }
 }
 
 export async function getScheduledTweets(): Promise<ScheduledTweet[]> {

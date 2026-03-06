@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
-import { getScheduledTweets, removeScheduledTweet, deleteScheduledImage } from "@/lib/store";
+import {
+  getScheduledTweets,
+  removeScheduledTweetById,
+  deleteScheduledImage,
+  getScheduledImage,
+  recordAction,
+} from "@/lib/store";
+import { postTweet, postTweetWithImage } from "@/lib/twitter";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * GET /api/admin/scheduled — list all scheduled tweets
- * POST /api/admin/scheduled — cancel a scheduled tweet { action: "cancel", id: "..." }
+ * POST /api/admin/scheduled — cancel or publish now
+ *   { action: "cancel", id: "..." }
+ *   { action: "publish", id: "..." }
  */
 
 export async function GET(request: Request) {
@@ -33,26 +43,59 @@ export async function POST(request: Request) {
 
   const { action, id } = await request.json();
 
-  if (action !== "cancel" || !id) {
-    return NextResponse.json({ error: "action: 'cancel' and id required" }, { status: 400 });
+  if (!id || typeof id !== "string") {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
   }
 
-  const tweets = await getScheduledTweets();
-  const target = tweets.find(t => t.id === id);
-
-  if (!target) {
-    return NextResponse.json({ error: "Scheduled tweet not found" }, { status: 404 });
+  if (action === "cancel") {
+    const removed = await removeScheduledTweetById(id);
+    if (!removed) {
+      return NextResponse.json({ error: "Scheduled tweet not found" }, { status: 404 });
+    }
+    if (removed.imageKey) {
+      await deleteScheduledImage(removed.imageKey);
+    }
+    return NextResponse.json({
+      success: true,
+      action: "cancelled",
+      cancelled: { id: removed.id, text: removed.text.substring(0, 60), pillar: removed.pillar },
+    });
   }
 
-  // Clean up stored image if exists
-  if (target.imageKey) {
-    await deleteScheduledImage(target.imageKey);
+  if (action === "publish") {
+    const removed = await removeScheduledTweetById(id);
+    if (!removed) {
+      return NextResponse.json({ error: "Scheduled tweet not found" }, { status: 404 });
+    }
+
+    let tweetId: string;
+    let hasImage = false;
+
+    if (removed.imageKey) {
+      try {
+        const imageBuffer = await getScheduledImage(removed.imageKey);
+        if (imageBuffer) {
+          tweetId = await postTweetWithImage(removed.text, imageBuffer);
+          hasImage = true;
+        } else {
+          tweetId = await postTweet(removed.text);
+        }
+      } catch {
+        tweetId = await postTweet(removed.text);
+      }
+      await deleteScheduledImage(removed.imageKey);
+    } else {
+      tweetId = await postTweet(removed.text);
+    }
+
+    await recordAction();
+
+    return NextResponse.json({
+      success: true,
+      action: "published",
+      tweet: { id: tweetId, text: removed.text.substring(0, 60), pillar: removed.pillar, hasImage },
+    });
   }
 
-  await removeScheduledTweet(target);
-
-  return NextResponse.json({
-    success: true,
-    cancelled: { id: target.id, text: target.text.substring(0, 60), pillar: target.pillar },
-  });
+  return NextResponse.json({ error: "action must be 'cancel' or 'publish'" }, { status: 400 });
 }
