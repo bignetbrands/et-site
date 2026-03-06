@@ -754,7 +754,7 @@ export async function replyToSpecificTweet(
 
     console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
 
-    // 3. Try direct reply first (shows up under their tweet)
+    // 3. Post as direct reply (shows up under their tweet)
     try {
       const replyId = await postReply(replyText, tweetId);
       console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
@@ -762,33 +762,10 @@ export async function replyToSpecificTweet(
       return { success: true, tweetId, replyText, replyId, method: "reply" };
     } catch (replyError: any) {
       const status = replyError?.data?.status || replyError?.code;
-      console.warn(`[ET Reply] Direct reply failed (${status}), trying quote tweet...`);
-
-      // 4. Fallback: quote tweet
-      try {
-        const cleanReply = stripLeadingMentions(replyText);
-        const qtId = await postQuoteTweet(cleanReply, tweetId);
-        await markTweetQuoted(tweetId);
-        console.log(`[ET Reply] ✓ Posted quote tweet ${qtId} for tweet ${tweetId}`);
-        return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
-      } catch (qtError: any) {
-        const qtStatus = qtError?.data?.status || qtError?.code;
-        console.warn(`[ET Reply] Quote tweet failed (${qtStatus}), posting as standalone+link...`);
-
-        // 5. Final fallback: standalone tweet with link
-        const tweetLink = `https://x.com/${author}/status/${tweetId}`;
-        const maxTextLen = 280 - 23 - 2;
-        const cleanReply = stripLeadingMentions(replyText);
-        const trimmedText = cleanReply.length > maxTextLen
-          ? cleanReply.substring(0, maxTextLen - 3) + "..."
-          : cleanReply;
-        const fullTweet = `${trimmedText}\n\n${tweetLink}`;
-
-        const mentionId = await postTweet(fullTweet);
-        await markTweetQuoted(tweetId);
-        console.log(`[ET Reply] ✓ Posted standalone+link ${mentionId}`);
-        return { success: true, tweetId, replyText: trimmedText, replyId: mentionId, method: "standalone+link" };
-      }
+      const msg = replyError?.message || String(replyError);
+      console.error(`[ET Reply] Direct reply failed (${status}): ${msg}`);
+      // No fallback — quote tweets and standalone links look unnatural
+      return { success: false, error: `Reply failed (${status}): ${msg}` };
     }
   } catch (error: any) {
     const details = error?.data || error?.errors || error?.message || error;
