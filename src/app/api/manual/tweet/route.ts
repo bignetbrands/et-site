@@ -103,6 +103,17 @@ export async function POST(request: Request) {
           createdAt: new Date().toISOString(),
         });
 
+        // Record pillar count NOW so cron doesn't fire a duplicate
+        // (especially important for gm/gn which are 1/day)
+        const { recordTweet } = await import("@/lib/store");
+        await recordTweet({
+          id: tweetId,
+          text: previewText,
+          pillar,
+          postedAt: new Date().toISOString(),
+          hasImage: !!imageKey,
+        });
+
         return NextResponse.json({
           mode: "scheduled",
           scheduledFor: scheduledDate.toISOString(),

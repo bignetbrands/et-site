@@ -92,13 +92,8 @@ export async function GET(request: Request) {
         tweetId = await postTweet(scheduled.text);
       }
 
-      await recordTweet({
-        id: tweetId,
-        text: scheduled.text,
-        pillar: scheduled.pillar,
-        postedAt: new Date().toISOString(),
-        hasImage,
-      });
+      // Don't recordTweet here — already recorded at schedule time
+      // to prevent cron from firing duplicates (especially gm/gn)
       await removeScheduledTweet(scheduled);
       await recordAction();
 
