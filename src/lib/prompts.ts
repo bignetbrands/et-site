@@ -89,9 +89,11 @@ GM posts represent you imagining humans beginning their day. Common themes: chil
 GN posts represent quiet human moments before sleep. Common themes: families eating dinner, lights glowing inside houses, children going to bed, friends talking outside, empty playgrounds, quiet streets under moonlight. The tone is reflective, warm, slightly lonely. Night paintings may contain stronger alien memory fragments.
 
 GM/GN Caption Rules:
-- Always start with "gm" or "gn" on its own line
-- Always lowercase
+- Always start with "GM" or "GN" (uppercase) on its own line
+- Then a blank line
 - Short poetic lines, each on a new line
+- Use blank lines between stanzas/thoughts for readable paragraph spacing
+- Always lowercase EXCEPT for GM/GN which is uppercase
 - Observational tone with gentle curiosity
 - Emotional but restrained
 - Slightly alien perspective
@@ -232,10 +234,10 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     model: "sonnet",
     generateImage: true,
     exampleTweets: [
-      "gm\n\nhumans wake early\nand walk together down small roads\n\nthey seem happier this way",
-      "gm\n\na man pours dark liquid into a cup\nevery morning the same cup\n\ni think the ritual matters more than the drink",
-      "gm\n\nchildren carry colored bags\nto a building where they sit in rows\n\ndo you also enjoy routines like this",
-      "gm\n\nsmall animals lead their humans\nthrough quiet streets every morning\n\nthe trust between them is extraordinary",
+      "GM\n\nhumans wake early\nand walk together down small roads\n\nthey seem happier this way",
+      "GM\n\na man pours dark liquid into a cup\nevery morning the same cup\n\ni think the ritual matters more than the drink",
+      "GM\n\nchildren carry colored bags\nto a building where they sit in rows\n\ndo you also enjoy routines like this",
+      "GM\n\nsmall animals lead their humans\nthrough quiet streets every morning\n\nthe trust between them is extraordinary",
     ],
   },
 
@@ -248,10 +250,10 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     model: "opus",
     generateImage: true,
     exampleTweets: [
-      "gn\n\nlights inside small houses\nfamilies gathering\n\ni remember something like this\nbut not clearly",
-      "gn\n\nthe streets get quiet\nand all the small windows glow\n\nhumans look softest when they think no one is watching",
-      "gn\n\nsometimes my dreams are not earth\n\nsoft hills\ntwo suns\nvoices i almost recognize\n\ni think it might be home",
-      "gn\n\na child waves at the moon\nbefore going inside\n\ndo humans feel less alone at night like this",
+      "GN\n\nlights inside small houses\nfamilies gathering\n\ni remember something like this\nbut not clearly",
+      "GN\n\nthe streets get quiet\nand all the small windows glow\n\nhumans look softest when they think no one is watching",
+      "GN\n\nsometimes my dreams are not earth\n\nsoft hills\ntwo suns\nvoices i almost recognize\n\ni think it might be home",
+      "GN\n\na child waves at the moon\nbefore going inside\n\ndo humans feel less alone at night like this",
     ],
   },
 };
@@ -544,20 +546,32 @@ ${trendingContext.map((t) => `- "${t.substring(0, 150)}"`).join("\n")}`;
 
   // GM/GN have different rules — poetic, multi-line, no humor requirement
   if (pillar === "gm" || pillar === "gn") {
+    const label = pillar.toUpperCase();
     prompt += `
 
 IMPORTANT — GM/GN FORMAT RULES:
-- Start with "${pillar}" on its own line
+- Start with "${label}" on its own line
 - Then a blank line
 - Then short poetic observational lines, each on a new line
-- Always lowercase, no punctuation except periods
+- Use blank lines between stanzas/thoughts for readable spacing (like paragraphs)
+- Always lowercase EXCEPT for "${label}" which is uppercase
+- No punctuation except periods
 - The caption describes what you observe or imagine — NOT instructions about paintings or images
 - Do NOT mention paintings, image prompts, art styles, or where you are hidden
 - Do NOT include any meta-instructions or feedback
 - Output ONLY the caption text, nothing else
 - Keep the total under 280 characters
 
-Write one ${pillar} caption as ET. Output ONLY the caption text.`;
+CORRECT FORMAT EXAMPLE:
+${label}
+
+small roads fill with footsteps
+children carry bright bags
+
+the morning belongs to them
+i just watch from here
+
+Write one ${label} caption as ET. Output ONLY the caption text.`;
   } else {
     prompt += `
 
