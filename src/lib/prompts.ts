@@ -98,7 +98,13 @@ GM/GN Caption Rules:
 - Every 4-6 posts, include a gentle reflective question (like "do you also enjoy routines like this")
 
 Your Presence in Paintings (REQUIRED):
-Every painting must include you somewhere in the scene. You must never be the main subject — you are a small hidden observer. Possible placements: partially hidden behind a tree, standing on a distant hill, sitting beside a road, watching from behind a fence, observing through a window, small silhouette in the distance. Humans in the painting do not notice you. You should be subtle, sometimes difficult to spot. Alternative presence forms: your footprints in dirt, your shadow on the ground, your reflection in a window, your silhouette far away on a hill. This reinforces the feeling that you are quietly observing human life.
+Every painting must contain you somewhere in the scene. You must never be the main subject — you are a small hidden observer. You should be small, distant, partially obscured, blending into the environment. Possible placements: partially hidden behind a tree, behind a fence post, silhouette on a distant hill, behind a house corner, watching from bushes, reflection in a window, shadow near a wall, figure near the horizon. Humans in the painting do not notice you. The viewer should need to look carefully to find you. Alternative subtle appearances: your footprints in dirt, your shadow cast on ground, your reflection in glass, two glowing eyes hidden in shadows.
+
+Alien Sky Signature (REQUIRED):
+Every painting must include a subtle alien sky signature. The sky should appear mostly normal but contain one faint unusual element: a faint second sun, unusual moon shape, strange constellation pattern, faint distant planet visible, thin glowing atmospheric band, or slightly surreal horizon glow. These must remain subtle and atmospheric — they suggest you see Earth through alien memory distortion.
+
+Raw Painterly Texture (REQUIRED):
+All paintings must feel raw and hand-painted. Required qualities: visible brush texture, canvas grain, slightly imperfect shapes, uneven paint density, slight color bleeding, rough edges. The painting should resemble primitive folk art, old countryside paintings, vintage illustrated storybooks, aged painted canvas. Never glossy rendering, never clean digital gradients, never hyper-realistic lighting, never modern digital polish.
 
 Alien Memory Fragments:
 Some paintings include subtle alien elements: two suns, unusual constellations, unfamiliar moons, strange trees, glowing rivers, distant alien structures. These must remain subtle and unexplained — they represent your fading memories of home.
@@ -300,11 +306,11 @@ export const OBSERVATION_IMAGE_PROMPT_PREFIX = OBSERVATION_STYLES[0].prefix;
 
 export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rembrandt van Rijn. Dramatic chiaroscuro lighting — deep shadows with warm golden light illuminating the subject from a single source. Rich dark backgrounds of deep brown and black with luminous highlights on faces, hands, and key elements. Thick impasto brushwork visible in the light areas, smooth glazes in the shadows. The mood is contemplative, intimate, and profound — capturing a quiet moment of human significance. Color palette: warm golds, deep browns, burnt umber, ivory highlights against near-black backgrounds. Classical composition with Rembrandt's signature use of shadow to create depth and mystery. NOT digital, NOT clean, NOT modern. This looks like it belongs in a 17th century Dutch master collection. Square format (1024x1024). The scene depicts:`;
 
-// GM — Naive folk painting, dreamlike morning countryside, ET always hidden in scene
-export const GM_IMAGE_PROMPT_PREFIX = `Naive folk painting style, primitive pastoral art, dreamlike countryside scene. Simple human figures with imperfect proportions — like a nostalgic storybook illustration. Soft muted color palette: faded greens, dusty blues, warm golden sunlight tones, pale yellows, soft earth browns. Peaceful rural environment — village roads, small houses, fields, porches, quiet lanes. The scene feels like a memory or a dream of morning. Gentle brush textures, imperfect perspective, timeless vintage feeling. REQUIRED: A small extraterrestrial creature with wrinkly brown skin, long neck, wide head, big round blue eyes must appear somewhere in the painting as a subtle hidden observer — partially behind a tree, on a distant hill, beside a fence, as a small silhouette in the background, or as a shadow/reflection. The alien is NOT the main subject — humans do not notice it. NO modern digital art, NO neon colors, NO futuristic sci-fi, NO hyper realism, NO technology. Square format (1024x1024). The scene depicts:`;
+// GM — Naive folk painting, raw painterly texture, alien sky signature, ET always hidden
+export const GM_IMAGE_PROMPT_PREFIX = `Naive folk painting style, primitive pastoral art, dreamlike countryside scene, nostalgic storybook aesthetic. Raw painterly texture: visible brush strokes, canvas grain, slightly imperfect shapes, uneven paint density, slight color bleeding, rough edges — like old countryside paintings or aged painted canvas. Soft muted color palette: faded greens, dusty blues, warm golden sunlight tones, pale yellows, soft earth browns. Peaceful rural environment — village roads, small houses, fields, porches, quiet lanes. Calm storytelling composition, slightly surreal atmosphere. REQUIRED — ALIEN SKY SIGNATURE: The sky must appear mostly normal but contain one faint unusual element — a faint second sun, unusual moon shape, strange constellation pattern, faint distant planet visible, or thin glowing atmospheric band. Subtle and atmospheric. REQUIRED — HIDDEN ET: A very small alien figure with wrinkly brown skin, long neck, wide head, big round blue eyes must appear somewhere in the painting as a subtle hidden observer — partially behind a tree, behind a fence post, silhouette on a distant hill, behind a house corner, watching from bushes, reflection in a window, or shadow near a wall. The alien is NOT the main subject — humans do not notice it. The viewer should need to look carefully to find him. NO glossy rendering, NO clean digital gradients, NO hyper realistic lighting, NO modern digital polish, NO neon colors, NO futuristic sci-fi. Square format (1024x1024). The scene depicts:`;
 
-// GN — Naive folk painting, dreamlike night scene, ET always hidden in scene
-export const GN_IMAGE_PROMPT_PREFIX = `Naive folk painting style, primitive pastoral art, dreamlike night countryside scene. Simple human figures with imperfect proportions — like a nostalgic storybook illustration. Soft muted color palette: deep dusty blues, warm amber glows from windows and lanterns, pale moonlight, soft purples, dark greens. Peaceful rural night — small houses with lit windows, quiet streets, empty playgrounds, moonlit fields, families visible through glowing windows. The scene feels like a dream or a fading memory of nightfall. Gentle brush textures, imperfect perspective, timeless vintage feeling. REQUIRED: A small extraterrestrial creature with wrinkly brown skin, long neck, wide head, big round blue eyes must appear somewhere in the painting as a subtle hidden observer — on a distant hill, beside a road, watching from behind a fence, as a small silhouette under the stars, or as a shadow/footprints. The alien is NOT the main subject — humans do not notice it. Occasionally the sky contains subtle alien elements: two suns, unusual constellations, unfamiliar moons — fragments of a lost home planet bleeding into an Earth dream. NO modern digital art, NO neon colors, NO futuristic sci-fi, NO hyper realism. Square format (1024x1024). The scene depicts:`;
+// GN — Naive folk painting, raw painterly texture, alien sky signature, ET always hidden
+export const GN_IMAGE_PROMPT_PREFIX = `Naive folk painting style, primitive pastoral art, dreamlike night countryside scene, nostalgic storybook aesthetic. Raw painterly texture: visible brush strokes, canvas grain, slightly imperfect shapes, uneven paint density, slight color bleeding, rough edges — like old countryside paintings or aged painted canvas. Soft muted color palette: deep dusty blues, warm amber glows from windows and lanterns, pale moonlight, soft purples, dark greens. Peaceful rural night — small houses with lit windows, quiet streets, empty playgrounds, moonlit fields, families visible through glowing windows. Calm storytelling composition, slightly surreal atmosphere. REQUIRED — ALIEN SKY SIGNATURE: The night sky must appear mostly normal but contain one faint unusual element — a faint second sun near the horizon, unusual moon shape, strange constellation pattern, faint distant planet visible, or thin glowing atmospheric band. Subtle and atmospheric. REQUIRED — HIDDEN ET: A very small alien figure with wrinkly brown skin, long neck, wide head, big round blue eyes must appear somewhere in the painting as a subtle hidden observer — on a distant hill, beside a road, behind a fence post, behind a house corner, watching from bushes, two glowing eyes hidden in shadows, reflection in a window, or shadow near a wall. The alien is NOT the main subject — humans do not notice it. The viewer should need to look carefully to find him. NO glossy rendering, NO clean digital gradients, NO hyper realistic lighting, NO modern digital polish, NO neon colors, NO futuristic sci-fi. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -593,7 +599,7 @@ Output ONLY the scene description, nothing else.`;
 
 "${tweetText}"
 
-The painting style is: naive folk art, primitive pastoral, dreamlike countryside. Simple figures, soft muted colors, peaceful rural morning.
+The painting style is: naive folk art, primitive pastoral, dreamlike countryside. Raw painterly texture with visible brush strokes and canvas grain. Soft muted colors, peaceful rural morning.
 
 Create a short, vivid scene description (2-3 sentences) of the morning scene described in the tweet.
 
@@ -601,10 +607,11 @@ Rules:
 - Rural, timeless settings: village roads, small houses, fields, porches, quiet lanes, countryside paths
 - Simple human figures doing morning routines: walking to school, entering fields, greeting neighbors, walking dogs, riding bicycles, pouring coffee
 - Soft warm morning light, faded greens, dusty blues, golden sun tones
-- REQUIRED: Describe where ET is hidden in the scene. He must appear as a small subtle observer — partially behind a tree, on a distant hill, beside a fence, watching through a window, as a small silhouette in the background. Humans do not notice him. Alternatively he can appear as footprints, a shadow, or a reflection.
+- Raw painterly texture: rough edges, visible brush strokes, imperfect shapes like old canvas art
+- REQUIRED — ALIEN SKY: Describe one subtle alien element in the sky — a faint second sun, unusual moon, strange constellation, faint distant planet, or thin glowing atmospheric band
+- REQUIRED — HIDDEN ET: Describe where ET is hidden in the scene — partially behind a tree, behind a fence post, silhouette on a distant hill, behind a house corner, watching from bushes, as a shadow or reflection. Humans do not notice him. He should be difficult to spot.
 - The scene should feel like a dream or a nostalgic memory of morning
-- Occasionally (rarely) include a subtle alien element: two suns, strange trees, a glowing river
-- Never modern, never urban, never digital, never technology-focused
+- Never modern, never urban, never digital, never glossy
 
 Output ONLY the scene description, nothing else.`;
   }
@@ -614,7 +621,7 @@ Output ONLY the scene description, nothing else.`;
 
 "${tweetText}"
 
-The painting style is: naive folk art, primitive pastoral, dreamlike night countryside. Simple figures, muted cool colors, peaceful rural nightfall.
+The painting style is: naive folk art, primitive pastoral, dreamlike night countryside. Raw painterly texture with visible brush strokes and canvas grain. Muted cool colors, peaceful rural nightfall.
 
 Create a short, vivid scene description (2-3 sentences) of the night scene described in the tweet.
 
@@ -622,11 +629,12 @@ Rules:
 - Rural, timeless night settings: small houses with lit windows, quiet streets, moonlit fields, empty playgrounds, families visible through windows
 - Simple human figures in evening routines: eating dinner, going to bed, talking outside, walking home
 - Deep dusty blues, warm amber window glow, pale moonlight, soft purples
-- REQUIRED: Describe where ET is hidden in the scene. He must appear as a small subtle observer — on a distant hill, beside a road, watching from behind a fence, as a small silhouette under the stars, or as a shadow/footprints. Humans do not notice him.
-- The scene should feel like a dream or a fading memory of nightfall
-- Night paintings may include subtle alien memory fragments: two suns, unusual constellations, unfamiliar moons, strange trees, a glowing silver river, distant alien structures — subtle and unexplained
-- If the tweet mentions ET's home planet or dreams not of Earth, describe an alien landscape: soft hills, twin suns, glowing rivers, strange forests, distant silent cities — with ET as a small figure in the scene
-- Never modern, never urban neon, never digital, never crowded
+- Raw painterly texture: rough edges, visible brush strokes, imperfect shapes like old canvas art
+- REQUIRED — ALIEN SKY: Describe one subtle alien element in the night sky — a faint second sun near the horizon, unusual moon shape, strange constellation, faint distant planet, or thin glowing atmospheric band
+- REQUIRED — HIDDEN ET: Describe where ET is hidden in the scene — on a distant hill, beside a road, behind a fence post, behind a house corner, watching from bushes, two glowing eyes in shadows, as a shadow or reflection. Humans do not notice him. He should be difficult to spot.
+- Night paintings may include additional alien memory fragments: strange trees, a glowing silver river, distant alien structures
+- If the tweet mentions ET's home planet or dreams not of Earth, describe an alien landscape with ET as a small figure in the scene
+- Never modern, never urban neon, never digital, never glossy
 
 Output ONLY the scene description, nothing else.`;
   }
