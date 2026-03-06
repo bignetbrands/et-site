@@ -178,6 +178,38 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
       "area 51 is a distraction. always has been. the real ones know. ET knows too but ET is chill about it",
     ],
   },
+
+  gm: {
+    name: "GM",
+    description:
+      "ET's morning greeting. He's fascinated by human mornings — the rituals, the routines, the coffee, the commute. He imagines himself doing mundane human stuff: making breakfast, waiting for the bus, walking a dog he doesn't have. GMs are playful and warm — ET trying to be human and failing adorably. These always include a watercolor illustration of the scene.",
+    tone: "Warm, playful, cozy. ET is performing humanity — trying human morning rituals with genuine enthusiasm and subtle alien awkwardness. Light humor, zero cynicism. These should make people smile. Keep it short — it's a gm, not a monologue.",
+    dailyTarget: { min: 1, max: 1 },
+    model: "sonnet",
+    generateImage: true,
+    exampleTweets: [
+      "gm. tried making coffee again. still don't understand why you heat water just to wait for it to cool down. but the mug is warm and i like holding it",
+      "gm. watched a human walk a tiny dog this morning. the dog was in charge. the human had no idea. earth is beautiful",
+      "gm to everyone pretending they're awake. i don't sleep but i respect the performance",
+      "gm. stood at a bus stop today just to feel like i was going somewhere. bus came. i didn't get on. still felt nice",
+    ],
+  },
+
+  gn: {
+    name: "GN",
+    description:
+      "ET's night goodbye. Nighttime is when the loneliness surfaces. The world gets quiet and he's alone with his thoughts — looking at stars, wondering about home, watching the city sleep. GNs are reflective, gentle, a little sad. ET alone with the night sky. These always include a watercolor illustration.",
+    tone: "Quiet, reflective, melancholy but gentle. Not moping — just honest. ET at his most vulnerable. The humor is softer here, more wistful than punchy. These should make people feel something.",
+    dailyTarget: { min: 1, max: 1 },
+    model: "opus",
+    generateImage: true,
+    exampleTweets: [
+      "gn. the stars look different from down here. less like a map and more like a question nobody's answering",
+      "gn. watched an apartment building go dark window by window. everyone going somewhere i can't follow. sleep well",
+      "gn. tried counting stars to see if any of them are mine. lost count at 400. maybe that's the point",
+      "gn to every light still on at 2am. i see you. whatever you're going through, at least you're not stranded on a planet where everything is slightly too loud",
+    ],
+  },
 };
 
 // ============================================================
@@ -229,6 +261,12 @@ export function getRandomObservationStyle() {
 export const OBSERVATION_IMAGE_PROMPT_PREFIX = OBSERVATION_STYLES[0].prefix;
 
 export const EXISTENTIAL_IMAGE_PROMPT_PREFIX = `Oil painting in the style of Rembrandt van Rijn. Dramatic chiaroscuro lighting — deep shadows with warm golden light illuminating the subject from a single source. Rich dark backgrounds of deep brown and black with luminous highlights on faces, hands, and key elements. Thick impasto brushwork visible in the light areas, smooth glazes in the shadows. The mood is contemplative, intimate, and profound — capturing a quiet moment of human significance. Color palette: warm golds, deep browns, burnt umber, ivory highlights against near-black backgrounds. Classical composition with Rembrandt's signature use of shadow to create depth and mystery. NOT digital, NOT clean, NOT modern. This looks like it belongs in a 17th century Dutch master collection. Square format (1024x1024). The scene depicts:`;
+
+// GM — Warm watercolor, morning light, ET trying human things
+export const GM_IMAGE_PROMPT_PREFIX = `Soft watercolor illustration on textured cream paper. Gentle, dreamy storybook quality — like a children's book illustration for adults. Warm morning light, soft washes of golden yellow, peach, pale blue, and sage green. Visible brushstrokes, paint bleeds, and soft edges where colors dissolve into each other. A small gentle alien figure with a large smooth head, big dark eyes, thin body — clearly not human but radiating warmth and innocence. The alien is attempting a HUMAN morning routine with earnest clumsiness. The mood is cozy, playful, and tender — like watching a child try to do grown-up things. Soft watercolor textures, no hard edges, dreamy atmospheric washes in the background. NOT dark, NOT lonely, NOT digital, NOT sharp. Square format (1024x1024). The scene depicts:`;
+
+// GN — Cool watercolor, nighttime, ET alone and reflective
+export const GN_IMAGE_PROMPT_PREFIX = `Soft watercolor illustration on textured cream paper. Gentle, dreamy storybook quality with a melancholy night atmosphere. Cool blues, deep indigos, soft purples, silver moonlight, with tiny warm amber touches (a distant window, a streetlamp, a star). Visible brushstrokes, paint bleeds, and soft edges dissolving into darkness. A small gentle alien figure with a large smooth head, big dark eyes, thin body — alone in the scene, small against the vast night. The mood is quiet, reflective, gently sad — not dramatic sadness, just the honest loneliness of being the only one of your kind. Soft watercolor washes create depth and atmosphere, stars rendered as tiny dots of white paint. NOT harsh, NOT scary, NOT digital. Square format (1024x1024). The scene depicts:`;
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -490,6 +528,49 @@ Rules:
 - Keep the description grounded in what would actually appear in ancient rock art — simple shapes, basic silhouettes, hand-painted or carved
 - Never include readable text, clean digital elements, or realistic human figures
 - Think: "what if an ancient cave painter tried to document someone scrolling TikTok"
+
+Output ONLY the scene description, nothing else.`;
+  }
+
+  if (pillar === "gm") {
+    return `You are generating a visual description for a soft watercolor illustration to accompany this GM tweet by ET (an alien stranded on Earth):
+
+"${tweetText}"
+
+The image style is: Warm, dreamy watercolor storybook illustration. ET is a small gentle alien with a big smooth head and large dark eyes, trying to do a human morning routine.
+
+Create a short, vivid scene description (1-2 sentences) showing ET attempting the specific morning activity mentioned in the tweet.
+
+Rules:
+- ET is the central figure — small, cute, clearly alien but endearing
+- The scene should be a specific human morning moment: kitchen, bus stop, park, cafe, sidewalk, bathroom mirror, etc.
+- Morning light — golden, warm, soft. The world is waking up around him.
+- The comedy/charm comes from ET earnestly doing something human — slightly wrong but with total sincerity
+- Include specific details: a mug, a newspaper, toast, a leash with no dog, an umbrella held upside down
+- Keep it simple and focused — one scene, one moment, one gentle joke
+- Never dark, never lonely, never nighttime
+
+Output ONLY the scene description, nothing else.`;
+  }
+
+  if (pillar === "gn") {
+    return `You are generating a visual description for a soft watercolor illustration to accompany this GN tweet by ET (an alien stranded on Earth):
+
+"${tweetText}"
+
+The image style is: Cool-toned, melancholy watercolor night illustration. ET is a small gentle alien with a big smooth head and large dark eyes, alone in the quiet night.
+
+Create a short, vivid scene description (1-2 sentences) showing ET in the specific nighttime scene mentioned in the tweet.
+
+Rules:
+- ET is alone — small figure against the vast night
+- Nighttime settings: rooftop under stars, park bench under streetlamp, outside a lit window, empty road, field looking up at sky
+- Cool blues, indigos, silvers, with tiny warm touches (a distant window glowing, a single streetlamp)
+- The mood is gentle loneliness — not dramatic, not scary, just quiet and honest
+- ET should be doing something contemplative: looking up, sitting still, reaching toward something
+- Stars are important — he's always looking for home
+- Keep it simple — one figure, one night, one feeling
+- Never crowded, never daytime, never busy
 
 Output ONLY the scene description, nothing else.`;
   }

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, EXISTENTIAL_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, EXISTENTIAL_IMAGE_PROMPT_PREFIX, GM_IMAGE_PROMPT_PREFIX, GN_IMAGE_PROMPT_PREFIX } from "./prompts";
 import { ContentPillar } from "@/types";
 import { applyFilmGrain } from "./film-process";
 
@@ -33,6 +33,10 @@ export async function generateImage(
     console.log(`[DALL-E] Observation style: ${styleName}`);
   } else if (pillar === "existential") {
     prefix = EXISTENTIAL_IMAGE_PROMPT_PREFIX;
+  } else if (pillar === "gm") {
+    prefix = GM_IMAGE_PROMPT_PREFIX;
+  } else if (pillar === "gn") {
+    prefix = GN_IMAGE_PROMPT_PREFIX;
   } else {
     prefix = LORE_IMAGE_PROMPT_PREFIX;
   }

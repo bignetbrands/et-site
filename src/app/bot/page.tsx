@@ -10,9 +10,11 @@ const PILLARS = [
   { id: "human_observation", name: "Human Observation", icon: "👁️", desc: "Alien perspective on human behavior" },
   { id: "research_drop", name: "Research Drop", icon: "📡", desc: "SETI, Einstein@home, space science" },
   { id: "crypto_community", name: "Crypto / Community", icon: "⚡", desc: "$ET updates, degen culture, BOINC" },
-  { id: "personal_lore", name: "Personal Lore", icon: "🌑", desc: "Memories, the crash, parents (+ image)" },
+  { id: "personal_lore", name: "Personal Lore", icon: "🌑", desc: "Memories, the crash, parents" },
   { id: "existential", name: "Existential", icon: "🌌", desc: "Big questions, loneliness, meaning" },
   { id: "disclosure_conspiracy", name: "Disclosure", icon: "🛸", desc: "UAP hearings, fun conspiracies" },
+  { id: "gm", name: "GM", icon: "☀️", desc: "Morning greeting + watercolor (7-10AM EST)" },
+  { id: "gn", name: "GN", icon: "🌙", desc: "Night goodbye + watercolor (9PM-1AM EST)" },
 ];
 
 export default function BotDashboard() {

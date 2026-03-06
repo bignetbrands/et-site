@@ -43,6 +43,8 @@ const ALL_PILLARS: ContentPillar[] = [
   "personal_lore",
   "existential",
   "disclosure_conspiracy",
+  "gm",
+  "gn",
 ];
 
 function todayKey(): string {
@@ -219,12 +221,25 @@ export async function getLastTweetTime(): Promise<Date | null> {
   return new Date(state.tweets[state.tweets.length - 1].postedAt);
 }
 
+// Check if a time-restricted pillar is in its allowed window
+function isPillarInTimeWindow(pillar: ContentPillar): boolean {
+  if (pillar !== "gm" && pillar !== "gn") return true; // Not time-restricted
+  
+  // Use EST/EDT (America/New_York) for timing
+  const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const hour = nowEST.getHours();
+  
+  if (pillar === "gm") return hour >= 7 && hour <= 10;  // 7 AM - 10 AM EST
+  if (pillar === "gn") return hour >= 21 || hour <= 1;   // 9 PM - 1 AM EST
+  return true;
+}
+
 export async function getAvailablePillars(): Promise<ContentPillar[]> {
   const state = await getDailyState();
   return ALL_PILLARS.filter((pillar) => {
     const count = state.pillarCounts[pillar] || 0;
     const max = PILLAR_CONFIGS[pillar].dailyTarget.max;
-    return count < max;
+    return count < max && isPillarInTimeWindow(pillar);
   });
 }
 
@@ -233,7 +248,7 @@ export async function getUnderservedPillars(): Promise<ContentPillar[]> {
   return ALL_PILLARS.filter((pillar) => {
     const count = state.pillarCounts[pillar] || 0;
     const min = PILLAR_CONFIGS[pillar].dailyTarget.min;
-    return count < min;
+    return count < min && isPillarInTimeWindow(pillar);
   });
 }
 

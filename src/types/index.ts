@@ -4,7 +4,9 @@ export type ContentPillar =
   | "crypto_community"
   | "personal_lore"
   | "existential"
-  | "disclosure_conspiracy";
+  | "disclosure_conspiracy"
+  | "gm"
+  | "gn";
 
 export interface PillarConfig {
   name: string;

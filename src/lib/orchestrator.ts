@@ -512,10 +512,9 @@ async function postAndRecord(
   tweetText = stripLeadingMentions(tweetText);
 
   // 3. If pillar is configured for images, ALWAYS generate (pillar config is the authority)
-  if (shouldGenerateImage && (pillar === "human_observation" || pillar === "existential")) {
+  if (shouldGenerateImage) {
     try {
-      const label = pillar === "human_observation" ? "observation" : "existential";
-      console.log(`[ET] Generating ${label} image...`);
+      console.log(`[ET] Generating ${pillar} image...`);
 
       // Generate scene description via Claude (pillar-aware)
       const sceneDescription = await generateImageDescription(tweetText, pillar);
@@ -533,7 +532,7 @@ async function postAndRecord(
       tweetId = await postTweetWithImage(tweetText, imageBuffer);
       hasImage = true;
 
-      console.log(`[ET] Posted ${label} tweet with image: ${tweetId}`);
+      console.log(`[ET] Posted ${pillar} tweet with image: ${tweetId}`);
     } catch (imageError) {
       const errMsg = imageError instanceof Error ? imageError.message : String(imageError);
       console.error(`[ET] Image generation failed (${pillar}): ${errMsg}`);
@@ -815,7 +814,8 @@ export async function dryRun(
   };
 
   // Generate image preview for image-enabled pillars (always generate — pillar config is authority)
-  if (pillar === "human_observation" || pillar === "existential") {
+  const dryRunConfig = PILLAR_CONFIGS[pillar];
+  if (dryRunConfig.generateImage) {
     try {
       const sceneDescription = await generateImageDescription(tweetText, pillar);
       console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
