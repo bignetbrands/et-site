@@ -824,7 +824,7 @@ export async function replyToSpecificTweet(
 
     console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
 
-    // 3. Post as direct reply (shows up under their tweet)
+    // 3. Try direct reply first
     try {
       const replyId = await postReply(replyText, tweetId);
       console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
@@ -834,8 +834,25 @@ export async function replyToSpecificTweet(
     } catch (replyError: any) {
       const status = replyError?.data?.status || replyError?.code;
       const msg = replyError?.message || String(replyError);
-      console.error(`[ET Reply] Direct reply failed (${status}): ${msg}`);
-      // No fallback — quote tweets and standalone links look unnatural
+      console.warn(`[ET Reply] Direct reply failed (${status}): ${msg}`);
+
+      // 4. Fallback: quote tweet (for 403 — not mentioned/engaged by author)
+      if (status === 403) {
+        console.log("[ET Reply] Falling back to quote tweet...");
+        try {
+          const cleanReply = stripLeadingMentions(replyText);
+          const qtId = await postQuoteTweet(cleanReply, tweetId);
+          await markTweetQuoted(tweetId);
+          await recordBotPostedTweet(qtId);
+          console.log(`[ET Reply] ✓ Posted quote tweet ${qtId}`);
+          return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
+        } catch (qtError: any) {
+          const qtMsg = qtError?.message || String(qtError);
+          console.error(`[ET Reply] Quote tweet also failed: ${qtMsg}`);
+          return { success: false, error: `Reply (403) and quote tweet both failed: ${qtMsg}` };
+        }
+      }
+
       return { success: false, error: `Reply failed (${status}): ${msg}` };
     }
   } catch (error: any) {
