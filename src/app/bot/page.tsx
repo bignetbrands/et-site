@@ -31,6 +31,8 @@ export default function BotDashboard() {
   const [dashboard, setDashboard] = useState<any>(null);
   const [dashLoading, setDashLoading] = useState(false);
   const [scheduled, setScheduled] = useState<any[]>([]);
+  const [threadUrl, setThreadUrl] = useState("");
+  const [threadPreview, setThreadPreview] = useState<string[] | null>(null);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -860,6 +862,137 @@ export default function BotDashboard() {
             Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
             <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
           </div>
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>◈ ARTICLE THREAD</div>
+          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+            Paste an article URL → ET reads it and writes a tweet thread with his alien perspective. Preview first, then post.
+          </div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <input
+              type="text"
+              value={threadUrl}
+              onChange={(e: any) => setThreadUrl(e.target.value)}
+              placeholder="https://..."
+              style={{ ...styles.input, flex: 1, textAlign: "left" }}
+              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("threadGenBtn")?.click(); }}
+            />
+            <button
+              id="threadGenBtn"
+              onClick={async () => {
+                if (!threadUrl.trim()) { addLog("Paste an article URL", "warn"); return; }
+                setLoading("threadGen");
+                setThreadPreview(null);
+                addLog(`Reading article: ${threadUrl.substring(0, 60)}...`, "info");
+                try {
+                  const res = await fetch("/api/admin/thread", {
+                    method: "POST",
+                    headers: authHeaders,
+                    body: JSON.stringify({ url: threadUrl, dryRun: true }),
+                  });
+                  const data = await res.json();
+                  if (data.error) { addLog(`Error: ${data.error}`, "error"); }
+                  else {
+                    setThreadPreview(data.tweets);
+                    addLog(`✓ Generated ${data.tweetCount}-tweet thread`, "success");
+                  }
+                } catch (e) { addLog(`Thread generation failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPrimary}
+            >
+              {loading === "threadGen" ? "READING..." : "📰 GENERATE"}
+            </button>
+          </div>
+
+          {threadPreview && (
+            <div style={{ marginTop: "8px" }}>
+              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>
+                PREVIEW ({threadPreview.length} tweets)
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px", marginBottom: "12px" }}>
+                {threadPreview.map((tweet, i) => (
+                  <div key={i} style={{
+                    background: "#0a0f0a",
+                    border: "1px solid #1a3a1a",
+                    borderRadius: "2px",
+                    padding: "8px 10px",
+                    display: "flex",
+                    gap: "8px",
+                  }}>
+                    <span style={{ color: "#3a5a3a", fontSize: "10px", fontFamily: "monospace", minWidth: "16px" }}>
+                      {i + 1}.
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
+                        lineHeight: "1.5", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
+                      }}>
+                        {tweet}
+                      </div>
+                      <div style={{ fontSize: "9px", color: tweet.length > 280 ? "#ff4444" : "#3a5a3a", marginTop: "4px" }}>
+                        {tweet.length}/280
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={async () => {
+                    setLoading("threadGen");
+                    addLog("Regenerating thread...", "info");
+                    try {
+                      const res = await fetch("/api/admin/thread", {
+                        method: "POST",
+                        headers: authHeaders,
+                        body: JSON.stringify({ url: threadUrl, dryRun: true }),
+                      });
+                      const data = await res.json();
+                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      else {
+                        setThreadPreview(data.tweets);
+                        addLog(`✓ Regenerated ${data.tweetCount}-tweet thread`, "success");
+                      }
+                    } catch (e) { addLog(`Regen failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnSmall, flex: 1 }}
+                >
+                  {loading === "threadGen" ? "..." : "↻ REGENERATE"}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Post this ${threadPreview.length}-tweet thread to X?`)) return;
+                    setLoading("threadPost");
+                    addLog("Posting thread to X...", "info");
+                    try {
+                      const res = await fetch("/api/admin/thread", {
+                        method: "POST",
+                        headers: authHeaders,
+                        body: JSON.stringify({ url: threadUrl, dryRun: false, tweets: threadPreview }),
+                      });
+                      const data = await res.json();
+                      if (data.error) addLog(`Post failed: ${data.error}`, "error");
+                      else {
+                        addLog(`✓ Thread posted! ${data.tweetCount} tweets (first: ${data.thread[0]?.id})`, "success");
+                        setThreadPreview(null);
+                        setThreadUrl("");
+                      }
+                    } catch (e) { addLog(`Thread post failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnPost, flex: 1 }}
+                >
+                  {loading === "threadPost" ? "POSTING..." : `🚀 POST THREAD (${threadPreview.length} tweets)`}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={styles.panel}>
