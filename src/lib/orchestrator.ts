@@ -847,9 +847,27 @@ export async function replyToSpecificTweet(
           console.log(`[ET Reply] ✓ Posted quote tweet ${qtId}`);
           return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
         } catch (qtError: any) {
-          const qtMsg = qtError?.message || String(qtError);
-          console.error(`[ET Reply] Quote tweet also failed: ${qtMsg}`);
-          return { success: false, error: `Reply (403) and quote tweet both failed: ${qtMsg}` };
+          console.warn(`[ET Reply] Quote tweet also failed, posting standalone...`);
+
+          // 5. Final fallback: standalone tweet with link
+          try {
+            const cleanReply = stripLeadingMentions(replyText);
+            const tweetLink = `https://x.com/i/status/${tweetId}`;
+            // Link takes ~23 chars + newlines
+            const maxText = 280 - 23 - 4;
+            const trimmed = cleanReply.length > maxText
+              ? cleanReply.substring(0, maxText - 3) + "..."
+              : cleanReply;
+            const standalone = `${trimmed}\n\n${tweetLink}`;
+            const stId = await postTweet(standalone);
+            await markTweetQuoted(tweetId);
+            await recordBotPostedTweet(stId);
+            console.log(`[ET Reply] ✓ Posted standalone with link ${stId}`);
+            return { success: true, tweetId, replyText: trimmed, replyId: stId, method: "standalone" };
+          } catch (stError: any) {
+            const stMsg = stError?.message || String(stError);
+            return { success: false, error: `All methods failed: ${stMsg}` };
+          }
         }
       }
 
