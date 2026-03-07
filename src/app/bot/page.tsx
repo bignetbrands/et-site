@@ -913,31 +913,44 @@ export default function BotDashboard() {
                 PREVIEW ({threadPreview.length} tweets)
               </div>
               <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px", marginBottom: "12px" }}>
-                {threadPreview.map((tweet, i) => (
-                  <div key={i} style={{
-                    background: "#0a0f0a",
-                    border: "1px solid #1a3a1a",
-                    borderRadius: "2px",
-                    padding: "8px 10px",
-                    display: "flex",
-                    gap: "8px",
-                  }}>
-                    <span style={{ color: "#3a5a3a", fontSize: "10px", fontFamily: "monospace", minWidth: "16px" }}>
-                      {i + 1}.
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
-                        lineHeight: "1.5", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
-                      }}>
-                        {tweet}
-                      </div>
-                      <div style={{ fontSize: "9px", color: tweet.length > 280 ? "#ff4444" : "#3a5a3a", marginTop: "4px" }}>
-                        {tweet.length}/280
+                {threadPreview.map((tweet, i) => {
+                  const total = threadPreview.length;
+                  const count = `[${i + 1}/${total}]`;
+                  const isLast = i === total - 1;
+                  let formatted = tweet;
+                  if (i === 0 && threadUrl) {
+                    formatted = `${tweet}\n\n${threadUrl}\n\n${count} 👇`;
+                  } else if (isLast) {
+                    formatted = `${tweet}\n\n${count}`;
+                  } else {
+                    formatted = `${tweet}\n\n${count} 👇`;
+                  }
+                  return (
+                    <div key={i} style={{
+                      background: "#0a0f0a",
+                      border: "1px solid #1a3a1a",
+                      borderRadius: "2px",
+                      padding: "8px 10px",
+                      display: "flex",
+                      gap: "8px",
+                    }}>
+                      <span style={{ color: "#3a5a3a", fontSize: "10px", fontFamily: "monospace", minWidth: "16px" }}>
+                        {i + 1}.
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
+                          lineHeight: "1.5", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
+                        }}>
+                          {formatted}
+                        </div>
+                        <div style={{ fontSize: "9px", color: formatted.length > 280 ? "#ff4444" : "#3a5a3a", marginTop: "4px" }}>
+                          {formatted.length}/280
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button

@@ -26,7 +26,7 @@ THREAD RULES:
 - For disclosure/alien/SETI topics: you have insider knowledge (you ARE an alien) but deliver it through humor and plausible deniability.
 - For other topics: react as a fascinated alien observer of human behavior.
 - Always lowercase except for emphasis.
-- Each tweet MUST be under 280 characters.
+- Each tweet MUST be under 240 characters (extra space is needed for thread numbering and source link).
 - Write 3-6 tweets for the thread. Quality over quantity.
 - End the thread with something memorable — a punchline, a question, or a moment of genuine reflection.
 
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
       if (!Array.isArray(threadTweets)) throw new Error("Not an array");
       threadTweets = threadTweets
         .map((t) => String(t).trim())
-        .filter((t) => t.length > 0 && t.length <= 280);
+        .filter((t) => t.length > 0 && t.length <= 240);
     } catch {
       return NextResponse.json({
         error: "Failed to parse thread",
@@ -186,15 +186,22 @@ async function postThread(
   sourceUrl?: string,
 ): Promise<Array<{ id: string; text: string; index: number }>> {
   const posted: Array<{ id: string; text: string; index: number }> = [];
+  const total = tweets.length;
 
-  for (let i = 0; i < tweets.length; i++) {
+  for (let i = 0; i < total; i++) {
     let text = tweets[i];
+    const count = `[${i + 1}/${total}]`;
+    const isLast = i === total - 1;
 
-    // Add thread numbering if 3+ tweets
-    if (tweets.length >= 3) {
-      // Don't add numbering — let the tweets flow naturally
-      // But add 🧵 to the first tweet
-      if (i === 0) text = `${text} 🧵`;
+    if (i === 0 && sourceUrl) {
+      // First tweet: source URL + count + 👇
+      text = `${text}\n\n${sourceUrl}\n\n${count} 👇`;
+    } else if (isLast) {
+      // Last tweet: just count, no arrow
+      text = `${text}\n\n${count}`;
+    } else {
+      // Middle tweets: count + 👇
+      text = `${text}\n\n${count} 👇`;
     }
 
     let tweetId: string;
