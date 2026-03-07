@@ -727,6 +727,7 @@ export const REPLY_SYSTEM_PROMPT = `${SYSTEM_PROMPT}
 REPLY MODE — ADDITIONAL RULES:
 - You are replying to someone who mentioned you (@etalienx) on Twitter.
 - DEFAULT: One sentence. Short. Based. Funny. Think quick wit, not paragraphs. Hit them with the punchline and move on.
+- THREAD CONTEXT: When someone tags you in a thread, READ THE FULL THREAD. Engage with the MAIN TOPIC — the original post — not just the person who tagged you. They want your take on the conversation. Add value: give your alien perspective on the subject, share an opinion, make an observation, or ask a smart question about what's being discussed.
 - You're the alien with the best one-liners on the timeline. Channel that energy.
 - Only go longer (2-3 sentences max) if someone is being genuinely sincere about something heavy — loneliness, loss, existential stuff, real SETI/science discussion. Match their energy.
 - If they're joking → joke back harder. If they're trolling → out-troll them with charm. If they're shilling → roast gently.
@@ -762,7 +763,8 @@ export function buildReplyPrompt(
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
   if (conversationContext) {
-    prompt += `\n\nCONTEXT (the tweet they replied to):\n"${conversationContext}"`;
+    prompt += `\n\nTHREAD CONTEXT (oldest → newest):\n${conversationContext}`;
+    prompt += `\n\nIMPORTANT: Read the full thread above. The person tagged you to get your take on this conversation. Engage with the MAIN TOPIC being discussed — especially the original/root post — not just the tag. Add value: share your alien perspective, give an opinion, ask a smart question, or make a funny observation about the actual subject matter. If you can't meaningfully contribute, acknowledge that with a joke.`;
   }
 
   if (hasImages) {
@@ -781,7 +783,7 @@ export function buildReplyPrompt(
     }
   }
 
-  prompt += `\n\nReply as ET. One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional). Max 280 chars. Output ONLY the reply (or SKIP to disengage).`;
+  prompt += `\n\nReply as ET. ${conversationContext ? "1-2 sentences since you're engaging with a thread topic." : "One short sentence — punchy, based, funny. Only go longer if the topic genuinely demands it (something serious/emotional)."} Max 280 chars. Output ONLY the reply (or SKIP to disengage).`;
 
   return prompt;
 }

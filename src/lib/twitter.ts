@@ -304,21 +304,25 @@ export async function getMentions(
  */
 export async function getTweet(
   tweetId: string
-): Promise<{ text: string; authorId: string; authorUsername?: string } | null> {
+): Promise<{ text: string; authorId: string; authorUsername?: string; inReplyToId?: string } | null> {
   assertNotHalted("getTweet");
   try {
     const tweet = await getClient().v2.singleTweet(tweetId, {
-      "tweet.fields": "author_id,conversation_id",
+      "tweet.fields": "author_id,conversation_id,referenced_tweets",
       expansions: "author_id",
       "user.fields": "username",
     });
 
     const username = tweet.includes?.users?.[0]?.username;
+    const inReplyToId = tweet.data.referenced_tweets?.find(
+      (r: any) => r.type === "replied_to"
+    )?.id;
 
     return {
       text: tweet.data.text,
       authorId: tweet.data.author_id || "",
       authorUsername: username || undefined,
+      inReplyToId,
     };
   } catch {
     return null;

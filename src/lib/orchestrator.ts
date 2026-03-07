@@ -403,12 +403,25 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // Get conversation context if this is a reply to one of our tweets
+  // Get conversation context — walk up the thread to find the root/original post
   let conversationContext: string | undefined;
   if (mention.inReplyToId) {
-    const parentTweet = await getTweet(mention.inReplyToId);
-    if (parentTweet) {
-      conversationContext = parentTweet.text;
+    const contextParts: string[] = [];
+    let currentId: string | undefined = mention.inReplyToId;
+    let depth = 0;
+    
+    // Walk up to 3 levels to find the original post
+    while (currentId && depth < 3) {
+      const tweet = await getTweet(currentId);
+      if (!tweet) break;
+      const author = tweet.authorUsername || "someone";
+      contextParts.unshift(`@${author}: "${tweet.text}"`);
+      currentId = tweet.inReplyToId;
+      depth++;
+    }
+    
+    if (contextParts.length > 0) {
+      conversationContext = contextParts.join("\n↳ ");
     }
   }
 
