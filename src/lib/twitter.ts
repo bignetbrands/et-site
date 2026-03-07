@@ -210,7 +210,7 @@ export async function postReplyWithImage(
 // Cache our own user ID — never changes, no need to fetch every 15 minutes
 let _cachedUserId: string | null = null;
 
-async function getOwnUserId(): Promise<string> {
+export async function getOwnUserId(): Promise<string> {
   if (_cachedUserId) return _cachedUserId;
   const me = await getClient().v2.me();
   _cachedUserId = me.data.id;

@@ -2,7 +2,7 @@ import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
-import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, type Mention } from "./twitter";
+import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
 import {
   recordTweet,
   getRecentTweets,
@@ -15,6 +15,8 @@ import {
   recordReply,
   hasRepliedToParent,
   recordParentReplied,
+  recordBotPostedTweet,
+  wasBotPosted,
   getDailyReplyCount,
   incrementDailyReplyCount,
   hasQuotedTweet,
@@ -433,16 +435,27 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   }
 
   // Get conversation context — walk up the thread to find the root/original post
+  // Also detect if admin manually replied (ET tweet not posted by bot → skip thread)
   let conversationContext: string | undefined;
+  let manuallyClaimedThread = false;
+
   if (mention.inReplyToId) {
     const contextParts: string[] = [];
     let currentId: string | undefined = mention.inReplyToId;
     let depth = 0;
+    const ownUserId = await getOwnUserId();
     
     // Walk up to 3 levels to find the original post
     while (currentId && depth < 3) {
       const tweet = await getTweet(currentId);
       if (!tweet) break;
+
+      // Check if this is an ET tweet NOT posted by the bot → manual reply
+      if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
+        manuallyClaimedThread = true;
+        break;
+      }
+
       const author = tweet.authorUsername || "someone";
       contextParts.unshift(`@${author}: "${tweet.text}"`);
       currentId = tweet.inReplyToId;
@@ -452,6 +465,19 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     if (contextParts.length > 0) {
       conversationContext = contextParts.join("\n↳ ");
     }
+  }
+
+  if (manuallyClaimedThread) {
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: "Thread manually claimed (admin replied directly)",
+    };
   }
 
   // Get thread depth for ET's judgment
@@ -515,6 +541,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   const replyId = await postReply(replyText, mention.id);
   console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}`);
   await recordReply(mention.id);
+  await recordBotPostedTweet(replyId); // Track for manual reply detection
 
   // Record parent+author for second dedup layer
   const postedParentKey = mention.inReplyToId || mention.conversationId;
@@ -599,6 +626,7 @@ async function postAndRecord(
   };
 
   await recordTweet(record);
+  await recordBotPostedTweet(tweetId); // Track for manual reply detection
 
   return record;
 }
@@ -693,6 +721,7 @@ export async function interactWithTarget(
         await resolveTarget(handle);
         await markTweetQuoted(interaction.tweetId);
         await recordUserInteraction(handle);
+        await recordBotPostedTweet(replyId);
         console.log(`[ET Target] Posted direct reply ${replyId} to @${handle}`);
 
         await recordTweet({
@@ -800,6 +829,7 @@ export async function replyToSpecificTweet(
       const replyId = await postReply(replyText, tweetId);
       console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
       await markTweetQuoted(tweetId);
+      await recordBotPostedTweet(replyId);
       return { success: true, tweetId, replyText, replyId, method: "reply" };
     } catch (replyError: any) {
       const status = replyError?.data?.status || replyError?.code;

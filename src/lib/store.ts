@@ -321,6 +321,24 @@ export async function recordReply(mentionId: string): Promise<void> {
   } catch (e) { debugWarn("KV markReplied failed:", e); }
 }
 
+// Track all tweet IDs posted by the bot (both tweets and replies)
+// Used to detect manual replies from the admin
+const BOT_POSTED_KEY = "et:bot_posted_tweets";
+
+export async function recordBotPostedTweet(tweetId: string): Promise<void> {
+  try {
+    await kv.sadd(BOT_POSTED_KEY, tweetId);
+    await kv.expire(BOT_POSTED_KEY, 604800); // 7 days
+  } catch (e) { debugWarn("KV recordBotPostedTweet failed:", e); }
+}
+
+export async function wasBotPosted(tweetId: string): Promise<boolean> {
+  try {
+    const result = await kv.sismember(BOT_POSTED_KEY, tweetId);
+    return result === 1;
+  } catch (e) { debugWarn("KV wasBotPosted failed:", e); return false; }
+}
+
 export async function getDailyReplyCount(): Promise<number> {
   const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
   try {
