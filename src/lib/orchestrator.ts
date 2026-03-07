@@ -403,6 +403,35 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
+  // Detect conversation-ending replies — user got the point, no further ET needed
+  // Only applies to replies in threads (not fresh mentions), so we don't ignore
+  // someone starting a new conversation with a short message
+  const normalized = textWithoutMentions.toLowerCase().trim();
+  const isInThread = !!mention.inReplyToId;
+  const isConversationEnder = isInThread && (
+    // Short acknowledgments
+    /^(ok|okay|k|kk|cool|nice|great|thanks|thx|ty|bet|word|facts|fair|true|lol|lmao|haha|hahaha|ha|gotcha|got it|noted|yep|yup|yeah|yes|nah|no|aight|alright|good|dope|fire|based|W|L|gg|fs|fr|right|exactly|indeed|same|mood|real|this|💯)$/i.test(normalized) ||
+    // Pure emoji replies (1-3 emojis, nothing else)
+    /^[\p{Emoji}\p{Emoji_Component}\uFE0F\u200D]{1,10}$/u.test(normalized) ||
+    // Emoji-only with minor text like "lol 😂" or "😂😂😂"
+    (normalized.length <= 15 && /^[\p{Emoji}\p{Emoji_Component}\uFE0F\u200D\s]+$/u.test(normalized)) ||
+    // Single word reactions
+    /^(dead|crying|screaming|bro|bruh|man|dude|sheesh|oof|damn|wow|whoa|pls|stop|slay|iconic|legend|king|queen|goat)$/i.test(normalized)
+  );
+
+  if (isConversationEnder && !isCARequest) {
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: "Conversation ender (acknowledgment/reaction — no reply needed)",
+    };
+  }
+
   // Get conversation context — walk up the thread to find the root/original post
   let conversationContext: string | undefined;
   if (mention.inReplyToId) {
