@@ -19,6 +19,7 @@ import {
   wasBotPosted,
   recordEmptyPoll,
   resetPollBackoff,
+  recordGmGnPosted,
   getDailyReplyCount,
   incrementDailyReplyCount,
   hasQuotedTweet,
@@ -631,6 +632,11 @@ async function postAndRecord(
 
   await recordTweet(record);
   await recordBotPostedTweet(tweetId); // Track for manual reply detection
+
+  // Record GM/GN timestamp for 3-day interval tracking
+  if (pillar === "gm" || pillar === "gn") {
+    await recordGmGnPosted(pillar);
+  }
 
   return record;
 }

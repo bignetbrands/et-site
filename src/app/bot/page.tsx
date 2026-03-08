@@ -13,8 +13,8 @@ const PILLARS = [
   { id: "personal_lore", name: "Personal Lore", icon: "🌑", desc: "Memories, the crash, parents" },
   { id: "existential", name: "Existential", icon: "🌌", desc: "Big questions, loneliness, meaning" },
   { id: "disclosure_conspiracy", name: "Disclosure", icon: "🛸", desc: "UAP hearings, fun conspiracies" },
-  { id: "gm", name: "GM", icon: "☀️", desc: "Morning dream painting — folk art (7-10AM EST)" },
-  { id: "gn", name: "GN", icon: "🌙", desc: "Night dream painting — folk art (9PM-1AM EST)" },
+  { id: "gm", name: "GM", icon: "☀️", desc: "Morning dream painting — every 3 days at 5AM EST" },
+  { id: "gn", name: "GN", icon: "🌙", desc: "Night dream painting — every 3 days at 11PM EST" },
 ];
 
 export default function BotDashboard() {

@@ -104,8 +104,7 @@ export async function POST(request: Request) {
         });
 
         // Record pillar count NOW so cron doesn't fire a duplicate
-        // (especially important for gm/gn which are 1/day)
-        const { recordTweet } = await import("@/lib/store");
+        const { recordTweet, recordGmGnPosted } = await import("@/lib/store");
         await recordTweet({
           id: tweetId,
           text: previewText,
@@ -113,6 +112,9 @@ export async function POST(request: Request) {
           postedAt: new Date().toISOString(),
           hasImage: !!imageKey,
         });
+        if (pillar === "gm" || pillar === "gn") {
+          await recordGmGnPosted(pillar);
+        }
 
         return NextResponse.json({
           mode: "scheduled",
@@ -129,7 +131,7 @@ export async function POST(request: Request) {
       // Post immediately
       const { postTweet, postTweetWithImage } = await import("@/lib/twitter");
       const { downloadImage } = await import("@/lib/dalle");
-      const { recordTweet } = await import("@/lib/store");
+      const { recordTweet, recordGmGnPosted: recordGmGn2 } = await import("@/lib/store");
 
       let tweetId: string;
       let hasImage = false;
@@ -155,6 +157,9 @@ export async function POST(request: Request) {
         postedAt: new Date().toISOString(),
         hasImage,
       });
+      if (pillar === "gm" || pillar === "gn") {
+        await recordGmGn2(pillar);
+      }
 
       const { recordAction } = await import("@/lib/store");
       await recordAction();

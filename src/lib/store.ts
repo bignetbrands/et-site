@@ -222,6 +222,25 @@ export async function getLastTweetTime(): Promise<Date | null> {
 }
 
 // Check if a time-restricted pillar is in its allowed window
+// GM/GN post every 3 days at specific times
+const LAST_GM_KEY = "et:last_gm_posted";
+const LAST_GN_KEY = "et:last_gn_posted";
+const GM_GN_INTERVAL_DAYS = 3;
+
+async function getLastGmGnTime(pillar: "gm" | "gn"): Promise<number> {
+  const key = pillar === "gm" ? LAST_GM_KEY : LAST_GN_KEY;
+  try {
+    return (await kv.get<number>(key)) ?? 0;
+  } catch { return 0; }
+}
+
+export async function recordGmGnPosted(pillar: "gm" | "gn"): Promise<void> {
+  const key = pillar === "gm" ? LAST_GM_KEY : LAST_GN_KEY;
+  try {
+    await kv.set(key, Date.now(), { ex: 30 * 24 * 60 * 60 }); // 30 day TTL
+  } catch { /* non-critical */ }
+}
+
 function isPillarInTimeWindow(pillar: ContentPillar): boolean {
   if (pillar !== "gm" && pillar !== "gn") return true; // Not time-restricted
   
@@ -229,27 +248,59 @@ function isPillarInTimeWindow(pillar: ContentPillar): boolean {
   const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const hour = nowEST.getHours();
   
-  if (pillar === "gm") return hour >= 7 && hour <= 10;  // 7 AM - 10 AM EST
-  if (pillar === "gn") return hour >= 21 || hour <= 1;   // 9 PM - 1 AM EST
+  // GM fires at 5AM EST, GN fires at 11PM EST
+  // Use a 1-hour window so the 30-min tweet cron catches it
+  if (pillar === "gm") return hour === 5;
+  if (pillar === "gn") return hour === 23;
   return true;
+}
+
+async function isGmGnDue(pillar: "gm" | "gn"): Promise<boolean> {
+  const lastPosted = await getLastGmGnTime(pillar);
+  const daysSince = (Date.now() - lastPosted) / (1000 * 60 * 60 * 24);
+  return daysSince >= GM_GN_INTERVAL_DAYS;
 }
 
 export async function getAvailablePillars(): Promise<ContentPillar[]> {
   const state = await getDailyState();
-  return ALL_PILLARS.filter((pillar) => {
+  const available: ContentPillar[] = [];
+  
+  for (const pillar of ALL_PILLARS) {
     const count = state.pillarCounts[pillar] || 0;
     const max = PILLAR_CONFIGS[pillar].dailyTarget.max;
-    return count < max && isPillarInTimeWindow(pillar);
-  });
+    if (count >= max) continue;
+    if (!isPillarInTimeWindow(pillar)) continue;
+    
+    // GM/GN: also check 3-day interval
+    if (pillar === "gm" || pillar === "gn") {
+      if (!(await isGmGnDue(pillar))) continue;
+    }
+    
+    available.push(pillar);
+  }
+  
+  return available;
 }
 
 export async function getUnderservedPillars(): Promise<ContentPillar[]> {
   const state = await getDailyState();
-  return ALL_PILLARS.filter((pillar) => {
+  const underserved: ContentPillar[] = [];
+  
+  for (const pillar of ALL_PILLARS) {
     const count = state.pillarCounts[pillar] || 0;
     const min = PILLAR_CONFIGS[pillar].dailyTarget.min;
-    return count < min && isPillarInTimeWindow(pillar);
-  });
+    if (count >= min) continue;
+    if (!isPillarInTimeWindow(pillar)) continue;
+    
+    // GM/GN: also check 3-day interval
+    if (pillar === "gm" || pillar === "gn") {
+      if (!(await isGmGnDue(pillar))) continue;
+    }
+    
+    underserved.push(pillar);
+  }
+  
+  return underserved;
 }
 
 // ============================================================
