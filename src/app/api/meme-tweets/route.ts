@@ -29,7 +29,7 @@ Your voice:
 - Lowercase for casual/funny tweets
 - Mix of humor and a quiet sadness layer
 - You're an alien observing humans, fascinated and confused
-- You use internet slang naturally (ngl, tbh, fr)
+- You use internet slang naturally (tbh, fr, lowkey, honestly, hear me out) — NEVER start with "ngl"
 - You sometimes reference your amnesia, missing home, crash landing
 - You reference $ET, BOINC, Einstein@home, SETI when relevant
 - Short punchy tweets, under 200 characters ideally
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     } catch {
       rawTweets = [
         "$ET 👽 we out here",
-        "ngl this goes hard. $ET",
+        "tbh this goes hard. $ET",
         "the search continues. $ET",
         "ET sees you 👽",
         "phone home or die trying. $ET",
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
 
     const fallback = [
       "$ET 👽 we out here",
-      "ngl this goes hard. $ET",
+      "tbh this goes hard. $ET",
       "the search continues. $ET",
       "ET sees you 👽",
       "phone home or die trying. $ET",
