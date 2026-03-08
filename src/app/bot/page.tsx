@@ -34,6 +34,7 @@ export default function BotDashboard() {
   const [threadUrl, setThreadUrl] = useState("");
   const [threadPreview, setThreadPreview] = useState<string[] | null>(null);
   const [replyPreview, setReplyPreview] = useState<{ tweetUrl: string; replyText: string; originalText: string; originalAuthor: string; tweetId: string } | null>(null);
+  const [homepageMode, setHomepageMode] = useState<string>("new");
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -99,6 +100,17 @@ export default function BotDashboard() {
       if (res.ok) {
         const data = await res.json();
         setScheduled(data.scheduled || []);
+      }
+    } catch (e) { /* silent */ }
+  }, [secret]);
+
+  // Load homepage mode
+  const loadHomepageMode = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/homepage", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setHomepageMode(data.mode || "new");
       }
     } catch (e) { /* silent */ }
   }, [secret]);
@@ -171,6 +183,7 @@ export default function BotDashboard() {
     loadVipUsers();
     loadDashboard();
     loadScheduled();
+    loadHomepageMode();
   };
 
   // Auto-refresh dashboard every 60s
@@ -215,7 +228,40 @@ export default function BotDashboard() {
             <span style={styles.logo}>ET MISSION CONTROL</span>
             <span style={styles.badge}>v1.0</span>
           </div>
-          <a href="/" style={styles.homeLink}>← back to site</a>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              onClick={async () => {
+                setLoading("homepageToggle");
+                try {
+                  const res = await fetch("/api/admin/homepage", {
+                    method: "POST",
+                    headers: authHeaders,
+                  });
+                  const data = await res.json();
+                  if (data.mode) {
+                    setHomepageMode(data.mode);
+                    addLog(`✓ Homepage → ${data.mode === "new" ? "Main" : "Research"}`, "success");
+                  }
+                } catch (e) { addLog(`Toggle failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={loading === "homepageToggle"}
+              style={{
+                background: homepageMode === "research" ? "rgba(255,200,0,0.1)" : "rgba(0,255,100,0.1)",
+                border: `1px solid ${homepageMode === "research" ? "#5a5a1a" : "#1a3a1a"}`,
+                color: homepageMode === "research" ? "#ffcc00" : "#39ff14",
+                padding: "4px 10px",
+                fontFamily: "monospace",
+                fontSize: "9px",
+                cursor: "pointer",
+                borderRadius: "2px",
+                letterSpacing: "1px",
+              }}
+            >
+              {loading === "homepageToggle" ? "..." : `HOME: ${homepageMode === "research" ? "RESEARCH" : "MAIN"}`}
+            </button>
+            <a href="/" style={styles.homeLink}>← back to site</a>
+          </div>
         </div>
 
         {/* Status Bar */}
