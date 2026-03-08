@@ -11,6 +11,7 @@ import {
   getVipUsers,
   getUserInteractionCount,
   getGlobalActionCount,
+  getEmptyPollCount,
 } from "@/lib/store";
 import { isKillSwitchActive } from "@/lib/kill-switch";
 
@@ -96,6 +97,10 @@ export async function GET(request: Request) {
     }
     if (blockers.length === 0) blockers.push("✅ No blockers — ET is clear to act");
 
+    // Adaptive polling
+    const emptyPollStreak = await getEmptyPollCount();
+    const effectiveInterval = emptyPollStreak === 0 ? "15m" : emptyPollStreak <= 3 ? "~30m" : emptyPollStreak <= 6 ? "~60m" : "~2h";
+
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       blockers,
@@ -122,6 +127,10 @@ export async function GET(request: Request) {
         limit: MAX_REPLIES_PER_DAY,
         remaining: Math.max(0, MAX_REPLIES_PER_DAY - dailyReplies),
         lastMentionCursor: lastMentionId,
+      },
+      adaptivePolling: {
+        emptyStreak: emptyPollStreak,
+        effectiveInterval,
       },
       userInteractions: topUsers,
       vipUsers: vipStatus,

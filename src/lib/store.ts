@@ -261,6 +261,65 @@ const REPLIED_KEY = "replied_mentions";
 const REPLY_COUNT_KEY = "reply_count_daily";
 const NEXT_TWEET_KEY = "next_tweet_time";
 
+// ============================================================
+// ADAPTIVE POLLING — backs off when no mentions found
+// ============================================================
+
+const EMPTY_POLL_COUNT_KEY = "et:empty_poll_count";
+
+export async function getEmptyPollCount(): Promise<number> {
+  try {
+    return (await kv.get<number>(EMPTY_POLL_COUNT_KEY)) ?? 0;
+  } catch { return 0; }
+}
+
+export async function recordEmptyPoll(): Promise<void> {
+  try {
+    await kv.incr(EMPTY_POLL_COUNT_KEY);
+    await kv.expire(EMPTY_POLL_COUNT_KEY, 86400);
+  } catch { /* non-critical */ }
+}
+
+export async function resetPollBackoff(): Promise<void> {
+  try {
+    await kv.set(EMPTY_POLL_COUNT_KEY, 0, { ex: 86400 });
+  } catch { /* non-critical */ }
+}
+
+/**
+ * Should the reply cron skip this cycle based on adaptive backoff?
+ * 
+ * 0 empty polls → never skip (15 min interval)
+ * 1-3 empty polls → skip 50% (effective ~30 min)
+ * 4-6 empty polls → skip 75% (effective ~60 min)
+ * 7+ empty polls → skip 87% (effective ~2 hours)
+ * 
+ * Resets to 0 whenever mentions are found.
+ */
+export async function shouldSkipAdaptivePoll(): Promise<{ skip: boolean; emptyStreak: number; effectiveInterval: string }> {
+  const streak = await getEmptyPollCount();
+  
+  let skipChance: number;
+  let effectiveInterval: string;
+  
+  if (streak === 0) {
+    skipChance = 0;
+    effectiveInterval = "15m";
+  } else if (streak <= 3) {
+    skipChance = 0.5;
+    effectiveInterval = "~30m";
+  } else if (streak <= 6) {
+    skipChance = 0.75;
+    effectiveInterval = "~60m";
+  } else {
+    skipChance = 0.87;
+    effectiveInterval = "~2h";
+  }
+  
+  const skip = Math.random() < skipChance;
+  return { skip, emptyStreak: streak, effectiveInterval };
+}
+
 export async function getNextTweetTime(): Promise<number | null> {
   try {
     const val = await kv.get<number>(NEXT_TWEET_KEY);

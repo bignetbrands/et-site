@@ -320,7 +320,7 @@ export default function BotDashboard() {
             </div>
 
             {/* Timing */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "14px" }}>
               <div style={{
                 background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
                 display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -337,6 +337,15 @@ export default function BotDashboard() {
                 <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST TWEET</span>
                 <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
                   {dashboard.tweets.lastTweetMinAgo !== null ? `${dashboard.tweets.lastTweetMinAgo}m ago` : "never"}
+                </span>
+              </div>
+              <div style={{
+                background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>POLL RATE</span>
+                <span style={{ fontSize: "12px", color: dashboard.adaptivePolling?.emptyStreak > 3 ? "#ffcc00" : "#39ff14", fontFamily: "monospace" }}>
+                  {dashboard.adaptivePolling?.effectiveInterval || "15m"}
                 </span>
               </div>
             </div>

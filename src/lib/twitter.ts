@@ -302,10 +302,31 @@ export async function getMentions(
 /**
  * Fetch a single tweet by ID (for getting conversation context).
  */
+// In-memory tweet cache — avoids re-fetching the same tweet within a serverless invocation
+// Also uses KV for cross-invocation caching (5 min TTL)
+const _tweetCache = new Map<string, { data: { text: string; authorId: string; authorUsername?: string; inReplyToId?: string } | null; ts: number }>();
+
 export async function getTweet(
   tweetId: string
 ): Promise<{ text: string; authorId: string; authorUsername?: string; inReplyToId?: string } | null> {
   assertNotHalted("getTweet");
+
+  // Check in-memory cache first (same invocation)
+  const memCached = _tweetCache.get(tweetId);
+  if (memCached && Date.now() - memCached.ts < 300000) {
+    return memCached.data;
+  }
+
+  // Check KV cache (cross-invocation, 5 min TTL)
+  try {
+    const { kv } = await import("@vercel/kv");
+    const kvCached = await kv.get<{ text: string; authorId: string; authorUsername?: string; inReplyToId?: string }>(`tweet_cache:${tweetId}`);
+    if (kvCached) {
+      _tweetCache.set(tweetId, { data: kvCached, ts: Date.now() });
+      return kvCached;
+    }
+  } catch { /* KV miss, fetch from API */ }
+
   try {
     const tweet = await getClient().v2.singleTweet(tweetId, {
       "tweet.fields": "author_id,conversation_id,referenced_tweets",
@@ -318,13 +339,23 @@ export async function getTweet(
       (r: any) => r.type === "replied_to"
     )?.id;
 
-    return {
+    const result = {
       text: tweet.data.text,
       authorId: tweet.data.author_id || "",
       authorUsername: username || undefined,
       inReplyToId,
     };
+
+    // Cache in memory + KV
+    _tweetCache.set(tweetId, { data: result, ts: Date.now() });
+    try {
+      const { kv } = await import("@vercel/kv");
+      await kv.set(`tweet_cache:${tweetId}`, result, { ex: 300 }); // 5 min
+    } catch { /* non-critical */ }
+
+    return result;
   } catch {
+    _tweetCache.set(tweetId, { data: null, ts: Date.now() });
     return null;
   }
 }

@@ -52,6 +52,18 @@ export async function GET(request: Request) {
       });
     }
 
+    // Adaptive backoff — poll less when no mentions are coming in
+    const { shouldSkipAdaptivePoll } = await import("@/lib/store");
+    const adaptive = await shouldSkipAdaptivePoll();
+    if (adaptive.skip) {
+      console.log(`[ET Replies Cron] Adaptive skip — ${adaptive.emptyStreak} empty polls, effective interval: ${adaptive.effectiveInterval}`);
+      return NextResponse.json({
+        processed: 0,
+        reason: `Adaptive backoff (${adaptive.emptyStreak} empty polls, ~${adaptive.effectiveInterval})`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // KV health check — if we can't persist reply tracking, don't process.
     const kvOk = await kvHealthCheck();
     if (!kvOk) {

@@ -17,6 +17,8 @@ import {
   recordParentReplied,
   recordBotPostedTweet,
   wasBotPosted,
+  recordEmptyPoll,
+  resetPollBackoff,
   getDailyReplyCount,
   incrementDailyReplyCount,
   hasQuotedTweet,
@@ -204,10 +206,12 @@ export async function processReplies(catchUp: boolean = false): Promise<ReplyRes
 
     if (mentions.length === 0) {
       console.log("[ET Replies] No new mentions");
+      await recordEmptyPoll();
       return results;
     }
 
     console.log(`[ET Replies] Found ${mentions.length} new mentions`);
+    await resetPollBackoff(); // Reset adaptive backoff — mentions are coming in
 
     // Process mentions (reply to oldest first for natural ordering)
     const batchLimit = catchUp ? MAX_REPLIES_PER_CATCHUP : MAX_REPLIES_PER_RUN;
