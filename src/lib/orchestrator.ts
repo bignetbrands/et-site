@@ -434,36 +434,36 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // Get conversation context — walk up the thread to find the root/original post
-  // Also detect if admin manually replied (ET tweet not posted by bot → skip thread)
+  // Get conversation context — check immediate parent, only walk deeper if needed
   let conversationContext: string | undefined;
   let manuallyClaimedThread = false;
 
   if (mention.inReplyToId) {
-    const contextParts: string[] = [];
-    let currentId: string | undefined = mention.inReplyToId;
-    let depth = 0;
-    const ownUserId = await getOwnUserId();
+    const parentTweet = await getTweet(mention.inReplyToId);
     
-    // Walk up to 3 levels to find the original post
-    while (currentId && depth < 3) {
-      const tweet = await getTweet(currentId);
-      if (!tweet) break;
-
-      // Check if this is an ET tweet NOT posted by the bot → manual reply
-      if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
+    if (parentTweet) {
+      const ownUserId = await getOwnUserId();
+      
+      // Check if immediate parent is a manual ET reply (not bot-posted)
+      if (parentTweet.authorId === ownUserId && !(await wasBotPosted(mention.inReplyToId))) {
         manuallyClaimedThread = true;
-        break;
+      } else {
+        // Build context — only walk 1 more level (2 total max, saves API calls)
+        const contextParts: string[] = [];
+        const author = parentTweet.authorUsername || "someone";
+        contextParts.push(`@${author}: "${parentTweet.text}"`);
+        
+        // One more level up for root context (if parent is also a reply)
+        if (parentTweet.inReplyToId) {
+          const grandparent = await getTweet(parentTweet.inReplyToId);
+          if (grandparent) {
+            const gpAuthor = grandparent.authorUsername || "someone";
+            contextParts.unshift(`@${gpAuthor}: "${grandparent.text}"`);
+          }
+        }
+        
+        conversationContext = contextParts.join("\n↳ ");
       }
-
-      const author = tweet.authorUsername || "someone";
-      contextParts.unshift(`@${author}: "${tweet.text}"`);
-      currentId = tweet.inReplyToId;
-      depth++;
-    }
-    
-    if (contextParts.length > 0) {
-      conversationContext = contextParts.join("\n↳ ");
     }
   }
 
