@@ -804,8 +804,9 @@ export async function interactWithTarget(
  * Fetches the tweet, generates an ET-voiced reply, and posts it.
  */
 export async function replyToSpecificTweet(
-  tweetUrl: string
-): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; method?: string; error?: string }> {
+  tweetUrl: string,
+  dryRun: boolean = false
+): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; method?: string; error?: string; originalText?: string; originalAuthor?: string }> {
   // Extract tweet ID from URL or raw ID
   const idMatch = tweetUrl.match(/status\/(\d+)/);
   const tweetId = idMatch ? idMatch[1] : tweetUrl.replace(/\D/g, "");
@@ -814,7 +815,7 @@ export async function replyToSpecificTweet(
     return { success: false, error: "Could not extract tweet ID from URL" };
   }
 
-  console.log(`[ET Reply] Replying to specific tweet ${tweetId}...`);
+  console.log(`[ET Reply] ${dryRun ? "DRY RUN — " : ""}Replying to specific tweet ${tweetId}...`);
 
   try {
     // 1. Fetch the tweet
@@ -834,6 +835,17 @@ export async function replyToSpecificTweet(
 
     console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
 
+    // DRY RUN — return preview without posting
+    if (dryRun) {
+      return {
+        success: true,
+        tweetId,
+        replyText,
+        method: "preview",
+        originalText: tweet.text,
+        originalAuthor: author,
+      };
+    }
     // 3. Try direct reply first
     try {
       const replyId = await postReply(replyText, tweetId);

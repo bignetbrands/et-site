@@ -33,6 +33,7 @@ export default function BotDashboard() {
   const [scheduled, setScheduled] = useState<any[]>([]);
   const [threadUrl, setThreadUrl] = useState("");
   const [threadPreview, setThreadPreview] = useState<string[] | null>(null);
+  const [replyPreview, setReplyPreview] = useState<{ tweetUrl: string; replyText: string; originalText: string; originalAuthor: string; tweetId: string } | null>(null);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -741,8 +742,43 @@ export default function BotDashboard() {
               id="adminTweetUrl"
               placeholder="https://x.com/user/status/123..."
               style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
-              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminReplyBtn")?.click(); }}
+              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminDryReplyBtn")?.click(); }}
             />
+            <button
+              id="adminDryReplyBtn"
+              onClick={async () => {
+                const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
+                const tweetUrl = inp?.value.trim();
+                if (!tweetUrl) { addLog("Paste a tweet URL first", "warn"); return; }
+                setLoading("dryReply");
+                setReplyPreview(null);
+                addLog(`Generating reply preview: ${tweetUrl.substring(0, 60)}...`, "info");
+                try {
+                  const res = await fetch("/api/targets/admin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "dryReply", tweetUrl, secret }),
+                  });
+                  const data = await res.json();
+                  if (data.error) addLog(`Error: ${data.error}`, "error");
+                  else if (data.replyText) {
+                    setReplyPreview({
+                      tweetUrl,
+                      replyText: data.replyText,
+                      originalText: data.originalText || "",
+                      originalAuthor: data.originalAuthor || "",
+                      tweetId: data.tweetId || "",
+                    });
+                    addLog(`✓ Preview ready — @${data.originalAuthor}: "${(data.originalText || "").slice(0, 50)}..."`, "success");
+                  }
+                } catch (e) { addLog(`Dry run failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPrimary}
+            >
+              {loading === "dryReply" ? "..." : "👁️ DRY RUN"}
+            </button>
             <button
               id="adminReplyBtn"
               onClick={async () => {
@@ -759,7 +795,7 @@ export default function BotDashboard() {
                   });
                   const data = await res.json();
                   if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else if (data.success) { const m = data.method === "quote" ? "Quote tweeted" : data.method === "mention" ? "Mentioned" : "Replied"; addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; }
+                  else if (data.success) { const m = data.method === "quote" ? "Quote tweeted" : data.method === "standalone" ? "Standalone" : "Replied"; addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; setReplyPreview(null); }
                   else addLog(`Failed: ${data.error}`, "error");
                 } catch (e) { addLog(`Reply failed: ${e}`, "error"); }
                 setLoading("");
@@ -767,11 +803,92 @@ export default function BotDashboard() {
               disabled={!!loading}
               style={styles.btnPost}
             >
-              {loading === "reply" ? "..." : "💬 REPLY"}
+              {loading === "reply" ? "..." : "💬 REPLY NOW"}
             </button>
           </div>
+
+          {/* Reply Preview */}
+          {replyPreview && (
+            <div style={{
+              background: "#0a0f0a",
+              border: "1px solid #1a3a1a",
+              borderRadius: "2px",
+              padding: "10px 12px",
+              marginBottom: "12px",
+            }}>
+              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>REPLY PREVIEW</div>
+              <div style={{ fontSize: "10px", color: "#5a7a5a", marginBottom: "8px", fontStyle: "italic" }}>
+                @{replyPreview.originalAuthor}: &quot;{replyPreview.originalText.length > 100 ? replyPreview.originalText.substring(0, 100) + "..." : replyPreview.originalText}&quot;
+              </div>
+              <div style={{
+                fontSize: "12px", color: "#39ff14", fontFamily: "monospace",
+                lineHeight: "1.6", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
+                padding: "8px", background: "#050a05", borderRadius: "2px", marginBottom: "8px",
+              }}>
+                {replyPreview.replyText}
+              </div>
+              <div style={{ fontSize: "9px", color: replyPreview.replyText.length > 280 ? "#ff4444" : "#3a5a3a", marginBottom: "8px" }}>
+                {replyPreview.replyText.length}/280
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={async () => {
+                    setLoading("dryReply");
+                    setReplyPreview(null);
+                    addLog("Regenerating...", "info");
+                    try {
+                      const res = await fetch("/api/targets/admin", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "dryReply", tweetUrl: replyPreview.tweetUrl, secret }),
+                      });
+                      const data = await res.json();
+                      if (data.replyText) {
+                        setReplyPreview({ ...replyPreview, replyText: data.replyText });
+                        addLog("✓ Regenerated", "success");
+                      }
+                    } catch (e) { addLog(`Regen failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnSmall, flex: 1 }}
+                >
+                  ↻ REGENERATE
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Post this reply to X?")) return;
+                    setLoading("postPreviewReply");
+                    addLog("Posting preview reply...", "info");
+                    try {
+                      const res = await fetch("/api/targets/admin", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "postPreview", tweetUrl: replyPreview.tweetUrl, replyText: replyPreview.replyText, secret }),
+                      });
+                      const data = await res.json();
+                      if (data.error) addLog(`Post failed: ${data.error}`, "error");
+                      else {
+                        const m = data.method === "quote" ? "Quote tweeted" : data.method === "standalone" ? "Standalone" : "Replied";
+                        addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success");
+                        setReplyPreview(null);
+                        const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
+                        if (inp) inp.value = "";
+                      }
+                    } catch (e) { addLog(`Post failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnPost, flex: 1 }}
+                >
+                  {loading === "postPreviewReply" ? "POSTING..." : "🚀 POST THIS REPLY"}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
-            REPLY: paste a tweet URL and ET will reply to it directly
+            DRY RUN: preview ET's reply before posting · REPLY NOW: generate + post immediately
           </div>
           <button
             onClick={async () => {
