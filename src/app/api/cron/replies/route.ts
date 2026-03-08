@@ -30,6 +30,17 @@ export async function GET(request: Request) {
       });
     }
 
+    // Quiet hours — no polling 11PM-9AM EST (saves ~40% of daily API calls)
+    const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const hour = nowEST.getHours();
+    if (hour >= 23 || hour < 9) {
+      return NextResponse.json({
+        processed: 0,
+        reason: `Quiet hours (${hour}:00 EST — polling resumes at 9AM)`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Global action throttle — prevents stacking with tweet/notis crons
     const { canAct, recordAction } = await import("@/lib/store");
     const throttle = await canAct();
