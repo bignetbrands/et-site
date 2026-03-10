@@ -780,8 +780,8 @@ export function buildReplyPrompt(
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
   if (conversationContext) {
-    prompt += `\n\nTHREAD CONTEXT (oldest → newest):\n${conversationContext}`;
-    prompt += `\n\nIMPORTANT: Read the full thread above. The person tagged you to get your take on this conversation. Engage with the MAIN TOPIC being discussed — especially the original/root post — not just the tag. Add value: share your alien perspective, give an opinion, ask a smart question, or make a funny observation about the actual subject matter. If you can't meaningfully contribute, acknowledge that with a joke.`;
+    prompt += `\n\nTHREAD CONTEXT (oldest → newest, [YOU] = your own previous replies):\n${conversationContext}`;
+    prompt += `\n\nIMPORTANT: Read the full thread above. You can see your own previous replies marked [YOU]. The person tagged you to continue the conversation. Engage with the MAIN TOPIC — reference what was already said, build on your previous replies, and add value. Never say you don't have context — you can see the whole thread above.`;
   }
 
   if (hasImages) {

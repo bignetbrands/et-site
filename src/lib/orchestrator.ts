@@ -439,36 +439,37 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // Get conversation context — check immediate parent, only walk deeper if needed
+  // Get conversation context — walk up the thread to find the original post
+  // With getTweet cache, deeper walks are cheap (cached in KV for 5 min)
   let conversationContext: string | undefined;
   let manuallyClaimedThread = false;
 
   if (mention.inReplyToId) {
-    const parentTweet = await getTweet(mention.inReplyToId);
+    const contextParts: string[] = [];
+    let currentId: string | undefined = mention.inReplyToId;
+    let depth = 0;
+    const ownUserId = await getOwnUserId();
     
-    if (parentTweet) {
-      const ownUserId = await getOwnUserId();
-      
-      // Check if immediate parent is a manual ET reply (not bot-posted)
-      if (parentTweet.authorId === ownUserId && !(await wasBotPosted(mention.inReplyToId))) {
+    // Walk up to 5 levels to find the original post
+    while (currentId && depth < 5) {
+      const tweet = await getTweet(currentId);
+      if (!tweet) break;
+
+      // Check if this is a manual ET reply (not bot-posted) → admin claimed thread
+      if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
         manuallyClaimedThread = true;
-      } else {
-        // Build context — only walk 1 more level (2 total max, saves API calls)
-        const contextParts: string[] = [];
-        const author = parentTweet.authorUsername || "someone";
-        contextParts.push(`@${author}: "${parentTweet.text}"`);
-        
-        // One more level up for root context (if parent is also a reply)
-        if (parentTweet.inReplyToId) {
-          const grandparent = await getTweet(parentTweet.inReplyToId);
-          if (grandparent) {
-            const gpAuthor = grandparent.authorUsername || "someone";
-            contextParts.unshift(`@${gpAuthor}: "${grandparent.text}"`);
-          }
-        }
-        
-        conversationContext = contextParts.join("\n↳ ");
+        break;
       }
+
+      const author = tweet.authorUsername || "someone";
+      const isET = tweet.authorId === ownUserId;
+      contextParts.unshift(`${isET ? "[YOU]" : ""} @${author}: "${tweet.text}"`);
+      currentId = tweet.inReplyToId;
+      depth++;
+    }
+    
+    if (contextParts.length > 0 && !manuallyClaimedThread) {
+      conversationContext = contextParts.join("\n↳ ");
     }
   }
 
