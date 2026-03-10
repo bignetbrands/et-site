@@ -28,6 +28,7 @@ import {
   recordThreadReply,
   hasHitUserLimit,
   recordUserInteraction,
+  isVipUser,
   getRecentQtHistory,
   recordQtReaction,
   hasQuotedTopic,
@@ -441,17 +442,20 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   // Get conversation context — walk up the thread to find the original post
   // With getTweet cache, deeper walks are cheap (cached in KV for 5 min)
+  // VIP users get 10 levels (for long engaging threads), others get 5
   let conversationContext: string | undefined;
   let manuallyClaimedThread = false;
 
   if (mention.inReplyToId) {
+    const isVip = authorUsername ? await isVipUser(authorUsername) : false;
+    const maxDepth = isVip ? 10 : 5;
+
     const contextParts: string[] = [];
     let currentId: string | undefined = mention.inReplyToId;
     let depth = 0;
     const ownUserId = await getOwnUserId();
     
-    // Walk up to 5 levels to find the original post
-    while (currentId && depth < 5) {
+    while (currentId && depth < maxDepth) {
       const tweet = await getTweet(currentId);
       if (!tweet) break;
 
