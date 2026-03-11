@@ -35,6 +35,7 @@ export default function BotDashboard() {
   const [threadPreview, setThreadPreview] = useState<string[] | null>(null);
   const [replyPreview, setReplyPreview] = useState<{ tweetUrl: string; replyText: string; originalText: string; originalAuthor: string; tweetId: string } | null>(null);
   const [homepageMode, setHomepageMode] = useState<string>("new");
+  const [memeResult, setMemeResult] = useState<string | null>(null);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -1034,6 +1035,150 @@ export default function BotDashboard() {
             Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
             <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
           </div>
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>◈ MEME ENGINE TEST</div>
+          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+            Test GPT Image editing — paste an image URL and ET will photobomb or meme it.
+          </div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <input
+              type="text"
+              id="memeImageUrl"
+              placeholder="https://image-url.jpg (or leave blank for sample)"
+              style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <input
+              type="text"
+              id="memePrompt"
+              placeholder="Custom prompt (optional — default: photobomb with ET)"
+              style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <button
+              onClick={async () => {
+                setLoading("memePhotobomb");
+                setMemeResult(null);
+                const url = (document.getElementById("memeImageUrl") as HTMLInputElement)?.value.trim();
+                const prompt = (document.getElementById("memePrompt") as HTMLInputElement)?.value.trim();
+                addLog(`Meme engine: ${url ? "photobombing..." : "using sample image..."}`, "info");
+                try {
+                  const params = new URLSearchParams({ secret });
+                  if (url) params.set("url", url);
+                  if (prompt) params.set("prompt", prompt);
+                  const res = await fetch(`/api/admin/meme-test?${params}`);
+                  const data = await res.json();
+                  if (data.error) {
+                    addLog(`Error: ${data.error}${data.details ? ` — ${data.details.substring(0, 100)}` : ""}`, "error");
+                  } else {
+                    setMemeResult(data.result);
+                    addLog(`✓ Meme generated in ${data.elapsed}`, "success");
+                  }
+                } catch (e) { addLog(`Meme test failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPrimary}
+            >
+              {loading === "memePhotobomb" ? "GENERATING..." : "👽 PHOTOBOMB"}
+            </button>
+            <button
+              onClick={async () => {
+                setLoading("memeMeme");
+                setMemeResult(null);
+                const url = (document.getElementById("memeImageUrl") as HTMLInputElement)?.value.trim();
+                addLog(`Meme engine: creating meme...`, "info");
+                try {
+                  const params = new URLSearchParams({ secret });
+                  if (url) params.set("url", url);
+                  params.set("prompt", "Transform this into a funny internet meme. Add alien observation humor — as if an alien scientist is studying this human behavior. Include meme-style text if appropriate. Make it shareable and funny. The alien should be a small grey-green creature with large reflective eyes.");
+                  const res = await fetch(`/api/admin/meme-test?${params}`);
+                  const data = await res.json();
+                  if (data.error) {
+                    addLog(`Error: ${data.error}${data.details ? ` — ${data.details.substring(0, 100)}` : ""}`, "error");
+                  } else {
+                    setMemeResult(data.result);
+                    addLog(`✓ Meme generated in ${data.elapsed}`, "success");
+                  }
+                } catch (e) { addLog(`Meme test failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={styles.btnPost}
+            >
+              {loading === "memeMeme" ? "GENERATING..." : "🎭 MEME THIS"}
+            </button>
+            <button
+              onClick={async () => {
+                setLoading("memeRoast");
+                setMemeResult(null);
+                const url = (document.getElementById("memeImageUrl") as HTMLInputElement)?.value.trim();
+                addLog(`Meme engine: roasting...`, "info");
+                try {
+                  const params = new URLSearchParams({ secret });
+                  if (url) params.set("url", url);
+                  params.set("prompt", "Create a playful roast meme of this image. Show a small alien scientist (grey-green skin, large reflective eyes) analyzing or judging this scene — writing notes on an alien clipboard, scanning with alien equipment, or labeling the behavior like a research experiment. The humor should be observational and playful, never mean. Think: alien anthropologist evaluating humans.");
+                  const res = await fetch(`/api/admin/meme-test?${params}`);
+                  const data = await res.json();
+                  if (data.error) {
+                    addLog(`Error: ${data.error}${data.details ? ` — ${data.details.substring(0, 100)}` : ""}`, "error");
+                  } else {
+                    setMemeResult(data.result);
+                    addLog(`✓ Roast meme generated in ${data.elapsed}`, "success");
+                  }
+                } catch (e) { addLog(`Meme test failed: ${e}`, "error"); }
+                setLoading("");
+              }}
+              disabled={!!loading}
+              style={{ ...styles.btnSmall, ...styles.btnWarn }}
+            >
+              {loading === "memeRoast" ? "..." : "🔥 ROAST"}
+            </button>
+          </div>
+
+          {memeResult && (
+            <div style={{ marginTop: "8px" }}>
+              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>
+                RESULT
+              </div>
+              <div style={{
+                background: "#0a0f0a",
+                border: "1px solid #1a3a1a",
+                borderRadius: "2px",
+                padding: "8px",
+                textAlign: "center" as const,
+              }}>
+                <img
+                  src={memeResult}
+                  alt="Meme result"
+                  style={{ maxWidth: "100%", maxHeight: "400px", borderRadius: "2px" }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                <button
+                  onClick={() => setMemeResult(null)}
+                  style={{ ...styles.btnSmall, flex: 1 }}
+                >
+                  ✕ CLEAR
+                </button>
+                <button
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = memeResult;
+                    a.download = `et-meme-${Date.now()}.png`;
+                    a.click();
+                  }}
+                  style={{ ...styles.btnSmall, flex: 1 }}
+                >
+                  💾 DOWNLOAD
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={styles.panel}>
