@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
     // Use the /v1/images/edits endpoint with gpt-image-1
     const formData = new FormData();
-    const blob = new Blob([imgBuffer], { type: contentType });
+    const blob = new Blob([new Uint8Array(imgBuffer)], { type: contentType });
     formData.append("image", blob, `source.${ext}`);
     formData.append("prompt", prompt);
     formData.append("model", "gpt-image-1"); // Use gpt-image-1 (most widely available)
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
       "Add a small cute alien photobombing this scene — hidden but visible, observing humans with curiosity.";
 
     const formData = new FormData();
-    const blob = new Blob([imgBuffer], { type: contentType });
+    const blob = new Blob([new Uint8Array(imgBuffer)], { type: contentType });
     formData.append("image", blob, "source.png");
     formData.append("prompt", editPrompt);
     formData.append("model", "gpt-image-1");
