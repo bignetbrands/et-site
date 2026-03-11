@@ -364,6 +364,48 @@ export async function getTweet(
  * Verify credentials are working.
  * Call this during setup to confirm API access.
  */
+
+/**
+ * Fetch a tweet with its attached media (images).
+ * Separate from getTweet to avoid bloating the cache.
+ */
+export async function getTweetWithMedia(
+  tweetId: string
+): Promise<{ text: string; authorId: string; authorUsername?: string; imageUrls: string[] } | null> {
+  assertNotHalted("getTweetWithMedia");
+  try {
+    const tweet = await getClient().v2.singleTweet(tweetId, {
+      "tweet.fields": "author_id,attachments",
+      expansions: "author_id,attachments.media_keys",
+      "user.fields": "username",
+      "media.fields": "url,preview_image_url,type",
+    });
+
+    const username = tweet.includes?.users?.[0]?.username;
+    const imageUrls: string[] = [];
+
+    if (tweet.includes?.media) {
+      for (const m of tweet.includes.media) {
+        if (m.type === "photo" && m.url) {
+          imageUrls.push(m.url);
+        } else if (m.preview_image_url) {
+          imageUrls.push(m.preview_image_url);
+        }
+      }
+    }
+
+    return {
+      text: tweet.data.text,
+      authorId: tweet.data.author_id || "",
+      authorUsername: username || undefined,
+      imageUrls,
+    };
+  } catch (e) {
+    console.error(`[Twitter] getTweetWithMedia failed for ${tweetId}:`, e);
+    return null;
+  }
+}
+
 export async function verifyCredentials(): Promise<{
   id: string;
   username: string;
