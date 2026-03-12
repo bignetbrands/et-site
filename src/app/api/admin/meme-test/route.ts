@@ -8,37 +8,52 @@ export const maxDuration = 120;
 // The actual ET character image — used as reference in every meme generation
 const ET_REFERENCE_URL = "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/d3938ddb-6ca3-40cb-9321-c7b9bcf58c00/width=1080,quality=100";
 
-const ET_PHOTOBOMB_PROMPT = `You are given two images. The FIRST image is the scene to edit. The SECOND image is the character "ET" — use this EXACT character design (same face, same body, same style) when adding him to the scene.
+const ET_CHAR_DESC = `The alien character from the second reference image — copy his EXACT appearance: his specific skin color/texture, his exact eye shape and color, his body proportions, his facial features. Do NOT invent a generic alien. Reproduce THIS specific character precisely as he appears in the reference photo.`;
 
-Photobomb the first image by inserting ET (from the second image) into the scene. ET should be:
-- SUBTLY HIDDEN — peeking from behind an object, visible in a reflection, sitting in the corner, hovering in the distance, or observing from a window
-- Look like he was always there — blend naturally into the scene's lighting and style
-- Playful and mischievous, secretly observing humans
+const ET_PHOTOBOMB_PROMPT = `CRITICAL INSTRUCTION: You are performing a SURGICAL EDIT on the first image. DO NOT redraw, reimagine, or artistically reinterpret it. The output must look like the EXACT SAME PHOTOGRAPH with one addition.
 
-Keep the original scene FULLY INTACT and recognizable. Only add the ET character from image 2.`;
+You have two images:
+- Image 1: The original photo. PRESERVE THIS EXACTLY — every pixel, every detail, every color, every face, every background element must remain IDENTICAL.
+- Image 2: The character "ET" to insert. ${ET_CHAR_DESC}
 
-const ET_MEME_PROMPT = `You are given two images. The FIRST image is the source material. The SECOND image is the character "ET" — use this EXACT character design when adding him.
+YOUR ONLY JOB: Insert the ET character from image 2 into the scene from image 1. Place him somewhere subtle and natural:
+- Peeking from behind furniture, a door, or a wall
+- Visible through a window or in a mirror/reflection
+- Partially hidden in the background or corner
+- Sitting among objects on a shelf or table
+- Observing from a distance
 
-Transform the first image into a funny internet meme featuring ET (from image 2).
-ET should be studying, analyzing, or judging the human behavior in the scene — like an alien anthropologist.
-The humor should be observational, absurd, and shareable.
-You can add meme-style text/captions if it makes it funnier.
-Keep the original image recognizable but make it meme-worthy.`;
+RULES:
+- The original photo must be PIXEL-PERFECT preserved — same resolution, same colors, same everything
+- ET must match the photo's lighting, shadows, and color temperature
+- ET should be small relative to the scene — he's hiding, not the main subject
+- This should look like a real photograph where someone spotted an alien in the background
+- NO artistic filters, NO style changes, NO color grading changes to the original`;
 
-const ET_ROAST_PROMPT = `You are given two images. The FIRST image is the scene to roast. The SECOND image is the character "ET" — use this EXACT character design.
+const ET_MEME_PROMPT = `You have two images:
+- Image 1: The source photo. Keep it as recognizable and intact as possible.
+- Image 2: The character "ET". ${ET_CHAR_DESC}
 
-Create a playful roast by inserting ET (from image 2) as an alien scientist analyzing this scene — 
-writing notes on an alien clipboard, scanning with alien equipment, or labeling the behavior like a research experiment.
-Add labels or annotations in a scientific/comedic style.
-The humor should be observational and playful, never mean.
-Think: alien anthropologist evaluating primitive human behavior.`;
+Create a meme by adding ET (from image 2) into the scene from image 1. ET should be reacting to, studying, or judging the human behavior shown — like an alien anthropologist documenting a strange species.
 
-const ET_SCENE_PROMPT = `You are given one reference image of a character called "ET". Use this EXACT character design to create a meme scene.
+You may add meme-style text/captions if funny. Keep the original photo as the base — don't reimagine it. ET should look like he belongs in the photo but is clearly an alien observer.`;
 
-Create a funny meme scene showing ET (from the reference image) observing or reacting to the situation described below.
-ET is studying humanity like a scientist — curious, amused, slightly judging.
-Make it funny, internet-native, and shareable. Meme-style text/captions are encouraged.
-The style should be clear, visually engaging, and slightly absurd.`;
+const ET_ROAST_PROMPT = `You have two images:
+- Image 1: The scene to roast. Preserve it as the base photo.
+- Image 2: The character "ET". ${ET_CHAR_DESC}
+
+Insert ET (from image 2) as an alien scientist analyzing this scene. He could be:
+- Holding a clipboard taking notes
+- Scanning something with alien equipment
+- Labeling elements with scientific annotations
+- Looking through a magnifying glass at the humans
+
+Keep the original photo as the base. Add ET and optional comedic labels/annotations.
+The humor is observational and playful — alien anthropologist studying primitive behavior.`;
+
+const ET_SCENE_PROMPT = `You have one reference image of the character "ET". ${ET_CHAR_DESC}
+
+Create a new meme scene showing this EXACT ET character observing or reacting to the situation described below. ET is studying humanity like a scientist — curious, amused, slightly judging. Make it funny and shareable. Meme-style text/captions encouraged.`;
 
 async function fetchImageAsBlob(url: string): Promise<{ blob: Blob; contentType: string } | null> {
   try {
@@ -76,7 +91,7 @@ async function generateMemeImage(
       formData.append("prompt", prompt);
       formData.append("model", "gpt-image-1");
       formData.append("size", "1024x1024");
-      formData.append("quality", "medium");
+      formData.append("quality", "high");
 
       const res = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST",
@@ -102,7 +117,7 @@ async function generateMemeImage(
       formData.append("prompt", prompt);
       formData.append("model", "gpt-image-1");
       formData.append("size", "1024x1024");
-      formData.append("quality", "medium");
+      formData.append("quality", "high");
 
       const res = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST",
