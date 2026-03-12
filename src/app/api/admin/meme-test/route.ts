@@ -91,7 +91,7 @@ async function generateMemeImage(
       formData.append("prompt", prompt);
       formData.append("model", "gpt-image-1");
       formData.append("size", "1024x1024");
-      formData.append("quality", "high");
+      formData.append("quality", "low");
 
       const res = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST",
@@ -117,7 +117,7 @@ async function generateMemeImage(
       formData.append("prompt", prompt);
       formData.append("model", "gpt-image-1");
       formData.append("size", "1024x1024");
-      formData.append("quality", "high");
+      formData.append("quality", "low");
 
       const res = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST",
