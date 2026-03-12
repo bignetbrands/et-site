@@ -440,6 +440,21 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
+  // Detect meme engine keywords — these are handled by the meme engine in /bot, not text replies
+  const isMemeRequest = /\b(photobomb|photo bomb|meme this|meme me|roast this)\b/i.test(normalized);
+  if (isMemeRequest) {
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: "Meme engine request (photobomb/meme — handled via /bot)",
+    };
+  }
+
   // Get conversation context — walk up the thread to find the original post
   // With getTweet cache, deeper walks are cheap (cached in KV for 5 min)
   // VIP users get 10 levels (for long engaging threads), others get 5
