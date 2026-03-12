@@ -97,6 +97,10 @@ async function generateMemeImage(
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       if (!res.ok) {
         const errText = await res.text();
+        if (errText.includes("safety_violations") || errText.includes("safety system")) {
+          const violation = errText.match(/safety_violations=\[(\w+)\]/)?.[1] || "content policy";
+          return { success: false, error: `OpenAI rejected this image (${violation} filter). Try a different source image.`, elapsed: `${elapsed}s` };
+        }
         return { success: false, error: `OpenAI ${res.status}: ${errText.substring(0, 300)}`, elapsed: `${elapsed}s` };
       }
 
@@ -123,6 +127,10 @@ async function generateMemeImage(
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       if (!res.ok) {
         const errText = await res.text();
+        if (errText.includes("safety_violations") || errText.includes("safety system")) {
+          const violation = errText.match(/safety_violations=\[(\w+)\]/)?.[1] || "content policy";
+          return { success: false, error: `OpenAI rejected this (${violation} filter). Try different content.`, elapsed: `${elapsed}s` };
+        }
         return { success: false, error: `OpenAI ${res.status}: ${errText.substring(0, 300)}`, elapsed: `${elapsed}s` };
       }
 
