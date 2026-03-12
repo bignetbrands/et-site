@@ -8,52 +8,47 @@ export const maxDuration = 120;
 // The actual ET character image — used as reference in every meme generation
 const ET_REFERENCE_URL = "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/d3938ddb-6ca3-40cb-9321-c7b9bcf58c00/width=1080,quality=100";
 
-const ET_CHAR_DESC = `The alien character from the second reference image — copy his EXACT appearance: his specific skin color/texture, his exact eye shape and color, his body proportions, his facial features. Do NOT invent a generic alien. Reproduce THIS specific character precisely as he appears in the reference photo.`;
+const ET_CHAR_DESC = `Use the alien from the second reference image as your character model. Reproduce his EXACT anatomy: his specific wrinkled skin tone, his exact large eye shape, his head-to-body ratio, his thin limbs, his facial expression. He must look like the same individual — not a different alien, not a cartoon version, not a stylized version. Same character, same details.`;
 
-const ET_PHOTOBOMB_PROMPT = `CRITICAL INSTRUCTION: You are performing a SURGICAL EDIT on the first image. DO NOT redraw, reimagine, or artistically reinterpret it. The output must look like the EXACT SAME PHOTOGRAPH with one addition.
+const ET_PHOTOBOMB_PROMPT = `You have two images:
+- Image 1: A photograph. THIS IS SACRED. Do not alter, recolor, resize, crop, filter, or artistically reinterpret ANY part of this photo. Every human face, every object, every background element, every shadow, every color must remain UNTOUCHED.
+- Image 2: An alien character called ET. ${ET_CHAR_DESC}
 
-You have two images:
-- Image 1: The original photo. PRESERVE THIS EXACTLY — every pixel, every detail, every color, every face, every background element must remain IDENTICAL.
-- Image 2: The character "ET" to insert. ${ET_CHAR_DESC}
+YOUR TASK: Place the ET character into the photograph. That is the ONLY change allowed.
 
-YOUR ONLY JOB: Insert the ET character from image 2 into the scene from image 1. Place him somewhere subtle and natural:
-- Peeking from behind furniture, a door, or a wall
-- Visible through a window or in a mirror/reflection
-- Partially hidden in the background or corner
-- Sitting among objects on a shelf or table
-- Observing from a distance
+PLACEMENT — pick ONE:
+- Peeking from behind furniture or a doorway
+- Visible through a window or in a reflection
+- Partially hidden in a corner or behind an object
+- Small in the background, observing from a distance
 
-RULES:
-- The original photo must be PIXEL-PERFECT preserved — same resolution, same colors, same everything
-- ET must match the photo's lighting, shadows, and color temperature
-- ET should be small relative to the scene — he's hiding, not the main subject
-- This should look like a real photograph where someone spotted an alien in the background
-- NO artistic filters, NO style changes, NO color grading changes to the original`;
+BLENDING:
+- Match the photo's exact lighting direction, color temperature, and shadow angles
+- ET should look physically present in the scene — correct scale, correct perspective
+- He should be small enough to be a background detail, not the main subject
+
+ZERO TOLERANCE:
+- Do NOT change any person's face or body
+- Do NOT change the background, colors, or composition
+- Do NOT apply any filter or style transfer
+- Do NOT change the aspect ratio or crop
+- The ONLY difference between input and output is ET's presence`;
 
 const ET_MEME_PROMPT = `You have two images:
-- Image 1: The source photo. Keep it as recognizable and intact as possible.
-- Image 2: The character "ET". ${ET_CHAR_DESC}
+- Image 1: A photo. Keep it as intact as possible — do not redraw or reimagine it.
+- Image 2: An alien character called ET. ${ET_CHAR_DESC}
 
-Create a meme by adding ET (from image 2) into the scene from image 1. ET should be reacting to, studying, or judging the human behavior shown — like an alien anthropologist documenting a strange species.
-
-You may add meme-style text/captions if funny. Keep the original photo as the base — don't reimagine it. ET should look like he belongs in the photo but is clearly an alien observer.`;
+Add ET into the photo as an alien observer — studying, judging, or reacting to the humans. You may add meme text/captions. Keep all humans and the scene recognizable. ET must look like the character from image 2, not a generic alien.`;
 
 const ET_ROAST_PROMPT = `You have two images:
-- Image 1: The scene to roast. Preserve it as the base photo.
-- Image 2: The character "ET". ${ET_CHAR_DESC}
+- Image 1: A photo. Keep it intact as the base.
+- Image 2: An alien character called ET. ${ET_CHAR_DESC}
 
-Insert ET (from image 2) as an alien scientist analyzing this scene. He could be:
-- Holding a clipboard taking notes
-- Scanning something with alien equipment
-- Labeling elements with scientific annotations
-- Looking through a magnifying glass at the humans
+Insert ET as an alien scientist analyzing the scene — with a clipboard, scanner, magnifying glass, or scientific labels. Keep all humans and background intact. Add comedic annotations if funny. ET must look like the character from image 2.`;
 
-Keep the original photo as the base. Add ET and optional comedic labels/annotations.
-The humor is observational and playful — alien anthropologist studying primitive behavior.`;
+const ET_SCENE_PROMPT = `You have one reference image of an alien character called ET. ${ET_CHAR_DESC}
 
-const ET_SCENE_PROMPT = `You have one reference image of the character "ET". ${ET_CHAR_DESC}
-
-Create a new meme scene showing this EXACT ET character observing or reacting to the situation described below. ET is studying humanity like a scientist — curious, amused, slightly judging. Make it funny and shareable. Meme-style text/captions encouraged.`;
+Create a new scene showing this EXACT character observing or reacting to the situation described below. Preserve his anatomy precisely from the reference — same face, same body, same proportions. Make it funny and shareable.`;
 
 async function fetchImageAsBlob(url: string): Promise<{ blob: Blob; contentType: string } | null> {
   try {
