@@ -247,7 +247,19 @@ export async function POST(request: Request) {
     }
 
     console.log(`[Meme Engine] ${hasImages ? "Editing" : "Generating"} image...`);
-    const result = await generateMemeImage(sourceImage, prompt, apiKey);
+    let result = await generateMemeImage(sourceImage, prompt, apiKey);
+
+    // Auto-fallback: if safety filter rejects the source image, generate a scene instead
+    let fellBack = false;
+    if (!result.success && result.error?.includes("rejected") && hasImages) {
+      console.log(`[Meme Engine] Safety filter blocked edit — falling back to scene generation from tweet text`);
+      const fallbackPrompt = `${ET_SCENE_PROMPT}\n\nThe tweet says: "${imageTweetText || tweet.text}"`;
+      result = await generateMemeImage(null, fallbackPrompt, apiKey);
+      fellBack = true;
+      if (result.success) {
+        console.log(`[Meme Engine] Fallback scene generated in ${result.elapsed}`);
+      }
+    }
 
     if (!result.success) {
       return NextResponse.json({
@@ -265,8 +277,9 @@ export async function POST(request: Request) {
       tweetId,
       tweetText: tweet.text,
       author: tweet.authorUsername,
-      hasImages,
-      imageFrom: walkedUp ? `@${imageTweetAuthor} (parent tweet)` : hasImages ? `@${tweet.authorUsername}` : null,
+      hasImages: hasImages && !fellBack,
+      fellBack,
+      imageFrom: fellBack ? "generated scene (source image blocked by safety filter)" : walkedUp ? `@${imageTweetAuthor} (parent tweet)` : hasImages ? `@${tweet.authorUsername}` : null,
       memeMode: mode,
       imageBase64: result.imageBase64,
       result: `data:image/png;base64,${result.imageBase64}`,

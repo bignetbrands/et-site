@@ -1079,10 +1079,11 @@ export default function BotDashboard() {
                         tweetText: data.tweetText,
                         hasImages: data.hasImages,
                         imageFrom: data.imageFrom,
+                        fellBack: data.fellBack,
                         mode: m,
                         elapsed: data.elapsed,
                       }));
-                      addLog(`✓ ${m} preview ready (${data.elapsed}) — ${data.hasImages ? "edited image" : "generated scene"} for @${data.author}`, "success");
+                      addLog(`✓ ${m} preview ready (${data.elapsed}) — ${data.fellBack ? "⚠️ source blocked by safety filter, generated scene instead" : data.hasImages ? `edited image from @${data.imageFrom || data.author}` : "generated scene"} for @${data.author}`, "success");
                     }
                   } catch (e) { addLog(`Meme failed: ${e}`, "error"); }
                   setLoading("");
@@ -1101,7 +1102,7 @@ export default function BotDashboard() {
               return (
                 <div style={{ marginTop: "4px" }}>
                   <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>
-                    PREVIEW — @{d.author}: &quot;{(d.tweetText || "").substring(0, 80)}{d.tweetText?.length > 80 ? "..." : ""}&quot; ({d.imageFrom ? `image from ${d.imageFrom}` : d.hasImages ? "image edited" : "scene generated"})
+                    PREVIEW{d.fellBack ? " ⚠️ SAFETY FALLBACK" : ""} — @{d.author}: &quot;{(d.tweetText || "").substring(0, 80)}{d.tweetText?.length > 80 ? "..." : ""}&quot; ({d.imageFrom || (d.hasImages ? "image edited" : "scene generated")})
                   </div>
                   <div style={{
                     background: "#0a0f0a", border: "1px solid #1a3a1a", borderRadius: "2px",
