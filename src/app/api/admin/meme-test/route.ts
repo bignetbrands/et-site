@@ -71,8 +71,8 @@ async function generateMemeImage(
 
       const formData = new FormData();
       // First image = scene to edit, Second image = ET character reference
-      formData.append("image", source.blob, "scene.png");
-      formData.append("image", etRef.blob, "et_reference.png");
+      formData.append("image[]", source.blob, "scene.png");
+      formData.append("image[]", etRef.blob, "et_reference.png");
       formData.append("prompt", prompt);
       formData.append("model", "gpt-image-1");
       formData.append("size", "1024x1024");
@@ -98,7 +98,7 @@ async function generateMemeImage(
     } else {
       // GENERATE: ET reference only (no source scene)
       const formData = new FormData();
-      formData.append("image", etRef.blob, "et_reference.png");
+      formData.append("image[]", etRef.blob, "et_reference.png");
       formData.append("prompt", prompt);
       formData.append("model", "gpt-image-1");
       formData.append("size", "1024x1024");
