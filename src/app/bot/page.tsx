@@ -1078,6 +1078,7 @@ export default function BotDashboard() {
                         author: data.author,
                         tweetText: data.tweetText,
                         hasImages: data.hasImages,
+                        imageFrom: data.imageFrom,
                         mode: m,
                         elapsed: data.elapsed,
                       }));
@@ -1100,7 +1101,7 @@ export default function BotDashboard() {
               return (
                 <div style={{ marginTop: "4px" }}>
                   <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>
-                    PREVIEW — @{d.author}: &quot;{(d.tweetText || "").substring(0, 80)}{d.tweetText?.length > 80 ? "..." : ""}&quot; ({d.hasImages ? "image edited" : "scene generated"})
+                    PREVIEW — @{d.author}: &quot;{(d.tweetText || "").substring(0, 80)}{d.tweetText?.length > 80 ? "..." : ""}&quot; ({d.imageFrom ? `image from ${d.imageFrom}` : d.hasImages ? "image edited" : "scene generated"})
                   </div>
                   <div style={{
                     background: "#0a0f0a", border: "1px solid #1a3a1a", borderRadius: "2px",

@@ -184,10 +184,39 @@ export async function POST(request: Request) {
     const tweet = await getTweetWithMedia(tweetId);
     if (!tweet) return NextResponse.json({ error: `Could not fetch tweet ${tweetId}` }, { status: 400 });
 
-    const hasImages = tweet.imageUrls.length > 0;
-    const sourceImage = hasImages ? tweet.imageUrls[0] : null;
+    // If this tweet has no images, walk up the thread to find the parent with images
+    // (e.g. someone replies "photobomb this" to a tweet that has the actual photo)
+    let sourceImage: string | null = tweet.imageUrls.length > 0 ? tweet.imageUrls[0] : null;
+    let imageTweetText = tweet.text;
+    let imageTweetAuthor = tweet.authorUsername;
+    let walkedUp = false;
 
-    console.log(`[Meme Engine] @${tweet.authorUsername}: "${tweet.text.substring(0, 60)}..." | ${tweet.imageUrls.length} images | mode: ${mode}`);
+    if (!sourceImage && tweet.inReplyToId) {
+      console.log(`[Meme Engine] No images in tagged tweet — checking parent ${tweet.inReplyToId}...`);
+      let parentId: string | undefined = tweet.inReplyToId;
+      let depth = 0;
+
+      while (parentId && depth < 3) {
+        const parent = await getTweetWithMedia(parentId);
+        if (!parent) break;
+
+        if (parent.imageUrls.length > 0) {
+          sourceImage = parent.imageUrls[0];
+          imageTweetText = parent.text;
+          imageTweetAuthor = parent.authorUsername;
+          walkedUp = true;
+          console.log(`[Meme Engine] Found image in parent tweet by @${parent.authorUsername} (${depth + 1} level${depth > 0 ? "s" : ""} up)`);
+          break;
+        }
+
+        parentId = parent.inReplyToId;
+        depth++;
+      }
+    }
+
+    const hasImages = !!sourceImage;
+
+    console.log(`[Meme Engine] @${tweet.authorUsername}: "${tweet.text.substring(0, 60)}..." | ${hasImages ? `image from @${imageTweetAuthor}${walkedUp ? " (parent)" : ""}` : "no images"} | mode: ${mode}`);
 
     // Pick prompt
     let prompt: string;
@@ -219,6 +248,7 @@ export async function POST(request: Request) {
       tweetText: tweet.text,
       author: tweet.authorUsername,
       hasImages,
+      imageFrom: walkedUp ? `@${imageTweetAuthor} (parent tweet)` : hasImages ? `@${tweet.authorUsername}` : null,
       memeMode: mode,
       imageBase64: result.imageBase64,
       result: `data:image/png;base64,${result.imageBase64}`,

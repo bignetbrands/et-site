@@ -371,11 +371,11 @@ export async function getTweet(
  */
 export async function getTweetWithMedia(
   tweetId: string
-): Promise<{ text: string; authorId: string; authorUsername?: string; imageUrls: string[] } | null> {
+): Promise<{ text: string; authorId: string; authorUsername?: string; imageUrls: string[]; inReplyToId?: string } | null> {
   assertNotHalted("getTweetWithMedia");
   try {
     const tweet = await getClient().v2.singleTweet(tweetId, {
-      "tweet.fields": "author_id,attachments",
+      "tweet.fields": "author_id,attachments,referenced_tweets",
       expansions: "author_id,attachments.media_keys",
       "user.fields": "username",
       "media.fields": "url,preview_image_url,type",
@@ -394,11 +394,16 @@ export async function getTweetWithMedia(
       }
     }
 
+    const inReplyToId = tweet.data.referenced_tweets?.find(
+      (r: any) => r.type === "replied_to"
+    )?.id;
+
     return {
       text: tweet.data.text,
       authorId: tweet.data.author_id || "",
       authorUsername: username || undefined,
       imageUrls,
+      inReplyToId,
     };
   } catch (e) {
     console.error(`[Twitter] getTweetWithMedia failed for ${tweetId}:`, e);
