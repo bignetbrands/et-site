@@ -525,7 +525,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   // Generate the reply — no proactive excuses. ET just replies naturally.
   // If the user calls him out for being slow, Claude will see that in the
   // mention text and can improvise a funny excuse in character.
-  const replyText = await generateReply(
+  let replyText = await generateReply(
     mention.text,
     authorUsername,
     conversationContext,
@@ -533,6 +533,25 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     threadDepth,
     selfAwarenessContext
   );
+
+  if (!replyText || replyText.length > 280) {
+    // Retry once with a forced-short prompt
+    if (replyText && replyText.length > 280) {
+      console.log(`[ET Replies] Reply too long (${replyText.length} chars) — retrying shorter...`);
+      const shortReply = await generateReply(
+        mention.text,
+        authorUsername,
+        conversationContext,
+        mention.imageUrls,
+        threadDepth,
+        `${selfAwarenessContext || ""}\n\nCRITICAL: Your last reply was ${replyText.length} chars — way over the 280 char limit. Write a MUCH shorter version. One sentence MAX. Under 200 chars. Be punchy.`
+      );
+      if (shortReply && shortReply.length <= 280 && shortReply.trim().toUpperCase() !== "SKIP") {
+        console.log(`[ET Replies] Retry succeeded: ${shortReply.length} chars`);
+        replyText = shortReply;
+      }
+    }
+  }
 
   if (!replyText || replyText.length > 280) {
     await recordReply(mention.id);
