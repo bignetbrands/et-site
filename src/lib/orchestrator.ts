@@ -40,6 +40,8 @@ import {
   getSelfAwarenessForReply,
   formatSelfAwarenessForPrompt,
   recordUserMemoryInteraction,
+  extractStylesFromMessage,
+  addLearnedStyles,
 } from "./self-awareness";
 
 // Max replies per cron run & per day
@@ -728,6 +730,15 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     replyText,
     extractTopicsFromText(mention.text)
   ).catch(e => console.warn("[ET Replies] User memory record failed:", e));
+
+  // Learn speech patterns from the human (non-blocking, no API call)
+  try {
+    const styles = extractStylesFromMessage(mention.text, authorUsername);
+    if (styles.length > 0) {
+      addLearnedStyles(styles).catch(() => {});
+      console.log(`[ET Style] Learned ${styles.length} pattern(s) from @${authorUsername}: ${styles.map(s => s.phrase).join(", ")}`);
+    }
+  } catch { /* non-critical */ }
 
   return {
     mentionId: mention.id,

@@ -291,6 +291,133 @@ export async function setEngagementPatterns(patterns: EngagementPatterns): Promi
 }
 
 // ============================================================
+// STYLE LEARNING — ET absorbs speech patterns from humans
+// ============================================================
+
+export interface LearnedStyle {
+  phrase: string;        // the pattern or phrase learned
+  learnedFrom: string;   // @username
+  learnedAt: string;     // ISO date
+  category: "opener" | "slang" | "structure" | "punchline" | "vibe";
+}
+
+/**
+ * Lightweight style extraction — no API call, just pattern matching.
+ * Runs after each reply to absorb interesting phrases from humans.
+ */
+export function extractStylesFromMessage(text: string, username: string): LearnedStyle[] {
+  const styles: LearnedStyle[] = [];
+  const clean = text.replace(/@\w+/g, "").trim().toLowerCase();
+  const now = new Date().toISOString();
+
+  // Interesting openers (first 4 words)
+  const words = clean.split(/\s+/);
+  if (words.length >= 3) {
+    const opener = words.slice(0, 4).join(" ");
+    // Look for unique openers that aren't generic
+    const genericOpeners = ["i think that", "this is a", "what do you", "can you help", "hey can you", "do you know"];
+    if (!genericOpeners.some((g) => opener.startsWith(g)) && opener.length > 8 && opener.length < 40) {
+      // Only learn openers that feel stylish or unique
+      if (/^(yo |ayo |listen |dawg |fam |bro |bruv |lowkey |ok so |wait |hold on |imagine |picture this |real talk |no cap )/.test(opener)) {
+        styles.push({ phrase: opener, learnedFrom: username, learnedAt: now, category: "opener" });
+      }
+    }
+  }
+
+  // Slang and unique expressions (2-4 word phrases)
+  const slangPatterns = [
+    /\b(no cap)\b/i,
+    /\b(on god)\b/i,
+    /\b(it's giving)\b/i,
+    /\b(main character)\b/i,
+    /\b(rent free)\b/i,
+    /\b(big if true)\b/i,
+    /\b(built different)\b/i,
+    /\b(caught in 4k)\b/i,
+    /\b(the way i)\b/i,
+    /\b(understood the assignment)\b/i,
+    /\b(ate that)\b/i,
+    /\b(left no crumbs)\b/i,
+    /\b(real ones know)\b/i,
+    /\b(the audacity)\b/i,
+    /\b(tell me why)\b/i,
+    /\b(not me)\b\s+\w+ing/i,
+    /\b(living rent free)\b/i,
+    /\b(down bad)\b/i,
+    /\b(hits different)\b/i,
+    /\b(core memory)\b/i,
+    /\b(this ain't it)\b/i,
+    /\b(say less)\b/i,
+    /\b(iykyk)\b/i,
+    /\b(unhinged)\b/i,
+    /\b(delulu)\b/i,
+    /\b(slay)\b/i,
+    /\b(gaslight gatekeep)\b/i,
+    /\b(touch grass)\b/i,
+    /\b(rug pull)\b/i,
+    /\b(diamond hands)\b/i,
+    /\b(paper hands)\b/i,
+    /\b(ser)\b/i,
+    /\b(wagmi)\b/i,
+    /\b(ngmi)\b/i,
+    /\b(gm fam)\b/i,
+    /\b(wen)\b\s+\w+/i,
+  ];
+
+  for (const pattern of slangPatterns) {
+    const match = clean.match(pattern);
+    if (match) {
+      styles.push({ phrase: match[0].trim(), learnedFrom: username, learnedAt: now, category: "slang" });
+    }
+  }
+
+  // Punchline structures — sentences ending with impact
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 20);
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    // Short punchy endings after a longer setup
+    if (trimmed.length > 40 && trimmed.length < 150) {
+      const parts = trimmed.split(/[,—–-]+/);
+      if (parts.length >= 2) {
+        const punchline = parts[parts.length - 1].trim();
+        if (punchline.length > 5 && punchline.length < 50 && punchline.split(" ").length <= 8) {
+          styles.push({ phrase: `[setup] — ${punchline}`, learnedFrom: username, learnedAt: now, category: "punchline" });
+        }
+      }
+    }
+  }
+
+  // Cap at 2 styles per message
+  return styles.slice(0, 2);
+}
+
+const STYLE_BANK_KEY = "et:learned_styles";
+const MAX_STYLES = 30;
+
+export async function getLearnedStyles(): Promise<LearnedStyle[]> {
+  try {
+    return (await kv.get<LearnedStyle[]>(STYLE_BANK_KEY)) || [];
+  } catch { return []; }
+}
+
+export async function addLearnedStyles(styles: LearnedStyle[]): Promise<void> {
+  if (styles.length === 0) return;
+  try {
+    const existing = await getLearnedStyles();
+    const combined = [...existing, ...styles];
+    // Dedup by phrase, keep newest, cap at MAX_STYLES
+    const seen = new Set<string>();
+    const deduped = combined.reverse().filter((s) => {
+      const key = s.phrase.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).reverse().slice(-MAX_STYLES);
+    await kv.set(STYLE_BANK_KEY, deduped);
+  } catch (e) { debugWarn("addLearnedStyles failed:", e); }
+}
+
+// ============================================================
 // SELF-AWARENESS CONTEXT BUILDER
 // For injecting into prompts
 // ============================================================
@@ -299,6 +426,7 @@ export interface SelfAwarenessContext {
   quirks: QuirkState;
   recentJournal: JournalEntry | null;
   engagementPatterns: EngagementPatterns | null;
+  learnedStyles: LearnedStyle[];
   userContext?: UserMemory | null;  // specific user (for replies)
 }
 
@@ -306,16 +434,18 @@ export interface SelfAwarenessContext {
  * Build the full self-awareness context for tweet generation.
  */
 export async function getSelfAwarenessForTweets(): Promise<SelfAwarenessContext> {
-  const [quirks, journals, patterns] = await Promise.all([
+  const [quirks, journals, patterns, styles] = await Promise.all([
     getQuirkState(),
     getRecentJournals(1),
     getEngagementPatterns(),
+    getLearnedStyles(),
   ]);
 
   return {
     quirks,
     recentJournal: journals[0] || null,
     engagementPatterns: patterns,
+    learnedStyles: styles,
   };
 }
 
@@ -323,10 +453,11 @@ export async function getSelfAwarenessForTweets(): Promise<SelfAwarenessContext>
  * Build self-awareness context for replying to a specific user.
  */
 export async function getSelfAwarenessForReply(username: string): Promise<SelfAwarenessContext> {
-  const [quirks, journals, patterns, userMem] = await Promise.all([
+  const [quirks, journals, patterns, styles, userMem] = await Promise.all([
     getQuirkState(),
     getRecentJournals(1),
     getEngagementPatterns(),
+    getLearnedStyles(),
     getUserMemory(username),
   ]);
 
@@ -334,6 +465,7 @@ export async function getSelfAwarenessForReply(username: string): Promise<SelfAw
     quirks,
     recentJournal: journals[0] || null,
     engagementPatterns: patterns,
+    learnedStyles: styles,
     userContext: userMem,
   };
 }
@@ -403,6 +535,19 @@ export function formatSelfAwarenessForPrompt(ctx: SelfAwarenessContext): string 
     } else if (u.tier === "stranger") {
       parts.push("→ First time or new. Be welcoming but don't overdo it.");
     }
+  }
+
+  // Learned styles — phrases/patterns ET picked up from humans he talks to
+  if (ctx.learnedStyles && ctx.learnedStyles.length > 0) {
+    // Pick a random subset (5-8) so ET doesn't try to use all of them
+    const shuffled = [...ctx.learnedStyles].sort(() => Math.random() - 0.5);
+    const sample = shuffled.slice(0, Math.min(8, shuffled.length));
+    parts.push("");
+    parts.push("STYLES YOU'VE PICKED UP FROM HUMANS (use naturally, don't force — weave them in when they fit):");
+    for (const s of sample) {
+      parts.push(`- "${s.phrase}" (${s.category}, from @${s.learnedFrom})`);
+    }
+    parts.push("These are patterns you've absorbed from talking to humans. Use them organically when they fit the vibe — never all at once, never forced.");
   }
 
   return parts.join("\n");
