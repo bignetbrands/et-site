@@ -535,34 +535,37 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   );
 
   if (!replyText || replyText.length > 280) {
-    // Retry once with a forced-short prompt
     if (replyText && replyText.length > 280) {
-      console.log(`[ET Replies] Reply too long (${replyText.length} chars) — retrying shorter...`);
-      const shortReply = await generateReply(
-        mention.text,
-        authorUsername,
-        conversationContext,
-        mention.imageUrls,
-        threadDepth,
-        `${selfAwarenessContext || ""}\n\nCRITICAL: Your last reply was ${replyText.length} chars — way over the 280 char limit. Write a MUCH shorter version. One sentence MAX. Under 200 chars. Be punchy.`
-      );
-      if (shortReply && shortReply.length <= 280 && shortReply.trim().toUpperCase() !== "SKIP") {
-        console.log(`[ET Replies] Retry succeeded: ${shortReply.length} chars`);
-        replyText = shortReply;
-      }
+      // Truncate to fit — find a natural break point, add engagement hook
+      const hook = "\n\nshould i continue? 👽";
+      const maxContent = 280 - hook.length;
+      let truncated = replyText.substring(0, maxContent);
+      
+      // Find a natural break — last sentence end, comma, or space
+      const lastSentence = truncated.lastIndexOf(". ");
+      const lastComma = truncated.lastIndexOf(", ");
+      const lastSpace = truncated.lastIndexOf(" ");
+      const breakAt = lastSentence > maxContent * 0.5 ? lastSentence + 1
+        : lastComma > maxContent * 0.5 ? lastComma + 1
+        : lastSpace > maxContent * 0.5 ? lastSpace
+        : maxContent;
+      
+      truncated = truncated.substring(0, breakAt).trim();
+      replyText = `${truncated}${hook}`;
+      console.log(`[ET Replies] Reply truncated from ${replyText.length + (maxContent - breakAt)} to ${replyText.length} chars with continuation hook`);
     }
   }
 
-  if (!replyText || replyText.length > 280) {
+  if (!replyText) {
     await recordReply(mention.id);
     return {
       mentionId: mention.id,
       mentionText: mention.text,
       authorUsername,
-      replyText: replyText || "",
+      replyText: "",
       replyId: "",
       skipped: true,
-      skipReason: `Invalid reply: ${replyText?.length || 0} chars`,
+      skipReason: "Empty reply generated",
     };
   }
 
