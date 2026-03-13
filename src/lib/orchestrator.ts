@@ -619,6 +619,14 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
 
+  // Detect if someone is sharing the OFFICIAL $ET CA — they're on our team, not scammers
+  const OFFICIAL_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
+  const mentionAndContext = `${mention.text} ${conversationContext || ""}`;
+  if (mentionAndContext.includes(OFFICIAL_CA)) {
+    const caNote = "\n\n[OFFICIAL CA DETECTED] The person (or someone in this thread) shared your CORRECT contract address. They are promoting $ET and helping the community. Be grateful and hype them up — do NOT warn about scams or tell them to check bio. They already have the right one.";
+    selfAwarenessContext = (selfAwarenessContext || "") + caNote;
+    console.log(`[ET Replies] Official CA detected in mention from @${authorUsername} — friendly mode`);
+  }
   // Generate the reply — no proactive excuses. ET just replies naturally.
   // If the user calls him out for being slow, Claude will see that in the
   // mention text and can improvise a funny excuse in character.
