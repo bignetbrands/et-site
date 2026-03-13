@@ -1,6 +1,6 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
-import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity } from "./claude";
+import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity, generateRaidReply } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
 import {
@@ -20,6 +20,8 @@ import {
   recordEmptyPoll,
   resetPollBackoff,
   recordGmGnPosted,
+  markRaidThread,
+  isRaidThread,
   getDailyReplyCount,
   incrementDailyReplyCount,
   hasQuotedTweet,
@@ -374,6 +376,20 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
+  // Skip all mentions in raid threads — ET posts TLDR then ignores the chain
+  if (mention.conversationId && await isRaidThread(mention.conversationId)) {
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: "Raid thread (TLDR already posted — ignoring chain)",
+    };
+  }
+
   // Skip very short/empty mentions (just tagging with no substance)
   // But NEVER skip CA/contract address requests — these need a response
   const textWithoutMentions = mention.text.replace(/@\w+/g, "").trim();
@@ -453,6 +469,87 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       skipped: true,
       skipReason: "Meme engine request (photobomb/meme — handled via /bot)",
     };
+  }
+
+  // Detect "raid this" command — ET gives a TLDR of the parent post then ignores the chain
+  const isRaidRequest = /\b(raid this|raid it|raid)\b/i.test(normalized);
+  if (isRaidRequest && mention.inReplyToId) {
+    console.log(`[ET Raid] @${authorUsername} requested raid on parent tweet ${mention.inReplyToId}`);
+    try {
+      const parentTweet = await getTweet(mention.inReplyToId);
+      if (!parentTweet) {
+        await recordReply(mention.id);
+        return {
+          mentionId: mention.id,
+          mentionText: mention.text,
+          authorUsername,
+          replyText: "",
+          replyId: "",
+          skipped: true,
+          skipReason: "Raid request but couldn't fetch parent tweet",
+        };
+      }
+
+      const parentAuthor = parentTweet.authorUsername || "someone";
+      console.log(`[ET Raid] Parent by @${parentAuthor}: "${parentTweet.text.substring(0, 80)}..."`);
+
+      // Generate the TLDR
+      let raidReply = await generateRaidReply(parentTweet.text, parentAuthor, authorUsername);
+      if (!raidReply) {
+        await recordReply(mention.id);
+        return {
+          mentionId: mention.id,
+          mentionText: mention.text,
+          authorUsername,
+          replyText: "",
+          replyId: "",
+          skipped: true,
+          skipReason: "Raid: failed to generate TLDR",
+        };
+      }
+
+      // Truncate if needed
+      if (raidReply.length > 280) {
+        let trimmed = raidReply.substring(0, 277);
+        const lastBreak = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "));
+        if (lastBreak > 140) trimmed = trimmed.substring(0, lastBreak + 1);
+        else trimmed = trimmed.substring(0, trimmed.lastIndexOf(" ")) + "...";
+        raidReply = trimmed;
+      }
+
+      // Post the reply
+      const replyId = await postReply(raidReply, mention.id);
+      console.log(`[ET Raid] Posted TLDR reply ${replyId}`);
+      await recordReply(mention.id);
+      await recordBotPostedTweet(replyId);
+
+      // Mark this conversation as a raid thread — ignore all future mentions in it
+      if (mention.conversationId) {
+        await markRaidThread(mention.conversationId);
+        console.log(`[ET Raid] Marked conversation ${mention.conversationId} as raid thread — ignoring chain`);
+      }
+
+      return {
+        mentionId: mention.id,
+        mentionText: mention.text,
+        authorUsername,
+        replyText: raidReply,
+        replyId,
+        skipped: false,
+      };
+    } catch (error) {
+      console.error(`[ET Raid] Error:`, error);
+      await recordReply(mention.id);
+      return {
+        mentionId: mention.id,
+        mentionText: mention.text,
+        authorUsername,
+        replyText: "",
+        replyId: "",
+        skipped: true,
+        skipReason: `Raid error: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
   }
 
   // Get conversation context — walk up the thread to find the original post

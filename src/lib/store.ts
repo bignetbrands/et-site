@@ -449,6 +449,23 @@ export async function wasBotPosted(tweetId: string): Promise<boolean> {
   } catch (e) { debugWarn("KV wasBotPosted failed:", e); return false; }
 }
 
+// Track "raid" threads — ET posts a TLDR then ignores the rest of the chain
+const RAID_THREADS_KEY = "et:raid_threads";
+
+export async function markRaidThread(conversationId: string): Promise<void> {
+  try {
+    await kv.sadd(RAID_THREADS_KEY, conversationId);
+    await kv.expire(RAID_THREADS_KEY, 604800); // 7 days
+  } catch { /* non-critical */ }
+}
+
+export async function isRaidThread(conversationId: string): Promise<boolean> {
+  if (!conversationId) return false;
+  try {
+    return (await kv.sismember(RAID_THREADS_KEY, conversationId)) === 1;
+  } catch { return false; }
+}
+
 export async function getDailyReplyCount(): Promise<number> {
   const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
   try {

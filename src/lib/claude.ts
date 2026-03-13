@@ -4,11 +4,13 @@ import { debug, debugWarn, critical } from "./debug";
 import {
   SYSTEM_PROMPT,
   REPLY_SYSTEM_PROMPT,
+  RAID_PROMPT,
   PILLAR_CONFIGS,
   buildTweetPrompt,
   buildImageDescriptionPrompt,
   buildImageDecisionPrompt,
   buildReplyPrompt,
+  buildRaidPrompt,
 } from "./prompts";
 
 let _anthropic: Anthropic | null = null;
@@ -336,4 +338,37 @@ export async function generateTargetInteraction(
     tweetId: idMatch[1],
     replyText,
   };
+}
+
+/**
+ * Generate a "raid" TLDR reply for a post.
+ */
+export async function generateRaidReply(
+  parentTweetText: string,
+  parentAuthor: string,
+  mentionAuthor: string,
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: MODELS.sonnet,
+    max_tokens: 300,
+    system: RAID_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: buildRaidPrompt(parentTweetText, parentAuthor, mentionAuthor),
+      },
+    ],
+  });
+
+  let text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("")
+    .replace(/^["']|["']$/g, "")
+    .trim();
+
+  // Strip any accidental @mentions
+  text = text.replace(/^(@\w+\s*)+/, "").trim();
+
+  return text;
 }
