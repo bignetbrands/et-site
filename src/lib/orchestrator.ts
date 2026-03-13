@@ -535,13 +535,35 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   );
 
   if (!replyText || replyText.length > 280) {
-    if (replyText && replyText.length > 280) {
-      // Truncate to fit — find a natural break point, add engagement hook
+    if (replyText && replyText.length > 280 && replyText.length <= 400) {
+      // Slightly over — retry once asking for shorter
+      console.log(`[ET Replies] Reply slightly over (${replyText.length} chars) — retrying shorter...`);
+      const shortReply = await generateReply(
+        mention.text,
+        authorUsername,
+        conversationContext,
+        mention.imageUrls,
+        threadDepth,
+        `${selfAwarenessContext || ""}\n\nCRITICAL: Your last reply was ${replyText.length} chars — over the 280 char limit. Shorten it. Same idea, fewer words. Under 250 chars.`
+      );
+      if (shortReply && shortReply.length <= 280 && shortReply.trim().toUpperCase() !== "SKIP") {
+        console.log(`[ET Replies] Retry succeeded: ${shortReply.length} chars`);
+        replyText = shortReply;
+      } else {
+        // Still too long — just trim at sentence boundary
+        let trimmed = replyText.substring(0, 277);
+        const lastBreak = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "));
+        if (lastBreak > 140) trimmed = trimmed.substring(0, lastBreak + 1);
+        else trimmed = trimmed.substring(0, trimmed.lastIndexOf(" ")) + "...";
+        replyText = trimmed;
+      }
+    } else if (replyText && replyText.length > 400) {
+      // Actual thesis — truncate with "should i continue?" hook
+      console.log(`[ET Replies] Long essay (${replyText.length} chars) — truncating with continuation hook`);
       const hook = "\n\nshould i continue? 👽";
       const maxContent = 280 - hook.length;
       let truncated = replyText.substring(0, maxContent);
       
-      // Find a natural break — last sentence end, comma, or space
       const lastSentence = truncated.lastIndexOf(". ");
       const lastComma = truncated.lastIndexOf(", ");
       const lastSpace = truncated.lastIndexOf(" ");
@@ -552,11 +574,10 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       
       truncated = truncated.substring(0, breakAt).trim();
       replyText = `${truncated}${hook}`;
-      console.log(`[ET Replies] Reply truncated from ${replyText.length + (maxContent - breakAt)} to ${replyText.length} chars with continuation hook`);
     }
   }
 
-  if (!replyText) {
+  if (!replyText || replyText.length > 280) {
     await recordReply(mention.id);
     return {
       mentionId: mention.id,
