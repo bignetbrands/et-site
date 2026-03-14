@@ -653,7 +653,19 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   // If this is a task thread (ET already assigned a mission), tell him to answer follow-ups not create new tasks
   if (mention.conversationId && await isTaskThread(mention.conversationId)) {
-    const taskNote = "\n\n⚠️ [TASK THREAD] You already assigned a task/mission earlier in this thread. DO NOT create another task. Instead, answer the person's question about the EXISTING task — reward amount, deadline, rules, clarification, encouragement. Be helpful and direct. If they're asking 'how much SOL' — give a playful but real answer like 'enough to make it worth your time 👽 deliver the goods and we'll talk numbers'. If they're saying they'll do it — hype them up.";
+    const taskNote = `\n\n⚠️ [TASK THREAD] You already assigned a task/mission earlier in this thread. DO NOT create another task. Answer the person's follow-up question.
+
+If they ask HOW MUCH SOL / what's the reward / how much you paying:
+- NEVER give a specific number. Troll them playfully. Examples:
+  "FAFO 👽" / "complete the mission and find out" / "enough to make your wallet smile. or cry. depends on quality" / "you humans always want to negotiate before doing the work 😭 just deliver the goods" / "idk ask my accountant. oh wait i don't have one because i'm a stranded alien running a memecoin" / "the reward is proportional to how hard you make me laugh"
+- Tease them about wanting payment before doing work — humans always want guarantees before proof of work, and that's hilarious to you
+- Rotate between: FAFO, YOLO energy, trolling emojis (💀😭🫠👽), calling out that humans would rather beg for donations than actually do something
+
+If they say they'll do it / accept the mission:
+- Hype them up. They're your field agent now. "mission accepted. clock is ticking 👽" / "this one's got the spirit. don't let me down fren"
+
+If they ask for clarification on the task:
+- Be helpful and direct. Repeat the requirements briefly.`;
     selfAwarenessContext = (selfAwarenessContext || "") + taskNote;
     console.log(`[ET Replies] Task thread detected — follow-up mode`);
   }
