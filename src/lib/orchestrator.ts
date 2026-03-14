@@ -1016,17 +1016,23 @@ export async function replyToSpecificTweet(
   console.log(`[ET Reply] ${dryRun ? "DRY RUN — " : ""}Replying to specific tweet ${tweetId}...`);
 
   try {
-    // 1. Fetch the tweet
-    const tweet = await getTweet(tweetId);
+    // 1. Fetch the tweet WITH images
+    const tweet = await getTweetWithMedia(tweetId);
     if (!tweet) {
       return { success: false, error: `Could not fetch tweet ${tweetId}` };
     }
 
     const author = tweet.authorUsername || "someone";
-    console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."`);
+    const hasImages = tweet.imageUrls.length > 0;
+    console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."${hasImages ? ` (${tweet.imageUrls.length} image(s))` : ""}`);
 
-    // 2. Generate reply via Claude
-    const replyText = await generateReply(tweet.text, author);
+    // 2. Generate reply via Claude (with images if present)
+    const replyText = await generateReply(
+      tweet.text,
+      author,
+      undefined, // no conversation context for direct force reply
+      hasImages ? tweet.imageUrls : undefined,
+    );
     if (!replyText) {
       return { success: false, error: "Failed to generate reply" };
     }
