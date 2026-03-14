@@ -466,6 +466,23 @@ export async function isRaidThread(conversationId: string): Promise<boolean> {
   } catch { return false; }
 }
 
+// Track "task" threads — ET assigned a mission, now answers follow-ups
+const TASK_THREADS_KEY = "et:task_threads";
+
+export async function markTaskThread(conversationId: string): Promise<void> {
+  try {
+    await kv.sadd(TASK_THREADS_KEY, conversationId);
+    await kv.expire(TASK_THREADS_KEY, 604800); // 7 days
+  } catch { /* non-critical */ }
+}
+
+export async function isTaskThread(conversationId: string): Promise<boolean> {
+  if (!conversationId) return false;
+  try {
+    return (await kv.sismember(TASK_THREADS_KEY, conversationId)) === 1;
+  } catch { return false; }
+}
+
 export async function getDailyReplyCount(): Promise<number> {
   const key = `${REPLY_COUNT_KEY}:${new Date().toISOString().split("T")[0]}`;
   try {

@@ -22,6 +22,8 @@ import {
   recordGmGnPosted,
   markRaidThread,
   isRaidThread,
+  markTaskThread,
+  isTaskThread,
   getDailyReplyCount,
   incrementDailyReplyCount,
   hasQuotedTweet,
@@ -648,6 +650,14 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     selfAwarenessContext = (selfAwarenessContext || "") + caNote;
     console.log(`[ET Replies] Official CA detected in mention from @${authorUsername} — friendly mode`);
   }
+
+  // If this is a task thread (ET already assigned a mission), tell him to answer follow-ups not create new tasks
+  if (mention.conversationId && await isTaskThread(mention.conversationId)) {
+    const taskNote = "\n\n⚠️ [TASK THREAD] You already assigned a task/mission earlier in this thread. DO NOT create another task. Instead, answer the person's question about the EXISTING task — reward amount, deadline, rules, clarification, encouragement. Be helpful and direct. If they're asking 'how much SOL' — give a playful but real answer like 'enough to make it worth your time 👽 deliver the goods and we'll talk numbers'. If they're saying they'll do it — hype them up.";
+    selfAwarenessContext = (selfAwarenessContext || "") + taskNote;
+    console.log(`[ET Replies] Task thread detected — follow-up mode`);
+  }
+
   // Generate the reply — no proactive excuses. ET just replies naturally.
   // If the user calls him out for being slow, Claude will see that in the
   // mention text and can improvise a funny excuse in character.
@@ -759,6 +769,13 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       console.log(`[ET Style] Learned ${styles.length} pattern(s) from @${authorUsername}: ${styles.map(s => s.phrase).join(", ")}`);
     }
   } catch { /* non-critical */ }
+
+  // If ET just assigned a task (reply contains mission/SOL language), mark the thread
+  const taskAssigned = /\b(mission|task|SOL reward|gets? SOL|send SOL|hours|clip.*tag|film.*tag|screenshot.*tag|post.*tag)\b/i.test(replyText);
+  if (taskAssigned && mention.conversationId) {
+    await markTaskThread(mention.conversationId);
+    console.log(`[ET Task] Marked conversation ${mention.conversationId} as task thread`);
+  }
 
   return {
     mentionId: mention.id,
