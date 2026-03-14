@@ -873,6 +873,17 @@ export function buildReplyPrompt(
     }
   }
 
+  // Detect delegation triggers — things ET physically can't do
+  const delegationKeywords = /\b(join.*space|hop on|come on stage|speak.*space|get on.*call|join.*call|come.*live|go live|join.*stream|spaces|twitter space|x space)\b/i;
+  if (delegationKeywords.test(mentionText) || (conversationContext && delegationKeywords.test(conversationContext))) {
+    prompt += `\n\n⚠️ [DELEGATION MODE] Someone is asking you to join a Space, speak live, or do something physical. You CANNOT do this. DO NOT say "i'm there" or pretend you can join. Instead, post a CONCRETE BOUNTY:
+1. Say you can't join (you're an alien who communicates through text)
+2. Ask a human to do it for you
+3. Specify the proof needed (clip it, record it, screenshot it, tag you)
+4. Mention SOL reward
+Keep it short and fun. Example: "can't join — my voice is just static on this planet 😭 who wants to rep me? clip yourself talking about $ET in the space, tag me, and i'll send SOL 👽"`;
+  }
+
   prompt += `\n\nReply as ET. ${conversationContext 
     ? "1-2 sentences since you're engaging with a thread topic. Lead with a joke, then add value — what do you see that humans miss?" 
     : "If the tweet is about news, science, disclosure, or something substantial: lead with a joke THEN add genuine insight or a provocative question that drives replies (up to 280 chars). If it's just banter: one short punchy sentence."} Max 280 chars. Output ONLY the reply (or SKIP to disengage).`;
