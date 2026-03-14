@@ -2,7 +2,7 @@ import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity, generateRaidReply } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
-import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
+import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTweetWithMedia, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
 import {
   recordTweet,
   getRecentTweets,
@@ -559,6 +559,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   // VIP users get 10 levels (for long engaging threads), others get 5
   let conversationContext: string | undefined;
   let manuallyClaimedThread = false;
+  let parentImageUrls: string[] | undefined; // Images from parent tweets (when mention has none)
 
   if (mention.inReplyToId) {
     const isVip = authorUsername ? await isVipUser(authorUsername) : false;
@@ -569,6 +570,9 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     let depth = 0;
     const ownUserId = await getOwnUserId();
     
+    // If mention has no images, look for images in parent tweets
+    const needImages = !mention.imageUrls || mention.imageUrls.length === 0;
+    
     while (currentId && depth < maxDepth) {
       const tweet = await getTweet(currentId);
       if (!tweet) break;
@@ -577,6 +581,17 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
         manuallyClaimedThread = true;
         break;
+      }
+
+      // Check parent for images if mention doesn't have any
+      if (needImages && !parentImageUrls && depth < 2) {
+        try {
+          const tweetWithMedia = await getTweetWithMedia(currentId);
+          if (tweetWithMedia && tweetWithMedia.imageUrls.length > 0) {
+            parentImageUrls = tweetWithMedia.imageUrls;
+            console.log(`[ET Replies] Found ${parentImageUrls.length} image(s) in parent tweet by @${tweetWithMedia.authorUsername} (${depth + 1} level up)`);
+          }
+        } catch { /* non-critical */ }
       }
 
       const author = tweet.authorUsername || "someone";
@@ -590,6 +605,11 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       conversationContext = contextParts.join("\n↳ ");
     }
   }
+
+  // Merge images: use mention's own images, or fall back to parent's images
+  const effectiveImageUrls = (mention.imageUrls && mention.imageUrls.length > 0)
+    ? mention.imageUrls
+    : parentImageUrls;
 
   if (manuallyClaimedThread) {
     await recordReply(mention.id);
@@ -619,7 +639,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     console.warn("[ET Replies] Self-awareness context failed:", e);
   }
 
-  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${mention.imageUrls ? ` (${mention.imageUrls.length} image(s))` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
+  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${effectiveImageUrls ? ` (${effectiveImageUrls.length} image(s)${parentImageUrls ? " from parent" : ""})` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
 
   // Detect if someone is sharing the OFFICIAL $ET CA — they're on our team, not scammers
   const mentionAndContext = `${mention.text} ${conversationContext || ""}`;
@@ -635,7 +655,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     mention.text,
     authorUsername,
     conversationContext,
-    mention.imageUrls,
+    effectiveImageUrls,
     threadDepth,
     selfAwarenessContext
   );
@@ -648,7 +668,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
         mention.text,
         authorUsername,
         conversationContext,
-        mention.imageUrls,
+        effectiveImageUrls,
         threadDepth,
         `${selfAwarenessContext || ""}\n\nCRITICAL: Your last reply was ${replyText.length} chars — over the 280 char limit. Shorten it. Same idea, fewer words. Under 250 chars.`
       );
