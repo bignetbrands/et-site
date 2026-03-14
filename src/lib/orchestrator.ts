@@ -1056,6 +1056,8 @@ export async function replyToSpecificTweet(
       console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
       await markTweetQuoted(tweetId);
       await recordBotPostedTweet(replyId);
+      await recordReply(tweetId); // Prevent auto-reply cron from replying again
+      await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
       return { success: true, tweetId, replyText, replyId, method: "reply" };
     } catch (replyError: any) {
       const status = replyError?.data?.status || replyError?.code;
@@ -1070,6 +1072,8 @@ export async function replyToSpecificTweet(
           const qtId = await postQuoteTweet(cleanReply, tweetId);
           await markTweetQuoted(tweetId);
           await recordBotPostedTweet(qtId);
+          await recordReply(tweetId);
+          await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
           console.log(`[ET Reply] ✓ Posted quote tweet ${qtId}`);
           return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
         } catch (qtError: any) {
@@ -1088,6 +1092,8 @@ export async function replyToSpecificTweet(
             const stId = await postTweet(standalone);
             await markTweetQuoted(tweetId);
             await recordBotPostedTweet(stId);
+            await recordReply(tweetId);
+            await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
             console.log(`[ET Reply] ✓ Posted standalone with link ${stId}`);
             return { success: true, tweetId, replyText: trimmed, replyId: stId, method: "standalone" };
           } catch (stError: any) {
