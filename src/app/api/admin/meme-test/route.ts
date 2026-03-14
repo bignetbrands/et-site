@@ -50,6 +50,31 @@ const ET_SCENE_PROMPT = `You have one reference image of an alien character call
 
 Create a new scene showing this EXACT character observing or reacting to the situation described below. Preserve his anatomy precisely from the reference — same face, same body, same proportions. Make it funny and shareable.`;
 
+const ET_VISIT_PROMPT = `You have two images:
+- Image 1: A photograph. THIS IS SACRED — preserve it exactly. Do NOT alter any person, object, background, or color.
+- Image 2: An alien character called ET. ${ET_CHAR_DESC}
+
+ET is "paying a visit" — insert him into the photo as if he snuck into the room uninvited. He should be:
+- INCONSPICUOUS but UNSETTLING — like you'd only notice him on a second look
+- Lurking in a dark corner, standing unnervingly still in the background
+- Partially hidden behind furniture but clearly watching
+- Sitting in a chair in the back like he's been there the whole time
+- Standing in a doorway, barely visible in the shadows
+- Reflected in a mirror or screen where he shouldn't be
+- Peeking through a window from outside, face pressed against the glass
+
+VIBE: Found footage. Creepy but funny. The kind of image that makes someone zoom in and go "WAIT—"
+- ET should have a calm, unblinking stare — not threatening, just... observing
+- He's still and patient, like he's been watching for hours
+- Slightly eerie lighting on ET — like he's faintly glowing or catching light wrong
+- The humor comes from the contrast: normal scene + alien just standing there
+
+RULES:
+- Original photo must remain COMPLETELY UNTOUCHED
+- ET should be small-to-medium sized, not the main focus
+- Match the photo's lighting but make ET slightly "off" — like he doesn't quite belong
+- This should feel like a cursed image that's also hilarious`;
+
 async function fetchImageAsBlob(url: string): Promise<{ blob: Blob; contentType: string } | null> {
   try {
     const res = await fetch(url);
@@ -241,6 +266,7 @@ export async function POST(request: Request) {
     if (hasImages) {
       prompt = mode === "roast" ? ET_ROAST_PROMPT
         : mode === "meme" ? ET_MEME_PROMPT
+        : mode === "visit" ? ET_VISIT_PROMPT
         : ET_PHOTOBOMB_PROMPT;
     } else {
       prompt = `${ET_SCENE_PROMPT}\n\nThe tweet says: "${tweet.text}"`;

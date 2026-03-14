@@ -461,7 +461,7 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   }
 
   // Detect meme engine keywords — these are handled by the meme engine in /bot, not text replies
-  const isMemeRequest = /\b(photobomb|photo bomb|meme this|meme me|roast this)\b/i.test(normalized);
+  const isMemeRequest = /\b(photobomb|photo bomb|meme this|meme me|roast this|pay.*a visit|pay.*visit)\b/i.test(normalized);
   if (isMemeRequest) {
     await recordReply(mention.id);
     return {

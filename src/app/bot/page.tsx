@@ -1040,7 +1040,7 @@ export default function BotDashboard() {
         <div style={styles.panel}>
           <div style={styles.panelTitle}>◈ MEME ENGINE</div>
           <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            Paste a tweet URL → ET photobombs, memes, or roasts it. Preview first, then post as image reply.
+            Paste a tweet URL → ET photobombs, memes, roasts, or pays a visit. Preview first, then post as image reply.
           </div>
           <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
             <input
@@ -1051,7 +1051,7 @@ export default function BotDashboard() {
             />
           </div>
           <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            {(["photobomb", "meme", "roast"] as const).map((m) => (
+            {(["photobomb", "meme", "roast", "visit"] as const).map((m) => (
               <button
                 key={m}
                 onClick={async () => {
@@ -1089,9 +1089,9 @@ export default function BotDashboard() {
                   setLoading("");
                 }}
                 disabled={!!loading}
-                style={m === "photobomb" ? styles.btnPrimary : m === "roast" ? { ...styles.btnSmall, ...styles.btnWarn } : styles.btnPost}
+                style={m === "photobomb" ? styles.btnPrimary : m === "roast" ? { ...styles.btnSmall, ...styles.btnWarn } : m === "visit" ? { ...styles.btnSmall, background: "rgba(128,0,255,0.15)", border: "1px solid #4a1a6a", color: "#b080ff" } : styles.btnPost}
               >
-                {loading === `meme_${m}` ? "..." : m === "photobomb" ? "👽 PHOTOBOMB" : m === "meme" ? "🎭 MEME" : "🔥 ROAST"}
+                {loading === `meme_${m}` ? "..." : m === "photobomb" ? "👽 PHOTOBOMB" : m === "meme" ? "🎭 MEME" : m === "visit" ? "👻 VISIT" : "🔥 ROAST"}
               </button>
             ))}
           </div>
