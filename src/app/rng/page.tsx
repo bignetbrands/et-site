@@ -1,6 +1,7 @@
 // @ts-nocheck
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Head from "next/head";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ export default function RNGPage() {
     setErrorMsg("");
     const detected = getProvider();
     if (!detected) {
-      setErrorMsg("no wallet detected. install Phantom or Solflare first.");
+      setErrorMsg("no wallet detected. install Phantom, Solflare, or Backpack.");
       setStage("error");
       return;
     }
@@ -103,8 +104,14 @@ export default function RNGPage() {
       setWallet(address);
       setWalletName(detected.name);
       setStage("connected");
-    } catch {
-      setErrorMsg("wallet connection rejected.");
+    } catch (err: any) {
+      // Phantom may block unregistered dApps — suggest alternatives
+      const msg = err?.message || "";
+      if (msg.toLowerCase().includes("block") || msg.toLowerCase().includes("malicious") || err?.code === 4001) {
+        setErrorMsg("phantom blocked this request. try Solflare or Backpack instead — same wallet, no restrictions.");
+      } else {
+        setErrorMsg("wallet connection rejected.");
+      }
       setStage("error");
     }
   }
@@ -220,6 +227,15 @@ export default function RNGPage() {
       <a href="/" style={s.back}>← back to base</a>
 
       <div style={s.card}>
+        {/* Phantom warning */}
+        <div style={s.phantomWarn}>
+          <span style={s.phantomWarnIcon}>⚠️</span>
+          <span>
+            Phantom may block this page while we await dApp verification.{" "}
+            <strong>Solflare</strong> or <strong>Backpack</strong> work without restrictions.
+          </span>
+        </div>
+
         {/* Header */}
         <div style={s.header}>
           <div style={s.badge}>👽 ET&apos;S QUANTUM ORACLE</div>
@@ -335,6 +351,23 @@ const FAINT_GREEN = "rgba(0,255,100,0.08)";
 const BORDER = "rgba(0,255,100,0.15)";
 
 const s: Record<string, React.CSSProperties> = {
+  phantomWarn: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    background: "rgba(255,180,0,0.07)",
+    border: "1px solid rgba(255,180,0,0.2)",
+    borderRadius: 3,
+    padding: "12px 16px",
+    marginBottom: 24,
+    fontSize: 12,
+    color: "rgba(255,220,100,0.8)",
+    lineHeight: 1.6,
+  },
+  phantomWarnIcon: {
+    flexShrink: 0,
+    marginTop: 1,
+  },
   root: {
     minHeight: "100vh",
     background: "#050508",
