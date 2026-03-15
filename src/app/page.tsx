@@ -36,8 +36,13 @@ const LINKS = [
   { label: "DexScreener", url: "https://dexscreener.com/solana/cqzyxscytqylz318kfts8dwwn1ysnpnfzpd3yxftcedh", emoji: "📈" },
   { label: "PumpFun", url: "https://pump.fun/coin/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF", emoji: "🚀" },
   { label: "Talk to ET", url: "https://x.com/etalienx", emoji: "💬" },
-  { label: "Quantum Oracle", url: "/rng", emoji: "🎲" },
   { label: "Oracle Network", url: "/oracle", emoji: "📡" },
+  { label: "Quantum Oracle", url: "/rng", emoji: "🎲" },
+  { label: "Fortune Teller", url: "/fortune", emoji: "🔮" },
+  { label: "Signal Interpreter", url: "/signal", emoji: "📶" },
+  { label: "ET's Verdict", url: "/verdict", emoji: "⚖️" },
+  { label: "Transmission Decoder", url: "/transmission", emoji: "📻" },
+  { label: "Cosmic Horoscope", url: "/horoscope", emoji: "✨" },
   { label: "Alien Archives", url: "#", emoji: "🗂️", soon: true },
 ];
 
@@ -658,6 +663,9 @@ export default function ETSiteV2() {
                 </a>
                 <a href="https://x.com/i/communities/2028185586419556603" target="_blank" rel="noopener noreferrer" style={s.ctaSecondary}>
                   JOIN COMMUNITY
+                </a>
+                <a href="/oracle" style={s.ctaSecondary}>
+                  🔮 ORACLE NETWORK
                 </a>
               </div>
             </div>
