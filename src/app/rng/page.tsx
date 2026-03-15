@@ -154,38 +154,53 @@ export default function RNGPage() {
       const txBytes = Buffer.from(txBase64, "base64");
       const tx = Transaction.from(txBytes);
 
-      let signedTx;
-      try {
-        signedTx = await detected.provider.signTransaction(tx);
-      } catch {
-        throw new Error("transaction rejected by wallet.");
+      // 3. Use Phantom's native signAndSendTransaction (enables simulation, eliminates warning)
+      //    Falls back to manual sign+send for Solflare/Backpack
+      let sig: string;
+
+      if (detected.provider.signAndSendTransaction) {
+        // Phantom native path — Phantom can simulate this properly, no warning
+        try {
+          const result = await detected.provider.signAndSendTransaction(tx);
+          sig = typeof result === "string" ? result : result.signature;
+        } catch (err: any) {
+          const msg = err?.message || "";
+          if (err?.code === 4001 || msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel")) {
+            throw new Error("transaction rejected by wallet.");
+          }
+          if (msg.toLowerCase().includes("insufficient")) {
+            throw new Error("insufficient SOL balance. you need at least 0.001 SOL plus a small amount for fees.");
+          }
+          throw new Error(msg || "transaction failed.");
+        }
+        // Give the network a moment to propagate before we verify
+        await new Promise((r) => setTimeout(r, 3000));
+      } else {
+        // Solflare / Backpack fallback — manual sign + send
+        let signedTx;
+        try {
+          signedTx = await detected.provider.signTransaction(tx);
+        } catch {
+          throw new Error("transaction rejected by wallet.");
+        }
+        const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://rpc.solanatracker.io/public";
+        const { Connection } = await import("@solana/web3.js");
+        const connection = new Connection(rpcUrl, "confirmed");
+        sig = await connection.sendRawTransaction(signedTx.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+        }).catch((err: any) => {
+          const logs: string[] = err?.logs ?? [];
+          const logsText = logs.join(" ").toLowerCase();
+          if (logsText.includes("insufficient lamports") || logsText.includes("insufficient funds")) {
+            throw new Error("insufficient SOL balance. you need at least 0.001 SOL plus a small amount for fees.");
+          }
+          const msg = (err?.message || "transaction failed").replace("Transaction simulation failed: ", "").split(". Logs:")[0];
+          throw new Error(msg);
+        });
+        const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+        await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
       }
-
-      // 3. Send raw transaction via Helius RPC
-      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://rpc.solanatracker.io/public";
-      const { Connection } = await import("@solana/web3.js");
-      const connection = new Connection(rpcUrl, "confirmed");
-
-      const sig = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-      }).catch((err: any) => {
-        // Try to extract a readable reason from simulation logs
-        const logs: string[] = err?.logs ?? [];
-        const logsText = logs.join(" ").toLowerCase();
-        if (logsText.includes("insufficient lamports") || logsText.includes("insufficient funds")) {
-          throw new Error("insufficient SOL balance. you need at least 0.001 SOL plus a small amount for fees.");
-        }
-        if (logsText.includes("already in use") || logsText.includes("already been processed")) {
-          throw new Error("this invoice was already paid. generate a new one.");
-        }
-        // Fall back to the raw message but strip the ugly prefix
-        const msg = err?.message || "transaction failed";
-        const clean = msg.replace("Transaction simulation failed: ", "").split(". Logs:")[0];
-        throw new Error(clean);
-      });
-      const latestBlockhash = await connection.getLatestBlockhash("confirmed");
-      await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
 
       // 4. Server verifies payment and returns number
       setStage("verifying");
