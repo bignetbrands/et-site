@@ -37,7 +37,8 @@ const LINKS = [
   { label: "PumpFun", url: "https://pump.fun/coin/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF", emoji: "🚀" },
   { label: "Talk to ET", url: "https://x.com/etalienx", emoji: "💬" },
   { label: "Quantum Oracle", url: "/rng", emoji: "🎲" },
-  { label: "Alien Archives", url: "#", emoji: "📡", soon: true },
+  { label: "Oracle Network", url: "/oracle", emoji: "📡" },
+  { label: "Alien Archives", url: "#", emoji: "🗂️", soon: true },
 ];
 
 const FALLBACK_MEME_IMAGES = [
