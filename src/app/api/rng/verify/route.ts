@@ -13,9 +13,8 @@ export async function POST(req: NextRequest) {
     const agentMintAddress = process.env.AGENT_TOKEN_MINT_ADDRESS;
     const currencyMintAddress = process.env.CURRENCY_MINT;
 
-    if (!agentMintAddress || !currencyMintAddress) {
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
+    if (!agentMintAddress) return NextResponse.json({ error: "missing env: AGENT_TOKEN_MINT_ADDRESS" }, { status: 500 });
+    if (!currencyMintAddress) return NextResponse.json({ error: "missing env: CURRENCY_MINT" }, { status: 500 });
 
     const agentMint = new PublicKey(agentMintAddress);
     const agent = new PumpAgent(agentMint, "mainnet");

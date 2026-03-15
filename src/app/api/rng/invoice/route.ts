@@ -17,9 +17,14 @@ export async function POST(req: NextRequest) {
     const agentMintAddress = process.env.AGENT_TOKEN_MINT_ADDRESS;
     const currencyMintAddress = process.env.CURRENCY_MINT;
 
-    if (!rpcUrl || !agentMintAddress || !currencyMintAddress) {
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
+    if (!rpcUrl) return NextResponse.json({ error: "missing env: SOLANA_RPC_URL" }, { status: 500 });
+    if (!agentMintAddress) return NextResponse.json({ error: "missing env: AGENT_TOKEN_MINT_ADDRESS" }, { status: 500 });
+    if (!currencyMintAddress) return NextResponse.json({ error: "missing env: CURRENCY_MINT" }, { status: 500 });
+
+    // Validate public keys before hitting the SDK
+    try { new PublicKey(agentMintAddress); } catch { return NextResponse.json({ error: `invalid AGENT_TOKEN_MINT_ADDRESS: ${agentMintAddress}` }, { status: 500 }); }
+    try { new PublicKey(currencyMintAddress); } catch { return NextResponse.json({ error: `invalid CURRENCY_MINT: ${currencyMintAddress}` }, { status: 500 }); }
+    try { new PublicKey(wallet); } catch { return NextResponse.json({ error: `invalid wallet address: ${wallet}` }, { status: 400 }); }
 
     const connection = new Connection(rpcUrl, "confirmed");
     const agentMint = new PublicKey(agentMintAddress);
