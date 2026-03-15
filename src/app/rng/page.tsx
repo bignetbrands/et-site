@@ -174,7 +174,7 @@ export default function RNGPage() {
         const logs: string[] = err?.logs ?? [];
         const logsText = logs.join(" ").toLowerCase();
         if (logsText.includes("insufficient lamports") || logsText.includes("insufficient funds")) {
-          throw new Error("insufficient SOL balance. you need at least 0.1 SOL plus a small amount for fees.");
+          throw new Error("insufficient SOL balance. you need at least 0.001 SOL plus a small amount for fees.");
         }
         if (logsText.includes("already in use") || logsText.includes("already been processed")) {
           throw new Error("this invoice was already paid. generate a new one.");
@@ -256,7 +256,7 @@ export default function RNGPage() {
           <h1 style={s.title}>SIGNAL GENERATOR</h1>
           <p style={s.subtitle}>
             i don&apos;t trust earth&apos;s random number generators.<br />
-            so i built my own. costs 0.1 SOL to operate the antenna.<br />
+            so i built my own. costs 0.001 SOL to operate the antenna.<br />
             the number comes from the signal, not the algorithm.
           </p>
         </div>
@@ -271,7 +271,7 @@ export default function RNGPage() {
             <button style={s.btnPrimary} onClick={connect}>
               CONNECT WALLET
             </button>
-            <p style={s.costNote}>0.1 SOL · one signal · 0–1000</p>
+            <p style={s.costNote}>0.001 SOL · one signal · 0–1000</p>
           </div>
         )}
 
@@ -292,7 +292,7 @@ export default function RNGPage() {
             <button style={s.btnPrimary} onClick={pay}>
               GENERATE NUMBER
             </button>
-            <p style={s.costNote}>0.1 SOL · one signal · 0–1000</p>
+            <p style={s.costNote}>0.001 SOL · one signal · 0–1000</p>
           </div>
         )}
 

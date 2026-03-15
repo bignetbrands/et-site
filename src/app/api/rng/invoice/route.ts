@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Connection, PublicKey, Transaction, ComputeBudgetProgram } from "@solana/web3.js";
 import { PumpAgent } from "@pump-fun/agent-payments-sdk";
 
-// 0.1 SOL in lamports (9 decimals)
-const PRICE_LAMPORTS = "100000000";
+// 0.001 SOL in lamports (9 decimals)
+const PRICE_LAMPORTS = "1000000";
 
 export async function POST(req: NextRequest) {
   try {
