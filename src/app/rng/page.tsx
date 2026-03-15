@@ -169,6 +169,20 @@ export default function RNGPage() {
       const sig = await connection.sendRawTransaction(signedTx.serialize(), {
         skipPreflight: false,
         preflightCommitment: "confirmed",
+      }).catch((err: any) => {
+        // Try to extract a readable reason from simulation logs
+        const logs: string[] = err?.logs ?? [];
+        const logsText = logs.join(" ").toLowerCase();
+        if (logsText.includes("insufficient lamports") || logsText.includes("insufficient funds")) {
+          throw new Error("insufficient SOL balance. you need at least 0.1 SOL plus a small amount for fees.");
+        }
+        if (logsText.includes("already in use") || logsText.includes("already been processed")) {
+          throw new Error("this invoice was already paid. generate a new one.");
+        }
+        // Fall back to the raw message but strip the ugly prefix
+        const msg = err?.message || "transaction failed";
+        const clean = msg.replace("Transaction simulation failed: ", "").split(". Logs:")[0];
+        throw new Error(clean);
       });
       const latestBlockhash = await connection.getLatestBlockhash("confirmed");
       await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
