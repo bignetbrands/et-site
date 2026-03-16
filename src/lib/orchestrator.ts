@@ -2,7 +2,7 @@ import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
 import { PILLAR_CONFIGS, SYSTEM_PROMPT, buildVictoryTweetPrompt, buildTaskTweetPrompt } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity, generateRaidReply } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
-import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTweetWithMedia, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
+import { postTweet, postTweetWithImage, postReply, postReplyWithImage, postQuoteTweet, getMentions, getTweet, getTweetWithMedia, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
 import {
   recordTweet,
   getRecentTweets,
@@ -53,6 +53,7 @@ import {
 import { sendSol, pickRewardAmount, getETWalletAddress } from "./et-wallet";
 import Anthropic from "@anthropic-ai/sdk";
 import { nanoid } from "nanoid";
+import { isFinancialAdvisorMention, getRandomETMeme, getFinancialTrollText, generateFaceSwap } from "./meme-engine";
 
 // Solana wallet address regex — base58, 32-44 chars, not our own CA or system programs
 const SOLANA_ADDRESS_REGEX = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
@@ -502,6 +503,43 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
+  // ── FINANCIAL ADVISOR TROLL ───────────────────────────────────────────────
+  // When someone asks ET for financial/investment advice → reply with random ET meme
+  const isFinancialTroll = isFinancialAdvisorMention(mention.text);
+  if (isFinancialTroll) {
+    console.log(`[ET Meme] Financial advisor troll detected from @${authorUsername}`);
+    try {
+      const [memeBuffer] = await Promise.all([getRandomETMeme()]);
+      if (memeBuffer) {
+        const trollText = getFinancialTrollText();
+        const trollReplyId = await postReplyWithImage(trollText, mention.id, memeBuffer);
+        await recordReply(mention.id);
+        await recordBotPostedTweet(trollReplyId);
+        console.log(`[ET Meme] Posted financial troll reply ${trollReplyId} to @${authorUsername}`);
+        return {
+          mentionId: mention.id,
+          mentionText: mention.text,
+          authorUsername,
+          replyText: trollText,
+          replyId: trollReplyId,
+        };
+      }
+    } catch (e) {
+      console.warn("[ET Meme] Financial troll failed, falling through to text reply:", e);
+    }
+    // If image fails, fall through to normal text reply
+  }
+
+  // ── FACE SWAP — parent tweet has image → ET face swap → emoji-only reply ─
+  // Only if mention itself has no image, parent does, and it's not a financial troll
+  const parentPhotoUrl = !isFinancialTroll && !mention.imageUrls?.length
+    ? (() => {
+        // Will be populated during thread walk below — flag for post-processing
+        return null;
+      })()
+    : null;
+  // (face swap is applied after thread walk, see below)
+
   // Detect "raid this" command — ET gives a TLDR of the parent post then ignores the chain
   const isRaidRequest = /\b(raid this|raid it|raid)\b/i.test(normalized);
   if (isRaidRequest && mention.inReplyToId) {
@@ -639,6 +677,40 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
   const effectiveImageUrls = (mention.imageUrls && mention.imageUrls.length > 0)
     ? mention.imageUrls
     : parentImageUrls;
+
+  // ── FACE SWAP — parent has a photo → ET face swap → emoji-only reply ──────
+  // Trigger: mention has no image, parent tweet does, not a financial troll, not manually claimed
+  if (
+    !isFinancialTroll &&
+    !manuallyClaimedThread &&
+    !mention.imageUrls?.length &&
+    parentImageUrls?.length &&
+    !mention.hasVideo &&
+    Math.random() < 0.4 // 40% chance — not every tagged photo gets a face swap
+  ) {
+    console.log(`[ET FaceSwap] Parent photo detected from @${authorUsername} — attempting face swap`);
+    try {
+      const swappedBuffer = await generateFaceSwap(parentImageUrls[0]);
+      if (swappedBuffer) {
+        const emojis = ["👽", "👁️", "🫠", "💀", "👽👽", "🛸"];
+        const emojiReply = emojis[Math.floor(Math.random() * emojis.length)];
+        const faceSwapReplyId = await postReplyWithImage(emojiReply, mention.id, swappedBuffer);
+        await recordReply(mention.id);
+        await recordBotPostedTweet(faceSwapReplyId);
+        console.log(`[ET FaceSwap] Posted face swap reply ${faceSwapReplyId} to @${authorUsername}`);
+        return {
+          mentionId: mention.id,
+          mentionText: mention.text,
+          authorUsername,
+          replyText: emojiReply,
+          replyId: faceSwapReplyId,
+        };
+      }
+    } catch (e) {
+      console.warn("[ET FaceSwap] Failed, falling through to text reply:", e);
+    }
+    // If face swap fails, fall through to normal text reply
+  }
 
   if (manuallyClaimedThread) {
     await recordReply(mention.id);
