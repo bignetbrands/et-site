@@ -1,5 +1,5 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
-import { PILLAR_CONFIGS } from "./prompts";
+import { PILLAR_CONFIGS, SYSTEM_PROMPT, buildVictoryTweetPrompt } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity, generateRaidReply } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postQuoteTweet, getMentions, getTweet, getTweetWithMedia, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
@@ -36,6 +36,10 @@ import {
   getRecentQtHistory,
   recordQtReaction,
   hasQuotedTopic,
+  setPendingReward,
+  getPendingReward,
+  wasRewardPaid,
+  markRewardPaid,
 } from "./store";
 import {
   getSelfAwarenessForTweets,
@@ -45,6 +49,27 @@ import {
   extractStylesFromMessage,
   addLearnedStyles,
 } from "./self-awareness";
+import { sendSol, pickRewardAmount, getETWalletAddress } from "./et-wallet";
+import Anthropic from "@anthropic-ai/sdk";
+
+// Solana wallet address regex — base58, 32-44 chars, not our own CA or system programs
+const SOLANA_ADDRESS_REGEX = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
+const KNOWN_NON_WALLET_ADDRESSES = new Set([
+  "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF", // $ET CA
+  "So11111111111111111111111111111111111111112",       // wSOL
+  "11111111111111111111111111111111",                  // System program
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",  // ATA program
+]);
+
+function extractWalletAddress(text: string): string | null {
+  const matches = text.match(SOLANA_ADDRESS_REGEX) || [];
+  for (const match of matches) {
+    if (!KNOWN_NON_WALLET_ADDRESSES.has(match) && match.length >= 32) {
+      return match;
+    }
+  }
+  return null;
+}
 
 // Max replies per cron run & per day
 const MAX_REPLIES_PER_RUN = 3; // 3 replies per cron cycle with 2-3min gaps between
@@ -782,11 +807,78 @@ If they ask for clarification on the task:
     }
   } catch { /* non-critical */ }
 
-  // If ET just assigned a task (reply contains mission/SOL language), mark the thread
-  const taskAssigned = /\b(mission|task|SOL reward|gets? SOL|send SOL|hours|clip.*tag|film.*tag|screenshot.*tag|post.*tag)\b/i.test(replyText);
+  // If ET just assigned a task (reply contains mission/SOL language), mark the thread + store task context
+  const taskAssigned = /\b(mission|task|SOL reward|gets? SOL|send SOL|hours|clip.*tag|film.*tag|screenshot.*tag|post.*tag|make it rain|i'll send|i will send)\b/i.test(replyText);
   if (taskAssigned && mention.conversationId) {
     await markTaskThread(mention.conversationId);
-    console.log(`[ET Task] Marked conversation ${mention.conversationId} as task thread`);
+    // Store the task context for use in the victory tweet later
+    await setPendingReward(mention.conversationId, {
+      taskContext: replyText.substring(0, 200),
+      promiseTweetId: replyId,
+    });
+    console.log(`[ET Task] Marked conversation ${mention.conversationId} as task thread with pending reward`);
+  }
+
+  // ── REWARD PAYMENT DETECTION ──────────────────────────────────────────────
+  // If this mention is in a task thread AND contains a Solana wallet address
+  // AND no reward has been paid yet — send SOL autonomously
+  if (mention.conversationId && process.env.ET_WALLET_PRIVATE_KEY) {
+    const walletInMention = extractWalletAddress(mention.text);
+    if (walletInMention) {
+      const [alreadyPaid, pendingReward] = await Promise.all([
+        wasRewardPaid(mention.conversationId),
+        getPendingReward(mention.conversationId),
+      ]);
+
+      if (!alreadyPaid && pendingReward) {
+        console.log(`[ET Reward] Wallet address detected in task thread from @${authorUsername}: ${walletInMention}`);
+        try {
+          const solAmount = pickRewardAmount();
+          const txSig = await sendSol(walletInMention, solAmount);
+
+          // Generate victory tweet
+          const anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+          const victoryPrompt = buildVictoryTweetPrompt(
+            authorUsername,
+            pendingReward.taskContext,
+            solAmount,
+            txSig
+          );
+          const victoryRes = await anthropicClient.messages.create({
+            model: "claude-sonnet-4-5-20250929",
+            max_tokens: 300,
+            system: SYSTEM_PROMPT,
+            messages: [{ role: "user", content: victoryPrompt }],
+            temperature: 0.9,
+          });
+          let victoryText = victoryRes.content[0].type === "text" ? victoryRes.content[0].text.trim().replace(/^["']|["']$/g, "").trim() : "";
+
+          // Quote tweet the mention where winner posted their wallet
+          const walletTweetUrl = `https://x.com/${authorUsername}/status/${mention.id}`;
+          const fullVictoryText = `${victoryText}
+
+${walletTweetUrl}`.substring(0, 280);
+          const victoryTweetId = await postTweet(fullVictoryText);
+
+          // Record payment
+          await markRewardPaid({
+            conversationId: mention.conversationId,
+            winner: authorUsername,
+            walletAddress: walletInMention,
+            amount: solAmount,
+            txSignature: txSig,
+            walletTweetId: mention.id,
+            victoryTweetId,
+            paidAt: new Date().toISOString(),
+          });
+
+          console.log(`[ET Reward] ✅ Sent ${solAmount} SOL to ${walletInMention} (@${authorUsername}) — tx: ${txSig} — victory tweet: ${victoryTweetId}`);
+        } catch (payErr) {
+          console.error(`[ET Reward] ❌ Payment failed for @${authorUsername}:`, payErr);
+          // Non-fatal — ET still posts his reply, just logs the failure
+        }
+      }
+    }
   }
 
   return {

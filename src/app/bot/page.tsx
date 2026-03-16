@@ -36,6 +36,7 @@ export default function BotDashboard() {
   const [replyPreview, setReplyPreview] = useState<{ tweetUrl: string; replyText: string; originalText: string; originalAuthor: string; tweetId: string } | null>(null);
   const [homepageMode, setHomepageMode] = useState<string>("new");
   const [memeResult, setMemeResult] = useState<string | null>(null);
+  const [walletInfo, setWalletInfo] = useState<{ configured: boolean; address?: string; balance?: number; message?: string } | null>(null);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -92,6 +93,14 @@ export default function BotDashboard() {
       }
     } catch (e) { /* silent */ }
     setDashLoading(false);
+  }, [secret]);
+
+  // Load ET wallet info
+  const loadWalletInfo = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/wallet", { headers: authHeaders });
+      if (res.ok) setWalletInfo(await res.json());
+    } catch { /* silent */ }
   }, [secret]);
 
   // Load scheduled tweets
@@ -183,6 +192,7 @@ export default function BotDashboard() {
     loadWatchlist();
     loadVipUsers();
     loadDashboard();
+      loadWalletInfo();
     loadScheduled();
     loadHomepageMode();
   };
@@ -282,6 +292,40 @@ export default function BotDashboard() {
             {loading === "kill" ? "..." : killSwitch ? "▶ RESUME ET" : "⏸ PAUSE ET"}
           </button>
         </div>
+
+        {/* ET Wallet Treasury */}
+        {walletInfo && (
+          <div style={{ ...styles.panel, marginBottom: "16px", borderColor: walletInfo.configured && (walletInfo.balance ?? 0) < 0.2 ? "rgba(255,200,0,0.3)" : "rgba(0,255,100,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <div style={styles.panelTitle}>👽 ET TREASURY</div>
+              <button onClick={loadWalletInfo} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+            </div>
+            {walletInfo.configured ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                  <span style={{ color: "rgba(255,255,255,0.5)" }}>ADDRESS</span>
+                  <span style={{ color: "#00ff64", fontFamily: "monospace", fontSize: "10px" }}>
+                    {walletInfo.address?.slice(0,6)}…{walletInfo.address?.slice(-6)}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                  <span style={{ color: "rgba(255,255,255,0.5)" }}>BALANCE</span>
+                  <span style={{ color: (walletInfo.balance ?? 0) < 0.2 ? "#ffcc00" : "#00ff64", fontWeight: 700 }}>
+                    {walletInfo.balance?.toFixed(4)} SOL
+                    {(walletInfo.balance ?? 0) < 0.2 && " ⚠️ LOW"}
+                  </span>
+                </div>
+                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", marginTop: "2px" }}>
+                  Rewards: 0.05–0.1 SOL per winner · auto-sent on wallet address detection
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: "11px", color: "rgba(255,200,0,0.7)" }}>
+                ⚠️ {walletInfo.message || "ET_WALLET_PRIVATE_KEY not configured"}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Dashboard */}
         {dashboard && (

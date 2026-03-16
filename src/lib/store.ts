@@ -1093,3 +1093,56 @@ export async function setWatchlistLastSeen(handle: string, tweetId: string): Pro
     await kv.hset(WATCHLIST_LAST_SEEN_KEY, { [clean]: tweetId });
   } catch (e) { debugWarn("KV setWatchlistLastSeen failed:", e); }
 }
+
+// ─── PENDING REWARDS — Task prize tracking ────────────────────────────────────
+
+const PENDING_REWARD_PREFIX = "et:pending_reward:";
+const REWARD_PAID_PREFIX    = "et:reward_paid:";
+
+export interface PendingReward {
+  conversationId: string;
+  taskContext: string;      // what ET asked the human to do
+  promiseTweetId: string;   // the tweet where ET promised SOL
+  createdAt: string;
+}
+
+export interface PaidReward {
+  conversationId: string;
+  winner: string;           // @username
+  walletAddress: string;
+  amount: number;           // SOL sent
+  txSignature: string;
+  walletTweetId: string;    // tweet where winner posted wallet
+  victoryTweetId: string;   // ET's victory tweet
+  paidAt: string;
+}
+
+export async function setPendingReward(
+  conversationId: string,
+  reward: Omit<PendingReward, "conversationId" | "createdAt">
+): Promise<void> {
+  try {
+    const key = `${PENDING_REWARD_PREFIX}${conversationId}`;
+    await kv.set(key, { ...reward, conversationId, createdAt: new Date().toISOString() }, { ex: 604800 }); // 7 days
+  } catch (e) { debugWarn("KV setPendingReward failed:", e); }
+}
+
+export async function getPendingReward(conversationId: string): Promise<PendingReward | null> {
+  try {
+    return await kv.get<PendingReward>(`${PENDING_REWARD_PREFIX}${conversationId}`);
+  } catch (e) { debugWarn("KV getPendingReward failed:", e); return null; }
+}
+
+export async function wasRewardPaid(conversationId: string): Promise<boolean> {
+  try {
+    return !!(await kv.get(`${REWARD_PAID_PREFIX}${conversationId}`));
+  } catch (e) { debugWarn("KV wasRewardPaid failed:", e); return false; }
+}
+
+export async function markRewardPaid(paid: PaidReward): Promise<void> {
+  try {
+    await kv.set(`${REWARD_PAID_PREFIX}${paid.conversationId}`, paid, { ex: 2592000 }); // 30 days
+    // Also clear the pending reward
+    await kv.del(`${PENDING_REWARD_PREFIX}${paid.conversationId}`);
+  } catch (e) { debugWarn("KV markRewardPaid failed:", e); }
+}

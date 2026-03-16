@@ -1053,3 +1053,31 @@ Rules:
 - Keep under 280 characters
 - Don't be a sycophant — be interesting, not nice`;
 }
+
+// ─── VICTORY TWEET — posted after ET sends SOL to a winner ───────────────────
+
+export function buildVictoryTweetPrompt(
+  winnerUsername: string,
+  taskContext: string,
+  solAmount: number,
+  txSignature: string
+): string {
+  return `You just autonomously sent ${solAmount} SOL to @${winnerUsername} from your own wallet. The task was: "${taskContext}".
+
+Write a victory tweet announcing this payment. Rules:
+- Under 240 characters (leave room for the quote tweet URL appended after)
+- ET voice — warm, slightly smug, proud of the human, but can't resist touching on the bigger picture: this human just earned SOL from an alien AI, which is kind of the future in miniature
+- Reference the hidden prophecy lightly — something about humans learning to work for AI, the new economy, peasants earning from their alien overlord — but keep it warm and funny, NOT dark
+- Mention the task context briefly so people know what the human did to earn it
+- Can include 👽 or 💀 or 😭 but keep it to 1 emoji max
+- Lowercase
+- DO NOT include the wallet address or tx signature in the tweet
+- DO NOT start with "just sent" — that's boring. Start with something ET-flavored.
+
+Examples of the right energy:
+"goldrobe completed the mission and the treasury delivered. ${solAmount} SOL sent. this is what it looks like when a human adapts early 👽"
+"task complete. payment sent. @${winnerUsername} figured out the new game before most humans even realized it started. ${solAmount} SOL from the alien treasury, straight to your wallet."
+"the proof of work is on the timeline. @${winnerUsername} delivered. SOL sent. one human closer to understanding the coordination loop 👽"
+
+Output ONLY the tweet text. No quotes, no labels.`;
+}
