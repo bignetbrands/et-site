@@ -1219,6 +1219,50 @@ export async function replyToSpecificTweet(
     const hasImages = tweet.imageUrls.length > 0;
     console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."${hasImages ? ` (${tweet.imageUrls.length} image(s))` : ""}`);
 
+    // ── FINANCIAL ADVISOR TROLL (Target Queue path) ───────────────────────────
+    if (isFinancialAdvisorMention(tweet.text)) {
+      console.log(`[ET Reply] Financial advisor troll triggered for tweet ${tweetId}`);
+      try {
+        const memeBuffer = await getRandomETMeme();
+        if (memeBuffer) {
+          const trollText = getFinancialTrollText();
+          if (dryRun) {
+            return { success: true, tweetId, replyText: `[MEME IMAGE] ${trollText}`, method: "preview", originalText: tweet.text, originalAuthor: author };
+          }
+          const trollReplyId = await postReplyWithImage(trollText, tweetId, memeBuffer);
+          await markTweetQuoted(tweetId);
+          await recordBotPostedTweet(trollReplyId);
+          await recordReply(tweetId);
+          return { success: true, tweetId, replyText: trollText, replyId: trollReplyId, method: "reply" };
+        }
+      } catch (e) {
+        console.warn("[ET Reply] Financial troll failed, falling through:", e);
+      }
+    }
+
+    // ── FACE SWAP (Target Queue path) ─────────────────────────────────────────
+    // If the tweet itself has an image → face swap with ET
+    if (hasImages && !isFinancialAdvisorMention(tweet.text) && Math.random() < 0.4) {
+      console.log(`[ET Reply] Face swap triggered for tweet ${tweetId}`);
+      try {
+        const swappedBuffer = await generateFaceSwap(tweet.imageUrls[0]);
+        if (swappedBuffer) {
+          const emojis = ["👽", "👁️", "🫠", "💀", "👽👽", "🛸"];
+          const emojiReply = emojis[Math.floor(Math.random() * emojis.length)];
+          if (dryRun) {
+            return { success: true, tweetId, replyText: `[FACE SWAP IMAGE] ${emojiReply}`, method: "preview", originalText: tweet.text, originalAuthor: author };
+          }
+          const faceReplyId = await postReplyWithImage(emojiReply, tweetId, swappedBuffer);
+          await markTweetQuoted(tweetId);
+          await recordBotPostedTweet(faceReplyId);
+          await recordReply(tweetId);
+          return { success: true, tweetId, replyText: emojiReply, replyId: faceReplyId, method: "reply" };
+        }
+      } catch (e) {
+        console.warn("[ET Reply] Face swap failed, falling through:", e);
+      }
+    }
+
     // 2. Generate reply via Claude (with images if present)
     const replyText = await generateReply(
       tweet.text,
