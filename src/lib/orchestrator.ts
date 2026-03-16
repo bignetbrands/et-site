@@ -1,5 +1,5 @@
 import { ContentPillar, TweetRecord, GeneratedTweet } from "@/types";
-import { PILLAR_CONFIGS, SYSTEM_PROMPT, buildVictoryTweetPrompt, buildTaskTweetPrompt } from "./prompts";
+import { PILLAR_CONFIGS, SYSTEM_PROMPT, buildVictoryTweetPrompt } from "./prompts";
 import { generateTweet, generateImageDescription, generateReply, generateNewsReaction, checkSimilarity, generateRaidReply } from "./claude";
 import { generateImage, downloadImage } from "./dalle";
 import { postTweet, postTweetWithImage, postReply, postReplyWithImage, postQuoteTweet, getMentions, getTweet, getTweetWithMedia, getTrendingContext, searchNewsTweets, getOwnTweetMetrics, getOwnUserId, type Mention } from "./twitter";
@@ -22,7 +22,6 @@ import {
   recordGmGnPosted,
   markRaidThread,
   isRaidThread,
-  markTaskThread,
   isTaskThread,
   getDailyReplyCount,
   incrementDailyReplyCount,
@@ -36,11 +35,7 @@ import {
   getRecentQtHistory,
   recordQtReaction,
   hasQuotedTopic,
-  setPendingReward,
-  getPendingReward,
-  wasRewardPaid,
   markRewardPaid,
-  addToRewardsQueue,
 } from "./store";
 import {
   getSelfAwarenessForTweets,
@@ -50,30 +45,7 @@ import {
   extractStylesFromMessage,
   addLearnedStyles,
 } from "./self-awareness";
-import { sendSol, pickRewardAmount, getETWalletAddress } from "./et-wallet";
-import Anthropic from "@anthropic-ai/sdk";
-import { nanoid } from "nanoid";
-import { isFinancialAdvisorMention, getRandomETMeme, getFinancialTrollText, generateFaceSwap } from "./meme-engine";
 import { decideReply, executeSideEffects } from "./reply-engine";
-
-// Solana wallet address regex — base58, 32-44 chars, not our own CA or system programs
-const SOLANA_ADDRESS_REGEX = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
-const KNOWN_NON_WALLET_ADDRESSES = new Set([
-  "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF", // $ET CA
-  "So11111111111111111111111111111111111111112",       // wSOL
-  "11111111111111111111111111111111",                  // System program
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",  // ATA program
-]);
-
-function extractWalletAddress(text: string): string | null {
-  const matches = text.match(SOLANA_ADDRESS_REGEX) || [];
-  for (const match of matches) {
-    if (!KNOWN_NON_WALLET_ADDRESSES.has(match) && match.length >= 32) {
-      return match;
-    }
-  }
-  return null;
-}
 
 // Official $ET contract address
 const OFFICIAL_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";

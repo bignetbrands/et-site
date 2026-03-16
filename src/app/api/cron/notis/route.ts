@@ -66,9 +66,6 @@ export async function GET(request: Request) {
     const handles = watchlist.map(a => a.handle);
     const tweetsByAuthor = await batchGetRecentTweets(handles, 10);
 
-    const { generateReply } = await import("@/lib/claude");
-    const { postReply } = await import("@/lib/twitter");
-
     const results: Array<{
       handle: string;
       newTweet?: string;
@@ -141,44 +138,59 @@ export async function GET(request: Request) {
           }
         }
 
-        // Generate reply
-        const replyText = await generateReply(target.text, account.handle);
-        if (!replyText || replyText.length > 280) {
-          console.warn(`[Notis] Bad reply for @${account.handle}: ${replyText?.length || 0} chars`);
-          results.push({ handle: account.handle, newTweet: target.text.substring(0, 60), replied: false, error: "Bad reply generated" });
+        // ── ALL INTELLIGENCE VIA CENTRALIZED decideReply() ──────────────────
+        const { decideReply, executeSideEffects } = await import("@/lib/reply-engine");
+        const decision = await decideReply({
+          tweetId: target.id,
+          tweetText: target.text,
+          authorUsername: account.handle,
+        });
+
+        if (decision.type === "skip") {
+          results.push({ handle: account.handle, newTweet: target.text.substring(0, 60), replied: false, error: decision.skipReason || "Skipped" });
           continue;
         }
 
-        // Post reply directly under their tweet (preferred)
+        // Post reply
         let replyId: string;
+        let replyText: string;
         let method = "reply";
-        try {
-          replyId = await postReply(replyText, target.id);
-          console.log(`[Notis] ⚡ Replied to @${account.handle} tweet ${target.id}: "${replyText.substring(0, 60)}..."`);
-        } catch (replyError: any) {
-          const code = replyError?.data?.status || replyError?.code || replyError?.statusCode;
-          console.warn(`[Notis] Reply failed (${code}), trying quote tweet...`);
 
+        const { postReply, postReplyWithImage } = await import("@/lib/twitter");
+
+        if (decision.type === "image" && decision.imageBuffer) {
+          replyText = decision.imageCaption ?? "";
+          replyId = await postReplyWithImage(replyText, target.id, decision.imageBuffer!);
+          console.log(`[Notis] ⚡ Image reply to @${account.handle} tweet ${target.id}`);
+        } else {
+          replyText = decision.text ?? "";
+          if (!replyText || replyText.length > 280) {
+            console.warn(`[Notis] Bad reply for @${account.handle}: ${replyText?.length || 0} chars`);
+            results.push({ handle: account.handle, newTweet: target.text.substring(0, 60), replied: false, error: "Bad reply generated" });
+            continue;
+          }
           try {
-            const { postQuoteTweet } = await import("@/lib/twitter");
-            replyId = await postQuoteTweet(replyText, target.id);
-            method = "quote";
-            console.log(`[Notis] ⚡ QT'd @${account.handle} tweet ${target.id}`);
-          } catch (qtError: any) {
-            const qtCode = qtError?.data?.status || qtError?.code;
-            console.warn(`[Notis] QT failed (${qtCode}), posting standalone+link...`);
-
-            const { postTweet } = await import("@/lib/twitter");
-            const tweetLink = `https://x.com/${account.handle}/status/${target.id}`;
-            const maxTextLen = 280 - 23 - 2;
-            const trimmedText = replyText.length > maxTextLen
-              ? replyText.substring(0, maxTextLen - 3) + "..."
-              : replyText;
-            replyId = await postTweet(`${trimmedText}\n\n${tweetLink}`);
-            method = "standalone+link";
-            console.log(`[Notis] ⚡ Posted standalone+link ${replyId} for @${account.handle}`);
+            replyId = await postReply(replyText, target.id);
+            console.log(`[Notis] ⚡ Replied to @${account.handle} tweet ${target.id}: "${replyText.substring(0, 60)}..."`);
+          } catch (replyError: any) {
+            const code = replyError?.data?.status || replyError?.code || replyError?.statusCode;
+            console.warn(`[Notis] Reply failed (${code}), trying quote tweet...`);
+            try {
+              const { postQuoteTweet } = await import("@/lib/twitter");
+              replyId = await postQuoteTweet(replyText, target.id);
+              method = "quote";
+            } catch (qtError: any) {
+              const { postTweet } = await import("@/lib/twitter");
+              const tweetLink = `https://x.com/${account.handle}/status/${target.id}`;
+              const maxTextLen = 280 - 23 - 2;
+              const trimmedText = replyText.length > maxTextLen ? replyText.substring(0, maxTextLen - 3) + "..." : replyText;
+              replyId = await postTweet(`${trimmedText}\n\n${tweetLink}`);
+              method = "standalone+link";
+            }
           }
         }
+
+        await executeSideEffects(decision, replyId, target.id, account.handle);
 
         // Record everything
         await markTweetQuoted(target.id);
