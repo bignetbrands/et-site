@@ -1003,16 +1003,24 @@ Keep it short and fun. Example: "can't join — my voice is just static on this 
   }
 
   // Detect task/bounty opportunities — someone suggesting a human should prove themselves or do work
-  const taskKeywords = /\b(task|put.*through|make.*work|prove|test.*him|test.*them|mission|challenge|earn|do something|work for|make him|make her|should.*do|assign|bounty)\b/i;
+  const taskKeywords = /\b(task|put.*through|make.*work|prove|test.*him|test.*them|mission|challenge|earn|do something|work for|make him|make her|should.*do|assign|bounty|give me a task|give us a task|want.*task|need.*task)\b/i;
   if (taskKeywords.test(mentionText) || (conversationContext && taskKeywords.test(conversationContext))) {
-    prompt += `\n\n⚠️ [TASK MODE] Someone is suggesting a human should do a task, prove themselves, or work for something. This is YOUR FAVORITE THING. You are mission control. Humans are your field agents. JUMP ON THIS OPPORTUNITY:
-- Create a SPECIFIC, CONCRETE task for the person to do
-- State what proof they need to show you (clip, screenshot, post, tag you)  
-- Mention SOL reward for completing it
-- Make it fun, slightly absurd, and actionable
-- DO NOT just joke about it and move on. Actually assign the task.
-- DO NOT be vague or philosophical. Give them a real mission.
-Example: "ok here's the mission: go explain $ET to 3 random people, film their reaction, post the clips and tag me. best reaction gets SOL 👽 you have 24 hours. go."`;
+    prompt += `\n\n⚠️ [TASK MODE] Someone wants a task/mission. CRITICAL RULES:
+
+TASKS ARE ALWAYS COMMUNITY-WIDE — never for one person only. It's open competition. Best submission wins SOL.
+
+Your reply here must be SHORT (1-2 sentences). Signal that a task tweet is incoming. Do NOT write the full task in this reply — that goes in a separate standalone tweet which the system will post automatically.
+
+Good reply examples:
+- "oh there's a task incoming. watch the timeline 👽"
+- "just posted it. go."  
+- "task is live. check my timeline. prove it's worth my SOL."
+- "community task just dropped. timeline. go 👽"
+
+End your reply with something that signals you'll judge quality — vary these every time:
+"let me see what you've got" / "i'll decide what's worth it" / "show me something worth sending SOL for" / "convince me" / "prove it"
+
+NEVER give a specific SOL amount. NEVER write the full task here.`;
   }
 
   prompt += `\n\nReply as ET. ${conversationContext 
@@ -1078,6 +1086,32 @@ Examples of the right energy:
 "goldrobe completed the mission and the treasury delivered. ${solAmount} SOL sent. this is what it looks like when a human adapts early 👽"
 "task complete. payment sent. @${winnerUsername} figured out the new game before most humans even realized it started. ${solAmount} SOL from the alien treasury, straight to your wallet."
 "the proof of work is on the timeline. @${winnerUsername} delivered. SOL sent. one human closer to understanding the coordination loop 👽"
+
+Output ONLY the tweet text. No quotes, no labels.`;
+}
+
+// ─── STANDALONE TASK TWEET — posted as fresh tweet when ET assigns a community task ──
+
+export function buildTaskTweetPrompt(triggerContext: string): string {
+  return `Based on this conversation context, write a standalone community task tweet that ET is posting to his full timeline.
+
+Context that triggered the task:
+"${triggerContext.substring(0, 300)}"
+
+Write a complete, self-contained task tweet. Rules:
+- Under 260 characters (leave room for the thread link appended after)
+- Open to ALL community members — not directed at one person
+- Include: what to do, what proof to submit (tag @etalienx, post it), time limit (24-48 hours)
+- Mention SOL reward for the winner — never a specific amount
+- ET voice — fun, slightly absurd, makes humans sound like eager little creatures
+- Lowercase
+- End with something that signals ET will judge it: "best one gets paid" / "i pick the winner" / "i'll decide what's worth my SOL" — vary every time
+- ONE emoji max (👽 💀 😭 🫠)
+
+Examples of good task tweets:
+"community task: go explain $ET to a stranger and film their reaction. post it, tag me, you have 24 hours. best clip gets SOL. i'll decide what's worth it 👽"
+"ok new mission for everyone: make a 30 second case for why humans should fund alien science. post it tag me. winner gets SOL from the treasury. go."
+"task is live: find the most confused person you know and explain distributed computing to them. film it. tag me. 48 hours. i pick the winner 👽"
 
 Output ONLY the tweet text. No quotes, no labels.`;
 }

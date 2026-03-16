@@ -37,6 +37,8 @@ export default function BotDashboard() {
   const [homepageMode, setHomepageMode] = useState<string>("new");
   const [memeResult, setMemeResult] = useState<string | null>(null);
   const [walletInfo, setWalletInfo] = useState<{ configured: boolean; address?: string; balance?: number; message?: string } | null>(null);
+  const [rewardsQueue, setRewardsQueue] = useState<any[]>([]);
+  const [rewardsLoading, setRewardsLoading] = useState("");
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -93,6 +95,17 @@ export default function BotDashboard() {
       }
     } catch (e) { /* silent */ }
     setDashLoading(false);
+  }, [secret]);
+
+  // Load rewards queue
+  const loadRewardsQueue = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/rewards", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setRewardsQueue(data.queue || []);
+      }
+    } catch { /* silent */ }
   }, [secret]);
 
   // Load ET wallet info
@@ -193,6 +206,7 @@ export default function BotDashboard() {
     loadVipUsers();
     loadDashboard();
       loadWalletInfo();
+      loadRewardsQueue();
     loadScheduled();
     loadHomepageMode();
   };
@@ -326,6 +340,76 @@ export default function BotDashboard() {
             )}
           </div>
         )}
+
+        {/* Rewards Queue */}
+        <div style={{ ...styles.panel, marginBottom: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div style={styles.panelTitle}>🏆 REWARDS QUEUE</div>
+            <button onClick={loadRewardsQueue} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+          </div>
+          {rewardsQueue.filter((r: any) => r.status === "pending").length === 0 ? (
+            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no pending rewards</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {rewardsQueue.filter((r: any) => r.status === "pending").map((item: any) => (
+                <div key={item.id} style={{ background: "rgba(0,255,100,0.04)", border: "1px solid rgba(0,255,100,0.12)", borderRadius: "4px", padding: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ color: "#00ff64", fontSize: "12px", fontWeight: 700 }}>@{item.winner}</span>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px" }}>{new Date(item.submittedAt).toLocaleString()}</span>
+                  </div>
+                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>
+                    <span style={{ color: "rgba(255,255,255,0.3)" }}>TASK: </span>{item.taskContext.substring(0, 120)}...
+                  </div>
+                  <div style={{ fontSize: "10px", fontFamily: "monospace", color: "rgba(0,255,100,0.6)", marginBottom: "8px" }}>
+                    {item.walletAddress.slice(0,8)}…{item.walletAddress.slice(-8)}
+                  </div>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                      VIEW TWEET ↗
+                    </a>
+                    <button
+                      onClick={async () => {
+                        setRewardsLoading(item.id + "_reject");
+                        const res = await fetch("/api/admin/rewards", {
+                          method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ id: item.id, action: "reject" }),
+                        });
+                        if (res.ok) { addLog(`Rejected reward for @${item.winner}`, "warn"); loadRewardsQueue(); }
+                        setRewardsLoading("");
+                      }}
+                      disabled={rewardsLoading === item.id + "_reject"}
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,50,50,0.1)", borderColor: "rgba(255,50,50,0.3)", color: "#ff6666" }}
+                    >
+                      {rewardsLoading === item.id + "_reject" ? "..." : "✕ REJECT"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setRewardsLoading(item.id + "_confirm");
+                        const res = await fetch("/api/admin/rewards", {
+                          method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ id: item.id, action: "confirm", conversationId: item.conversationId, winner: item.winner, walletAddress: item.walletAddress, walletTweetId: item.walletTweetId, taskContext: item.taskContext }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                          addLog(`✅ Sent ${data.solAmount} SOL to @${item.winner} — tx: ${data.txSignature}`, "success");
+                          loadRewardsQueue(); loadWalletInfo();
+                        } else {
+                          addLog(`❌ Payment failed: ${data.error}`, "error");
+                        }
+                        setRewardsLoading("");
+                      }}
+                      disabled={rewardsLoading === item.id + "_confirm"}
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.12)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
+                    >
+                      {rewardsLoading === item.id + "_confirm" ? "sending..." : "✓ CONFIRM & PAY"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Dashboard */}
         {dashboard && (

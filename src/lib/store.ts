@@ -1146,3 +1146,48 @@ export async function markRewardPaid(paid: PaidReward): Promise<void> {
     await kv.del(`${PENDING_REWARD_PREFIX}${paid.conversationId}`);
   } catch (e) { debugWarn("KV markRewardPaid failed:", e); }
 }
+
+// ─── REWARDS QUEUE — admin-reviewed before payment ────────────────────────────
+
+const REWARDS_QUEUE_KEY = "et:rewards_queue";
+
+export interface RewardQueueItem {
+  id: string;             // nanoid
+  conversationId: string;
+  taskTweetId: string;    // the standalone task tweet ET posted
+  taskContext: string;    // what the task was
+  winner: string;         // @username
+  walletAddress: string;
+  walletTweetId: string;  // tweet where winner posted their wallet
+  submittedAt: string;
+  status: "pending" | "confirmed" | "rejected";
+}
+
+export async function addToRewardsQueue(item: Omit<RewardQueueItem, "status">): Promise<void> {
+  try {
+    const existing = await kv.get<RewardQueueItem[]>(REWARDS_QUEUE_KEY) || [];
+    // Dedup — same conversationId + winner combo only once
+    const isDup = existing.some(e => e.conversationId === item.conversationId && e.winner === item.winner);
+    if (isDup) { debugWarn("KV addToRewardsQueue: duplicate skipped"); return; }
+    existing.unshift({ ...item, status: "pending" });
+    await kv.set(REWARDS_QUEUE_KEY, existing.slice(0, 50)); // keep last 50
+  } catch (e) { debugWarn("KV addToRewardsQueue failed:", e); }
+}
+
+export async function getRewardsQueue(): Promise<RewardQueueItem[]> {
+  try {
+    return await kv.get<RewardQueueItem[]>(REWARDS_QUEUE_KEY) || [];
+  } catch (e) { debugWarn("KV getRewardsQueue failed:", e); return []; }
+}
+
+export async function updateRewardQueueItem(
+  id: string,
+  status: "confirmed" | "rejected"
+): Promise<void> {
+  try {
+    const queue = await kv.get<RewardQueueItem[]>(REWARDS_QUEUE_KEY) || [];
+    const idx = queue.findIndex(i => i.id === id);
+    if (idx !== -1) queue[idx].status = status;
+    await kv.set(REWARDS_QUEUE_KEY, queue);
+  } catch (e) { debugWarn("KV updateRewardQueueItem failed:", e); }
+}
