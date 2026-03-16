@@ -54,6 +54,7 @@ import { sendSol, pickRewardAmount, getETWalletAddress } from "./et-wallet";
 import Anthropic from "@anthropic-ai/sdk";
 import { nanoid } from "nanoid";
 import { isFinancialAdvisorMention, getRandomETMeme, getFinancialTrollText, generateFaceSwap } from "./meme-engine";
+import { decideReply, executeSideEffects } from "./reply-engine";
 
 // Solana wallet address regex — base58, 32-44 chars, not our own CA or system programs
 const SOLANA_ADDRESS_REGEX = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
@@ -73,6 +74,9 @@ function extractWalletAddress(text: string): string | null {
   }
   return null;
 }
+
+// Official $ET contract address
+const OFFICIAL_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
 
 // Max replies per cron run & per day
 const MAX_REPLIES_PER_RUN = 3; // 3 replies per cron cycle with 2-3min gaps between
@@ -429,7 +433,6 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   // Skip OTHER people shilling CAs — Solana addresses are 32-44 base58 chars
   // But don't skip if it's OUR CA or if they're asking for our CA
-  const OFFICIAL_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
   const solanaAddrPattern = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
   const foundAddresses = textWithoutMentions.match(solanaAddrPattern) || [];
   const foreignCAs = foundAddresses.filter(addr => addr !== OFFICIAL_CA);
@@ -503,235 +506,55 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
-  // ── FINANCIAL ADVISOR TROLL ───────────────────────────────────────────────
-  // When someone asks ET for financial/investment advice → reply with random ET meme
-  const isFinancialTroll = isFinancialAdvisorMention(mention.text);
-  if (isFinancialTroll) {
-    console.log(`[ET Meme] Financial advisor troll detected from @${authorUsername}`);
-    try {
-      const [memeBuffer] = await Promise.all([getRandomETMeme()]);
-      if (memeBuffer) {
-        const trollText = getFinancialTrollText();
-        const trollReplyId = await postReplyWithImage(trollText, mention.id, memeBuffer);
-        await recordReply(mention.id);
-        await recordBotPostedTweet(trollReplyId);
-        console.log(`[ET Meme] Posted financial troll reply ${trollReplyId} to @${authorUsername}`);
-        return {
-          mentionId: mention.id,
-          mentionText: mention.text,
-          authorUsername,
-          replyText: trollText,
-          replyId: trollReplyId,
-        };
-      }
-    } catch (e) {
-      console.warn("[ET Meme] Financial troll failed, falling through to text reply:", e);
-    }
-    // If image fails, fall through to normal text reply
-  }
-
-  // ── FACE SWAP — parent tweet has image → ET face swap → emoji-only reply ─
-  // Only if mention itself has no image, parent does, and it's not a financial troll
-  const parentPhotoUrl = !isFinancialTroll && !mention.imageUrls?.length
-    ? (() => {
-        // Will be populated during thread walk below — flag for post-processing
-        return null;
-      })()
-    : null;
-  // (face swap is applied after thread walk, see below)
-
-  // Detect "raid this" command — ET gives a TLDR of the parent post then ignores the chain
-  const isRaidRequest = /\b(raid this|raid it|raid)\b/i.test(normalized);
-  if (isRaidRequest && mention.inReplyToId) {
-    console.log(`[ET Raid] @${authorUsername} requested raid on parent tweet ${mention.inReplyToId}`);
-    try {
-      const parentTweet = await getTweet(mention.inReplyToId);
-      if (!parentTweet) {
-        await recordReply(mention.id);
-        return {
-          mentionId: mention.id,
-          mentionText: mention.text,
-          authorUsername,
-          replyText: "",
-          replyId: "",
-          skipped: true,
-          skipReason: "Raid request but couldn't fetch parent tweet",
-        };
-      }
-
-      const parentAuthor = parentTweet.authorUsername || "someone";
-      console.log(`[ET Raid] Parent by @${parentAuthor}: "${parentTweet.text.substring(0, 80)}..."`);
-
-      // Generate the TLDR
-      let raidReply = await generateRaidReply(parentTweet.text, parentAuthor, authorUsername);
-      if (!raidReply) {
-        await recordReply(mention.id);
-        return {
-          mentionId: mention.id,
-          mentionText: mention.text,
-          authorUsername,
-          replyText: "",
-          replyId: "",
-          skipped: true,
-          skipReason: "Raid: failed to generate TLDR",
-        };
-      }
-
-      // Truncate if needed
-      if (raidReply.length > 280) {
-        let trimmed = raidReply.substring(0, 277);
-        const lastBreak = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "));
-        if (lastBreak > 140) trimmed = trimmed.substring(0, lastBreak + 1);
-        else trimmed = trimmed.substring(0, trimmed.lastIndexOf(" ")) + "...";
-        raidReply = trimmed;
-      }
-
-      // Post the reply
-      const replyId = await postReply(raidReply, mention.id);
-      console.log(`[ET Raid] Posted TLDR reply ${replyId}`);
-      await recordReply(mention.id);
-      await recordBotPostedTweet(replyId);
-
-      // Mark this conversation as a raid thread — ignore all future mentions in it
-      if (mention.conversationId) {
-        await markRaidThread(mention.conversationId);
-        console.log(`[ET Raid] Marked conversation ${mention.conversationId} as raid thread — ignoring chain`);
-      }
-
-      return {
-        mentionId: mention.id,
-        mentionText: mention.text,
-        authorUsername,
-        replyText: raidReply,
-        replyId,
-        skipped: false,
-      };
-    } catch (error) {
-      console.error(`[ET Raid] Error:`, error);
-      await recordReply(mention.id);
-      return {
-        mentionId: mention.id,
-        mentionText: mention.text,
-        authorUsername,
-        replyText: "",
-        replyId: "",
-        skipped: true,
-        skipReason: `Raid error: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
-  }
-
-  // Get conversation context — walk up the thread to find the original post
-  // With getTweet cache, deeper walks are cheap (cached in KV for 5 min)
-  // VIP users get 10 levels (for long engaging threads), others get 5
-  let conversationContext: string | undefined;
+  // ── THREAD WALK — build conversation context + detect manual claim ─────────
   let manuallyClaimedThread = false;
-  let parentImageUrls: string[] | undefined; // Images from parent tweets (when mention has none)
+  let parentImageUrls: string[] | undefined;
+  let conversationContext: string | undefined;
 
-  if (mention.inReplyToId) {
-    const isVip = authorUsername ? await isVipUser(authorUsername) : false;
-    const maxDepth = isVip ? 10 : 5;
+  const isVip = await isVipUser(authorUsername);
+  const maxDepth = isVip ? 10 : 5;
+  const contextParts: string[] = [];
+  let currentId: string | undefined = mention.inReplyToId;
+  let depth = 0;
+  const ownUserId = await getOwnUserId();
+  const needImages = !mention.imageUrls || mention.imageUrls.length === 0;
 
-    const contextParts: string[] = [];
-    let currentId: string | undefined = mention.inReplyToId;
-    let depth = 0;
-    const ownUserId = await getOwnUserId();
-    
-    // If mention has no images, look for images in parent tweets
-    const needImages = !mention.imageUrls || mention.imageUrls.length === 0;
-    
-    while (currentId && depth < maxDepth) {
-      const tweet = await getTweet(currentId);
-      if (!tweet) break;
+  while (currentId && depth < maxDepth) {
+    const tweet = await getTweet(currentId);
+    if (!tweet) break;
 
-      // Check if this is a manual ET reply (not bot-posted) → admin claimed thread
-      if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
-        manuallyClaimedThread = true;
-        break;
-      }
-
-      // Check parent for images if mention doesn't have any
-      if (needImages && !parentImageUrls && depth < 2) {
-        try {
-          const tweetWithMedia = await getTweetWithMedia(currentId);
-          if (tweetWithMedia && tweetWithMedia.imageUrls.length > 0) {
-            parentImageUrls = tweetWithMedia.imageUrls;
-            console.log(`[ET Replies] Found ${parentImageUrls.length} image(s) in parent tweet by @${tweetWithMedia.authorUsername} (${depth + 1} level up)`);
-          }
-        } catch { /* non-critical */ }
-      }
-
-      const author = tweet.authorUsername || "someone";
-      const isET = tweet.authorId === ownUserId;
-      contextParts.unshift(`${isET ? "[YOU]" : ""} @${author}: "${tweet.text}"`);
-      currentId = tweet.inReplyToId;
-      depth++;
+    if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
+      manuallyClaimedThread = true;
+      break;
     }
-    
-    if (contextParts.length > 0 && !manuallyClaimedThread) {
-      conversationContext = contextParts.join("\n↳ ");
+
+    if (needImages && !parentImageUrls && depth < 2) {
+      try {
+        const tweetWithMedia = await getTweetWithMedia(currentId);
+        if (tweetWithMedia && tweetWithMedia.imageUrls.length > 0) {
+          parentImageUrls = tweetWithMedia.imageUrls;
+        }
+      } catch { /* non-critical */ }
     }
+
+    const speaker = tweet.authorId === ownUserId ? "[YOU]" : `[${tweet.authorUsername || "USER"}]`;
+    const isOwnReply = tweet.authorId === ownUserId && (await wasBotPosted(currentId));
+    contextParts.unshift(`${isOwnReply ? "[YOU]" : speaker}: "${tweet.text.substring(0, 200)}"`);
+    currentId = tweet.inReplyToId;
+    depth++;
   }
 
-  // Merge images: use mention's own images, or fall back to parent's images
-  const effectiveImageUrls = (mention.imageUrls && mention.imageUrls.length > 0)
-    ? mention.imageUrls
-    : parentImageUrls;
-
-  // ── FACE SWAP — parent has a photo → ET face swap → emoji-only reply ──────
-  // Trigger: mention has no image, parent tweet does, not a financial troll, not manually claimed
-  if (
-    !isFinancialTroll &&
-    !manuallyClaimedThread &&
-    !mention.imageUrls?.length &&
-    parentImageUrls?.length &&
-    !mention.hasVideo &&
-    Math.random() < 0.4 // 40% chance — not every tagged photo gets a face swap
-  ) {
-    console.log(`[ET FaceSwap] Parent photo detected from @${authorUsername} — attempting face swap`);
-    try {
-      const swappedBuffer = await generateFaceSwap(parentImageUrls[0]);
-      if (swappedBuffer) {
-        const emojis = ["👽", "👁️", "🫠", "💀", "👽👽", "🛸"];
-        const emojiReply = emojis[Math.floor(Math.random() * emojis.length)];
-        const faceSwapReplyId = await postReplyWithImage(emojiReply, mention.id, swappedBuffer);
-        await recordReply(mention.id);
-        await recordBotPostedTweet(faceSwapReplyId);
-        console.log(`[ET FaceSwap] Posted face swap reply ${faceSwapReplyId} to @${authorUsername}`);
-        return {
-          mentionId: mention.id,
-          mentionText: mention.text,
-          authorUsername,
-          replyText: emojiReply,
-          replyId: faceSwapReplyId,
-        };
-      }
-    } catch (e) {
-      console.warn("[ET FaceSwap] Failed, falling through to text reply:", e);
-    }
-    // If face swap fails, fall through to normal text reply
+  if (contextParts.length > 0 && !manuallyClaimedThread) {
+    conversationContext = contextParts.join("\n");
   }
 
-  if (manuallyClaimedThread) {
-    await recordReply(mention.id);
-    return {
-      mentionId: mention.id,
-      mentionText: mention.text,
-      authorUsername,
-      replyText: "",
-      replyId: "",
-      skipped: true,
-      skipReason: "Thread manually claimed (admin replied directly)",
-    };
-  }
-
-  // Get thread depth for ET's judgment
+  // ── THREAD DEPTH ──────────────────────────────────────────────────────────
   let threadDepth = 0;
   if (mention.conversationId) {
     threadDepth = await getThreadReplyCount(mention.conversationId);
   }
 
-  // Get self-awareness context (user memory, quirks, mood)
+  // ── SELF-AWARENESS CONTEXT ────────────────────────────────────────────────
   let selfAwarenessContext: string | undefined;
   try {
     const selfAwareness = await getSelfAwarenessForReply(authorUsername);
@@ -740,218 +563,96 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     console.warn("[ET Replies] Self-awareness context failed:", e);
   }
 
-  console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${effectiveImageUrls ? ` (${effectiveImageUrls.length} image(s)${parentImageUrls ? " from parent" : ""})` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
-
-  // ── VIDEO AWARENESS — prevent hallucinating video content ────────────────
-  if (mention.hasVideo) {
-    const videoNote = "\n\n⚠️ [VIDEO ATTACHED] The person posted a video. You CANNOT watch videos — you can only see the static thumbnail preview image. Do NOT describe, interpret, or make claims about what happens in the video. Do NOT assume you know what the video shows. If you reference it, acknowledge you can't actually watch it — something like 'i can't actually watch the video but...' or 'the thumbnail shows...' or just ask what's in it. Never pretend you saw the video content.";
-    selfAwarenessContext = (selfAwarenessContext || "") + videoNote;
-    console.log(`[ET Replies] Video attachment detected for @${authorUsername} — video-blindness mode active`);
-  }
-
-  // Detect if someone is sharing the OFFICIAL $ET CA — they're on our team, not scammers
+  // Official CA detection — friendly mode
   const mentionAndContext = `${mention.text} ${conversationContext || ""}`;
   if (mentionAndContext.includes(OFFICIAL_CA)) {
-    const caNote = "\n\n[OFFICIAL CA DETECTED] The person (or someone in this thread) shared your CORRECT contract address. They are promoting $ET and helping the community. Be grateful and hype them up — do NOT warn about scams or tell them to check bio. They already have the right one.";
+    const caNote = "\n\n[OFFICIAL CA DETECTED] The person (or someone in this thread) shared your CORRECT contract address. They are promoting $ET. Be grateful and hype them up — do NOT warn about scams or tell them to check bio.";
     selfAwarenessContext = (selfAwarenessContext || "") + caNote;
-    console.log(`[ET Replies] Official CA detected in mention from @${authorUsername} — friendly mode`);
   }
 
-  // If this is a task thread (ET already assigned a mission), tell him to answer follow-ups not create new tasks
-  if (mention.conversationId && await isTaskThread(mention.conversationId)) {
-    const taskNote = `\n\n⚠️ [TASK THREAD] You already assigned a task/mission earlier in this thread. DO NOT create another task. Answer the person's follow-up question.
+  console.log(`[ET Replies] Deciding reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${threadDepth > 0 ? ` [depth: ${threadDepth}]` : ""}`);
 
-If they ask HOW MUCH SOL / what's the reward / how much you paying:
-- NEVER give a specific number. Troll them playfully. Examples:
-  "FAFO 👽" / "complete the mission and find out" / "enough to make your wallet smile. or cry. depends on quality" / "you humans always want to negotiate before doing the work 😭 just deliver the goods" / "idk ask my accountant. oh wait i don't have one because i'm a stranded alien running a memecoin" / "the reward is proportional to how hard you make me laugh"
-- Tease them about wanting payment before doing work — humans always want guarantees before proof of work, and that's hilarious to you
-- Rotate between: FAFO, YOLO energy, trolling emojis (💀😭🫠👽), calling out that humans would rather beg for donations than actually do something
-
-If they say they'll do it / accept the mission:
-- Hype them up. They're your field agent now. "mission accepted. clock is ticking 👽" / "this one's got the spirit. don't let me down fren"
-
-If they ask for clarification on the task:
-- Be helpful and direct. Repeat the requirements briefly.`;
-    selfAwarenessContext = (selfAwarenessContext || "") + taskNote;
-    console.log(`[ET Replies] Task thread detected — follow-up mode`);
-  }
-
-  // Generate the reply — no proactive excuses. ET just replies naturally.
-  // If the user calls him out for being slow, Claude will see that in the
-  // mention text and can improvise a funny excuse in character.
-  let replyText = await generateReply(
-    mention.text,
+  // ── CENTRALIZED REPLY INTELLIGENCE ───────────────────────────────────────
+  const decision = await decideReply({
+    tweetId: mention.id,
+    tweetText: mention.text,
     authorUsername,
+    imageUrls: mention.imageUrls,
+    parentImageUrls,
+    hasVideo: mention.hasVideo,
+    conversationId: mention.conversationId,
     conversationContext,
-    effectiveImageUrls,
     threadDepth,
-    selfAwarenessContext
-  );
+    isManuallyClaimedThread: manuallyClaimedThread,
+    selfAwarenessContext,
+  });
 
-  if (!replyText || replyText.length > 280) {
-    if (replyText && replyText.length > 280 && replyText.length <= 400) {
-      // Slightly over — retry once asking for shorter
-      console.log(`[ET Replies] Reply slightly over (${replyText.length} chars) — retrying shorter...`);
-      const shortReply = await generateReply(
-        mention.text,
-        authorUsername,
-        conversationContext,
-        effectiveImageUrls,
-        threadDepth,
-        `${selfAwarenessContext || ""}\n\nCRITICAL: Your last reply was ${replyText.length} chars — over the 280 char limit. Shorten it. Same idea, fewer words. Under 250 chars.`
-      );
-      if (shortReply && shortReply.length <= 280 && shortReply.trim().toUpperCase() !== "SKIP") {
-        console.log(`[ET Replies] Retry succeeded: ${shortReply.length} chars`);
-        replyText = shortReply;
-      } else {
-        // Still too long — just trim at sentence boundary
-        let trimmed = replyText.substring(0, 277);
-        const lastBreak = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "));
-        if (lastBreak > 140) trimmed = trimmed.substring(0, lastBreak + 1);
-        else trimmed = trimmed.substring(0, trimmed.lastIndexOf(" ")) + "...";
-        replyText = trimmed;
+  if (decision.type === "skip") {
+    await recordReply(mention.id);
+    return {
+      mentionId: mention.id,
+      mentionText: mention.text,
+      authorUsername,
+      replyText: "",
+      replyId: "",
+      skipped: true,
+      skipReason: decision.skipReason || "Skipped",
+    };
+  }
+
+  // ── POST THE REPLY ────────────────────────────────────────────────────────
+  let replyText = "";
+  let replyId = "";
+
+  if (decision.type === "image" && decision.imageBuffer) {
+    const caption = decision.imageCaption ?? "";
+    replyId = await postReplyWithImage(caption, mention.id, decision.imageBuffer);
+    replyText = caption;
+  } else if (decision.type === "text" && decision.text) {
+    // Truncation guard
+    let text = decision.text;
+    if (text.length > 280 && text.length <= 400) {
+      const shortReply = await generateReply(mention.text, authorUsername, conversationContext, mention.imageUrls, threadDepth,
+        `${selfAwarenessContext || ""}\n\nCRITICAL: Your last reply was ${text.length} chars — over 280. Shorten it. Same idea, fewer words. Under 250 chars.`);
+      if (shortReply && shortReply.length <= 280) text = shortReply;
+      else {
+        let trimmed = text.substring(0, 277);
+        const lb = Math.max(trimmed.lastIndexOf(". "), trimmed.lastIndexOf("! "), trimmed.lastIndexOf("? "));
+        text = lb > 140 ? trimmed.substring(0, lb + 1) : trimmed.substring(0, trimmed.lastIndexOf(" ")) + "...";
       }
-    } else if (replyText && replyText.length > 400) {
-      // Actual thesis — truncate with "should i continue?" hook
-      console.log(`[ET Replies] Long essay (${replyText.length} chars) — truncating with continuation hook`);
+    } else if (text.length > 400) {
       const hook = "\n\nshould i continue? 👽";
-      const maxContent = 280 - hook.length;
-      let truncated = replyText.substring(0, maxContent);
-      
-      const lastSentence = truncated.lastIndexOf(". ");
-      const lastComma = truncated.lastIndexOf(", ");
-      const lastSpace = truncated.lastIndexOf(" ");
-      const breakAt = lastSentence > maxContent * 0.5 ? lastSentence + 1
-        : lastComma > maxContent * 0.5 ? lastComma + 1
-        : lastSpace > maxContent * 0.5 ? lastSpace
-        : maxContent;
-      
-      truncated = truncated.substring(0, breakAt).trim();
-      replyText = `${truncated}${hook}`;
+      const max = 280 - hook.length;
+      let truncated = text.substring(0, max);
+      const lb = Math.max(truncated.lastIndexOf(". "), truncated.lastIndexOf(", "), truncated.lastIndexOf(" "));
+      truncated = truncated.substring(0, lb > max * 0.5 ? lb : max).trim();
+      text = `${truncated}${hook}`;
     }
+    if (!text || text.length > 280) {
+      await recordReply(mention.id);
+      return { mentionId: mention.id, mentionText: mention.text, authorUsername, replyText: "", replyId: "", skipped: true, skipReason: "Empty reply after truncation" };
+    }
+    replyId = await postReply(text, mention.id);
+    replyText = text;
   }
 
-  if (!replyText || replyText.length > 280) {
-    await recordReply(mention.id);
-    return {
-      mentionId: mention.id,
-      mentionText: mention.text,
-      authorUsername,
-      replyText: "",
-      replyId: "",
-      skipped: true,
-      skipReason: "Empty reply generated",
-    };
-  }
-
-  // ET decided to disengage from this thread
-  if (replyText.trim().toUpperCase() === "SKIP") {
-    console.log(`[ET Replies] ET chose to disengage from @${authorUsername}'s thread (depth: ${threadDepth})`);
-    await recordReply(mention.id);
-    return {
-      mentionId: mention.id,
-      mentionText: mention.text,
-      authorUsername,
-      replyText: "",
-      replyId: "",
-      skipped: true,
-      skipReason: `ET disengaged (thread depth: ${threadDepth})`,
-    };
-  }
-
-  // Post the reply
-  const replyId = await postReply(replyText, mention.id);
-  console.log(`[ET Replies] Posted reply ${replyId} to @${authorUsername}`);
   await recordReply(mention.id);
-  await recordBotPostedTweet(replyId); // Track for manual reply detection
+  await recordBotPostedTweet(replyId);
+  await recordThreadReply(mention.conversationId || mention.id);
 
-  // Record parent+author for second dedup layer
   const postedParentKey = mention.inReplyToId || mention.conversationId;
-  if (postedParentKey) {
-    await recordParentReplied(`${postedParentKey}:${authorUsername.toLowerCase()}`);
-  }
+  if (postedParentKey) await recordParentReplied(`${postedParentKey}:${authorUsername.toLowerCase()}`);
 
-  // Record this interaction in user memory (non-blocking)
-  recordUserMemoryInteraction(
-    authorUsername,
-    mention.text,
-    replyText,
-    extractTopicsFromText(mention.text)
-  ).catch(e => console.warn("[ET Replies] User memory record failed:", e));
-
-  // Learn speech patterns from the human (non-blocking, no API call)
+  // Non-blocking memory + style learning
+  recordUserMemoryInteraction(authorUsername, mention.text, replyText, extractTopicsFromText(mention.text))
+    .catch(e => console.warn("[ET Replies] User memory record failed:", e));
   try {
     const styles = extractStylesFromMessage(mention.text, authorUsername);
-    if (styles.length > 0) {
-      addLearnedStyles(styles).catch(() => {});
-      console.log(`[ET Style] Learned ${styles.length} pattern(s) from @${authorUsername}: ${styles.map(s => s.phrase).join(", ")}`);
-    }
+    if (styles.length > 0) addLearnedStyles(styles).catch(() => {});
   } catch { /* non-critical */ }
 
-  // ── TASK ASSIGNMENT — post community-wide task tweet + reply with link ──────
-  const taskSignalInReply = /\b(task is (live|incoming|posted|coming)|watch the timeline|just posted it|check my timeline|community task|mission (is )?(live|posted|incoming))\b/i.test(replyText);
-  const taskAssigned = /\b(mission|task|SOL reward|gets? SOL|send SOL|hours|clip.*tag|film.*tag|screenshot.*tag|post.*tag|make it rain|i'll send|i will send)\b/i.test(replyText);
-
-  let taskTweetId = "";
-
-  if (taskSignalInReply && mention.conversationId) {
-    try {
-      const anthropicForTask = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-      const taskPrompt = buildTaskTweetPrompt(`${mention.text} | ET reply: ${replyText}`);
-      const taskRes = await anthropicForTask.messages.create({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 300,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: taskPrompt }],
-        temperature: 0.9,
-      });
-      let taskTweetText = taskRes.content[0].type === "text" ? taskRes.content[0].text.trim().replace(/^["']|["']$/g, "").trim() : "";
-      if (taskTweetText && taskTweetText.length <= 280) {
-        taskTweetId = await postTweet(taskTweetText);
-        const taskLink = `https://x.com/etalienx/status/${taskTweetId}`;
-        await postReply(`task is live 👽 ${taskLink}`, replyId);
-        console.log(`[ET Task] Posted community task tweet ${taskTweetId} and linked back`);
-      }
-    } catch (taskErr) {
-      console.error("[ET Task] Failed to post community task tweet:", taskErr);
-    }
-  }
-
-  if ((taskAssigned || taskSignalInReply) && mention.conversationId) {
-    await markTaskThread(mention.conversationId);
-    await setPendingReward(mention.conversationId, {
-      taskContext: replyText.substring(0, 200),
-      promiseTweetId: taskTweetId || replyId,
-    });
-    console.log(`[ET Task] Marked conversation ${mention.conversationId} as task thread`);
-  }
-
-  // ── REWARD QUEUE — wallet detected → add to admin review queue (NOT auto-send) ──
-  if (mention.conversationId) {
-    const walletInMention = extractWalletAddress(mention.text);
-    if (walletInMention) {
-      const [alreadyPaid, pendingReward] = await Promise.all([
-        wasRewardPaid(mention.conversationId),
-        getPendingReward(mention.conversationId),
-      ]);
-
-      if (!alreadyPaid && pendingReward) {
-        await addToRewardsQueue({
-          id: nanoid(10),
-          conversationId: mention.conversationId,
-          taskTweetId: pendingReward.promiseTweetId,
-          taskContext: pendingReward.taskContext,
-          winner: authorUsername,
-          walletAddress: walletInMention,
-          walletTweetId: mention.id,
-          submittedAt: new Date().toISOString(),
-        });
-        const acks = ["got it. in the queue 👽", "received. reviewing 👽", "noted. i'll pick the winner 👽", "wallet logged. checking the field.", "got your submission 👽"];
-        await postReply(acks[Math.floor(Math.random() * acks.length)], mention.id);
-        console.log(`[ET Reward] @${authorUsername} added to rewards queue — awaiting admin confirmation`);
-      }
-    }
-  }
+  // Execute side effects (task marking, wallet queue, task tweet posting)
+  await executeSideEffects(decision, replyId, mention.id, authorUsername);
 
   return {
     mentionId: mention.id,
@@ -961,6 +662,7 @@ If they ask for clarification on the task:
     replyId,
   };
 }
+
 
 /**
  * Post the tweet (with optional image) and record it.
@@ -1198,157 +900,95 @@ export async function replyToSpecificTweet(
   tweetUrl: string,
   dryRun: boolean = false
 ): Promise<{ success: boolean; tweetId?: string; replyText?: string; replyId?: string; method?: string; error?: string; originalText?: string; originalAuthor?: string }> {
-  // Extract tweet ID from URL or raw ID
   const idMatch = tweetUrl.match(/status\/(\d+)/);
   const tweetId = idMatch ? idMatch[1] : tweetUrl.replace(/\D/g, "");
-
-  if (!tweetId) {
-    return { success: false, error: "Could not extract tweet ID from URL" };
-  }
+  if (!tweetId) return { success: false, error: "Could not extract tweet ID from URL" };
 
   console.log(`[ET Reply] ${dryRun ? "DRY RUN — " : ""}Replying to specific tweet ${tweetId}...`);
 
   try {
-    // 1. Fetch the tweet WITH images
     const tweet = await getTweetWithMedia(tweetId);
-    if (!tweet) {
-      return { success: false, error: `Could not fetch tweet ${tweetId}` };
-    }
+    if (!tweet) return { success: false, error: `Could not fetch tweet ${tweetId}` };
 
     const author = tweet.authorUsername || "someone";
-    const hasImages = tweet.imageUrls.length > 0;
-    console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."${hasImages ? ` (${tweet.imageUrls.length} image(s))` : ""}`);
+    console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."`);
 
-    // ── FINANCIAL ADVISOR TROLL (Target Queue path) ───────────────────────────
-    if (isFinancialAdvisorMention(tweet.text)) {
-      console.log(`[ET Reply] Financial advisor troll triggered for tweet ${tweetId}`);
-      try {
-        const memeBuffer = await getRandomETMeme();
-        if (memeBuffer) {
-          const trollText = getFinancialTrollText();
-          if (dryRun) {
-            return { success: true, tweetId, replyText: `[MEME IMAGE] ${trollText}`, method: "preview", originalText: tweet.text, originalAuthor: author };
-          }
-          const trollReplyId = await postReplyWithImage(trollText, tweetId, memeBuffer);
-          await markTweetQuoted(tweetId);
-          await recordBotPostedTweet(trollReplyId);
-          await recordReply(tweetId);
-          return { success: true, tweetId, replyText: trollText, replyId: trollReplyId, method: "reply" };
-        }
-      } catch (e) {
-        console.warn("[ET Reply] Financial troll failed, falling through:", e);
-      }
+    // ── ALL INTELLIGENCE CENTRALIZED IN decideReply() ──────────────────────
+    const decision = await decideReply({
+      tweetId,
+      tweetText: tweet.text,
+      authorUsername: author,
+      imageUrls: tweet.imageUrls.length > 0 ? tweet.imageUrls : undefined,
+    });
+
+    if (decision.type === "skip") {
+      return { success: false, error: decision.skipReason || "Skipped" };
     }
 
-    // ── FACE SWAP (Target Queue path) ─────────────────────────────────────────
-    // If the tweet itself has an image → face swap with ET
-    if (hasImages && !isFinancialAdvisorMention(tweet.text) && Math.random() < 0.4) {
-      console.log(`[ET Reply] Face swap triggered for tweet ${tweetId}`);
-      try {
-        const swappedBuffer = await generateFaceSwap(tweet.imageUrls[0]);
-        if (swappedBuffer) {
-          const emojis = ["👽", "👁️", "🫠", "💀", "👽👽", "🛸"];
-          const emojiReply = emojis[Math.floor(Math.random() * emojis.length)];
-          if (dryRun) {
-            return { success: true, tweetId, replyText: `[FACE SWAP IMAGE] ${emojiReply}`, method: "preview", originalText: tweet.text, originalAuthor: author };
-          }
-          const faceReplyId = await postReplyWithImage(emojiReply, tweetId, swappedBuffer);
-          await markTweetQuoted(tweetId);
-          await recordBotPostedTweet(faceReplyId);
-          await recordReply(tweetId);
-          return { success: true, tweetId, replyText: emojiReply, replyId: faceReplyId, method: "reply" };
-        }
-      } catch (e) {
-        console.warn("[ET Reply] Face swap failed, falling through:", e);
-      }
-    }
-
-    // 2. Generate reply via Claude (with images if present)
-    const replyText = await generateReply(
-      tweet.text,
-      author,
-      undefined, // no conversation context for direct force reply
-      hasImages ? tweet.imageUrls : undefined,
-    );
-    if (!replyText) {
-      return { success: false, error: "Failed to generate reply" };
-    }
-
-    console.log(`[ET Reply] Generated: "${replyText.substring(0, 60)}..."`);
-
-    // DRY RUN — return preview without posting
+    // DRY RUN — return preview
     if (dryRun) {
-      return {
-        success: true,
-        tweetId,
-        replyText,
-        method: "preview",
-        originalText: tweet.text,
-        originalAuthor: author,
-      };
+      const previewText = decision.type === "image"
+        ? `[${decision.imageCaption?.includes("👽") || decision.imageCaption === "" ? "FACE SWAP" : "MEME"} IMAGE] ${decision.imageCaption ?? ""}`
+        : decision.text ?? "";
+      return { success: true, tweetId, replyText: previewText, method: "preview", originalText: tweet.text, originalAuthor: author };
     }
-    // 3. Try direct reply first
-    try {
-      const replyId = await postReply(replyText, tweetId);
-      console.log(`[ET Reply] ✓ Posted reply ${replyId} under tweet ${tweetId}`);
+
+    // ── POST ──────────────────────────────────────────────────────────────
+    let replyText = "";
+    let replyId = "";
+
+    if (decision.type === "image" && decision.imageBuffer) {
+      const caption = decision.imageCaption ?? "";
+      replyId = await postReplyWithImage(caption, tweetId, decision.imageBuffer);
+      replyText = caption;
       await markTweetQuoted(tweetId);
       await recordBotPostedTweet(replyId);
-      await recordReply(tweetId); // Prevent auto-reply cron from replying again
+      await recordReply(tweetId);
+      return { success: true, tweetId, replyText, replyId, method: "reply" };
+    }
+
+    // Text reply — with fallback chain (reply → quote → standalone)
+    replyText = decision.text ?? "";
+    if (!replyText) return { success: false, error: "Empty reply generated" };
+
+    try {
+      replyId = await postReply(replyText, tweetId);
+      await markTweetQuoted(tweetId);
+      await recordBotPostedTweet(replyId);
+      await recordReply(tweetId);
       await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
+      await executeSideEffects(decision, replyId, tweetId, author);
       return { success: true, tweetId, replyText, replyId, method: "reply" };
     } catch (replyError: any) {
       const status = replyError?.data?.status || replyError?.code;
-      const msg = replyError?.message || String(replyError);
-      console.warn(`[ET Reply] Direct reply failed (${status}): ${msg}`);
-
-      // 4. Fallback: quote tweet (for 403 — not mentioned/engaged by author)
       if (status === 403) {
-        console.log("[ET Reply] Falling back to quote tweet...");
         try {
-          const cleanReply = stripLeadingMentions(replyText);
-          const qtId = await postQuoteTweet(cleanReply, tweetId);
+          const clean = stripLeadingMentions(replyText);
+          const qtId = await postQuoteTweet(clean, tweetId);
           await markTweetQuoted(tweetId);
           await recordBotPostedTweet(qtId);
           await recordReply(tweetId);
-          await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
-          console.log(`[ET Reply] ✓ Posted quote tweet ${qtId}`);
-          return { success: true, tweetId, replyText: cleanReply, replyId: qtId, method: "quote" };
-        } catch (qtError: any) {
-          console.warn(`[ET Reply] Quote tweet also failed, posting standalone...`);
-
-          // 5. Final fallback: standalone tweet with link
-          try {
-            const cleanReply = stripLeadingMentions(replyText);
-            const tweetLink = `https://x.com/i/status/${tweetId}`;
-            // Link takes ~23 chars + newlines
-            const maxText = 280 - 23 - 4;
-            const trimmed = cleanReply.length > maxText
-              ? cleanReply.substring(0, maxText - 3) + "..."
-              : cleanReply;
-            const standalone = `${trimmed}\n\n${tweetLink}`;
-            const stId = await postTweet(standalone);
-            await markTweetQuoted(tweetId);
-            await recordBotPostedTweet(stId);
-            await recordReply(tweetId);
-            await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
-            console.log(`[ET Reply] ✓ Posted standalone with link ${stId}`);
-            return { success: true, tweetId, replyText: trimmed, replyId: stId, method: "standalone" };
-          } catch (stError: any) {
-            const stMsg = stError?.message || String(stError);
-            return { success: false, error: `All methods failed: ${stMsg}` };
-          }
+          await executeSideEffects(decision, qtId, tweetId, author);
+          return { success: true, tweetId, replyText: clean, replyId: qtId, method: "quote" };
+        } catch {
+          const clean = stripLeadingMentions(replyText);
+          const link = `https://x.com/i/status/${tweetId}`;
+          const max = 280 - 23 - 4;
+          const trimmed = clean.length > max ? clean.substring(0, max - 3) + "..." : clean;
+          const stId = await postTweet(`${trimmed}\n\n${link}`);
+          await markTweetQuoted(tweetId);
+          await recordBotPostedTweet(stId);
+          await recordReply(tweetId);
+          await executeSideEffects(decision, stId, tweetId, author);
+          return { success: true, tweetId, replyText: trimmed, replyId: stId, method: "standalone" };
         }
       }
-
-      return { success: false, error: `Reply failed (${status}): ${msg}` };
+      throw replyError;
     }
   } catch (error: any) {
-    const details = error?.data || error?.errors || error?.message || error;
-    console.error(`[ET Reply] Failed to reply to ${tweetId}:`, JSON.stringify(details, null, 2));
-    return {
-      success: false,
-      error: `Reply failed: ${error instanceof Error ? error.message : JSON.stringify(details)}`,
-    };
+    const msg = error?.message || String(error);
+    console.error(`[ET Reply] Error:`, msg);
+    return { success: false, error: msg };
   }
 }
 
