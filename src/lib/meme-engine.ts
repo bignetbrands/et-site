@@ -12,14 +12,14 @@ const ET_CHAR_DESC = `Use the alien from the second reference image as your char
 
 // Fallback meme URLs if memedepot is unreachable
 const FALLBACK_MEMES = [
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/b582645c-31fe-4eb4-e707-0807f140b100/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/bc5c960e-8e60-498d-6fb9-dd5e7867f400/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/965abb89-978f-495a-325c-5909e1340600/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/1da10545-a6ac-4870-dd82-5592c96c2800/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/a4035e7d-c7da-48cd-80ce-83baf13bb400/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/c1ce7b27-2402-4e94-5683-e46c715a1a00/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/d6a76aa5-45a6-4191-0bae-52d938135000/width=600",
-  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/91db8ecc-3e43-4491-38d1-c3e65bcce400/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/b582645c-31fe-4eb4-e707-0807f140b100/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/bc5c960e-8e60-498d-6fb9-dd5e7867f400/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/965abb89-978f-495a-325c-5909e1340600/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/1da10545-a6ac-4870-dd82-5592c96c2800/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/a4035e7d-c7da-48cd-80ce-83baf13bb400/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/c1ce7b27-2402-4e94-5683-e46c715a1a00/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/d6a76aa5-45a6-4191-0bae-52d938135000/width=1080",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/91db8ecc-3e43-4491-38d1-c3e65bcce400/width=1080",
 ];
 
 // Financial advisor troll text — varied, never repeated
