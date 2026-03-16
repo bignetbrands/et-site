@@ -86,6 +86,7 @@ export interface Mention {
   inReplyToId?: string;
   createdAt?: string;
   imageUrls?: string[];
+  hasVideo?: boolean; // true if any attachment is a video/gif — Claude only sees the thumbnail, NOT the video content
 }
 
 /**
@@ -251,6 +252,7 @@ export async function getMentions(
 
   // Build media key → URL map (photos get full URL, GIFs/videos get preview thumbnail)
   const mediaMap = new Map<string, string>();
+  const videoKeys = new Set<string>(); // track which keys are videos/gifs
   if (timeline.includes?.media) {
     for (const m of timeline.includes.media) {
       if (m.type === "photo" && (m.url || m.preview_image_url)) {
@@ -258,6 +260,7 @@ export async function getMentions(
       } else if ((m.type === "animated_gif" || m.type === "video") && m.preview_image_url) {
         // GIFs/videos: use the static preview thumbnail so Claude can "see" it
         mediaMap.set(m.media_key, m.preview_image_url);
+        videoKeys.add(m.media_key);
       }
     }
   }
@@ -270,10 +273,12 @@ export async function getMentions(
 
       // Extract image URLs from attachments
       const imageUrls: string[] = [];
+      let hasVideo = false;
       if (tweet.attachments?.media_keys) {
         for (const key of tweet.attachments.media_keys) {
           const url = mediaMap.get(key);
           if (url) imageUrls.push(url);
+          if (videoKeys.has(key)) hasVideo = true;
         }
       }
 
@@ -288,6 +293,7 @@ export async function getMentions(
         )?.id,
         createdAt: tweet.created_at,
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        hasVideo: hasVideo || undefined,
       });
     }
   }

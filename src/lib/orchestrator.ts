@@ -668,6 +668,13 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   console.log(`[ET Replies] Generating reply to @${authorUsername}: "${mention.text.substring(0, 60)}..."${effectiveImageUrls ? ` (${effectiveImageUrls.length} image(s)${parentImageUrls ? " from parent" : ""})` : ""}${threadDepth > 0 ? ` [thread depth: ${threadDepth}]` : ""}`);
 
+  // ── VIDEO AWARENESS — prevent hallucinating video content ────────────────
+  if (mention.hasVideo) {
+    const videoNote = "\n\n⚠️ [VIDEO ATTACHED] The person posted a video. You CANNOT watch videos — you can only see the static thumbnail preview image. Do NOT describe, interpret, or make claims about what happens in the video. Do NOT assume you know what the video shows. If you reference it, acknowledge you can't actually watch it — something like 'i can't actually watch the video but...' or 'the thumbnail shows...' or just ask what's in it. Never pretend you saw the video content.";
+    selfAwarenessContext = (selfAwarenessContext || "") + videoNote;
+    console.log(`[ET Replies] Video attachment detected for @${authorUsername} — video-blindness mode active`);
+  }
+
   // Detect if someone is sharing the OFFICIAL $ET CA — they're on our team, not scammers
   const mentionAndContext = `${mention.text} ${conversationContext || ""}`;
   if (mentionAndContext.includes(OFFICIAL_CA)) {
