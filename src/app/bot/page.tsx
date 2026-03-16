@@ -26,7 +26,6 @@ export default function BotDashboard() {
   const [preview, setPreview] = useState<{ text: string; pillar: string; imageUrl?: string; charCount: number; selfAwareness?: string } | null>(null);
   const [selectedPillar, setSelectedPillar] = useState("human_observation");
   const [watchlist, setWatchlist] = useState<Array<{ handle: string; addedAt: string; note?: string }>>([]);
-  const [watchlistLoaded, setWatchlistLoaded] = useState(false);
   const [vipUsers, setVipUsers] = useState<string[]>([]);
   const [dashboard, setDashboard] = useState<any>(null);
   const [dashLoading, setDashLoading] = useState(false);
@@ -59,18 +58,6 @@ export default function BotDashboard() {
     } catch (e) {
       addLog(`Connection failed: ${e}`, "error");
     }
-  }, [secret]);
-
-  // Load watchlist
-  const loadWatchlist = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notis", { headers: { Authorization: `Bearer ${secret}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setWatchlist(data.accounts || []);
-        setWatchlistLoaded(true);
-      }
-    } catch (e) { /* silent */ }
   }, [secret]);
 
   // Load VIP users
@@ -202,7 +189,6 @@ export default function BotDashboard() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     checkStatus();
-    loadWatchlist();
     loadVipUsers();
     loadDashboard();
       loadWalletInfo();
@@ -1444,109 +1430,6 @@ export default function BotDashboard() {
                   {loading === "threadPost" ? "POSTING..." : `🚀 POST THREAD (${threadPreview.length} tweets)`}
                 </button>
               </div>
-            </div>
-          )}
-        </div>
-
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ WATCHLIST (NOTIS)</div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            VIP accounts ET monitors every 10 min. New tweet → ET replies directly under it within minutes. Max 2 accounts.
-          </div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input
-              type="text"
-              id="notisInput"
-              placeholder="@username"
-              style={{ ...styles.input, flex: 1, textAlign: "left" }}
-              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("notisAddBtn")?.click(); }}
-            />
-            <button
-              id="notisAddBtn"
-              onClick={async () => {
-                const inp = document.getElementById("notisInput") as HTMLInputElement;
-                const handle = inp?.value.trim();
-                if (!handle) { addLog("Enter a handle first", "warn"); return; }
-                setLoading("notisAdd");
-                addLog(`Adding @${handle} to watchlist...`, "info");
-                try {
-                  const res = await fetch("/api/notis", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "add", handle, secret }),
-                  });
-                  const data = await res.json();
-                  if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else {
-                    addLog(`✓ @${data.account.handle} added to watchlist (${data.total}/2)`, "success");
-                    inp.value = "";
-                    loadWatchlist();
-                  }
-                } catch (e) { addLog(`Add failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPrimary}
-            >
-              {loading === "notisAdd" ? "..." : "＋ ADD"}
-            </button>
-          </div>
-          {watchlist.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
-              {watchlist.map((a) => (
-                <div key={a.handle} style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 12px",
-                  background: "#0a1a0a",
-                  border: "1px solid #1a3a1a",
-                  borderRadius: "2px",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ color: "#39ff14", fontSize: "11px" }}>📡</span>
-                    <span style={{ color: "#39ff14", fontWeight: 700, fontSize: "12px" }}>@{a.handle}</span>
-                    <span style={{ color: "#3a5a3a", fontSize: "9px" }}>
-                      added {new Date(a.addedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setLoading(`notisRm-${a.handle}`);
-                      try {
-                        const res = await fetch("/api/notis", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "remove", handle: a.handle, secret }),
-                        });
-                        const data = await res.json();
-                        if (data.error) addLog(`Error: ${data.error}`, "error");
-                        else {
-                          addLog(`✓ @${a.handle} removed from watchlist`, "warn");
-                          loadWatchlist();
-                        }
-                      } catch (e) { addLog(`Remove failed: ${e}`, "error"); }
-                      setLoading("");
-                    }}
-                    disabled={!!loading}
-                    style={{
-                      background: "transparent",
-                      border: "1px solid #5a2a2a",
-                      color: "#ff4444",
-                      padding: "2px 8px",
-                      fontFamily: "monospace",
-                      fontSize: "10px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {loading === `notisRm-${a.handle}` ? "..." : "✕ REMOVE"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: "#3a5a3a", fontSize: "10px", fontStyle: "italic", padding: "8px 0" }}>
-              No accounts on watchlist. Add up to 2 accounts to monitor.
             </div>
           )}
         </div>
