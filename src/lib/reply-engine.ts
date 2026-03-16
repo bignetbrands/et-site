@@ -148,16 +148,13 @@ export async function decideReply(input: ReplyInput): Promise<ReplyDecision> {
     // Fall through to text reply if image fetch fails
   }
 
-  // ── 3. FACE SWAP — parent/mention has a photo ──────────────────────────────
+  // ── 3. FACE SWAP — keyword-gated, only when explicitly requested ────────────
+  // User must explicitly ask ET to insert himself / photobomb / swap faces + have a photo attached
+  const FACE_SWAP_KEYWORDS = /\b(put yourself|insert yourself|photobomb|face swap|swap.*face|face.*swap|join this|get in (this|here)|where.*you in this|spot yourself|add yourself|you should be in|you.*belong in|you.*in this photo|place yourself|jump in (this|here))\b/i;
+  const hasFaceSwapRequest = FACE_SWAP_KEYWORDS.test(tweetText);
   const photoUrl = imageUrls?.[0] || (!hasVideo ? parentImageUrls?.[0] : undefined);
-  const shouldFaceSwap = (
-    !isFinancialAdvisorMention(tweetText) &&
-    !!photoUrl &&
-    !hasVideo &&
-    Math.random() < 0.4 // 40% chance — keeps it special
-  );
 
-  if (shouldFaceSwap && photoUrl) {
+  if (hasFaceSwapRequest && photoUrl && !hasVideo && !isFinancialAdvisorMention(tweetText)) {
     try {
       const swappedBuffer = await generateFaceSwap(photoUrl);
       if (swappedBuffer) {
