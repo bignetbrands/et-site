@@ -91,8 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "manual_add") {
-    // Admin manually adds a submission to the rewards queue
-    const { winner, walletAddress, taskContext, walletTweetId } = await req.json().catch(() => ({}));
+    // winner, walletAddress etc. already destructured from req.json() above
     if (!winner || !walletAddress) {
       return NextResponse.json({ error: "Missing winner or walletAddress" }, { status: 400 });
     }
