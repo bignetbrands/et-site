@@ -333,6 +333,48 @@ export default function BotDashboard() {
             <div style={styles.panelTitle}>🏆 REWARDS QUEUE</div>
             <button onClick={loadRewardsQueue} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
           </div>
+
+          {/* Manual add */}
+          <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(0,255,100,0.1)", borderRadius: "4px", padding: "10px", marginBottom: "12px" }}>
+            <div style={{ fontSize: "9px", color: "rgba(0,255,100,0.5)", letterSpacing: "0.1em", marginBottom: "8px" }}>＋ MANUALLY ADD WINNER</div>
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+              <input id="manualWinner" placeholder="@username" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+              <input id="manualWallet" placeholder="Solana wallet address" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+              <input id="manualTask" placeholder="Task context (what did they do?)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+              <input id="manualTweetUrl" placeholder="Tweet URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+              <button
+                onClick={async () => {
+                  const winner = (document.getElementById("manualWinner") as HTMLInputElement)?.value.trim();
+                  const wallet = (document.getElementById("manualWallet") as HTMLInputElement)?.value.trim();
+                  const task = (document.getElementById("manualTask") as HTMLInputElement)?.value.trim();
+                  const tweetUrl = (document.getElementById("manualTweetUrl") as HTMLInputElement)?.value.trim();
+                  if (!winner || !wallet) { addLog("Enter winner and wallet address", "warn"); return; }
+                  const tweetIdMatch = tweetUrl?.match(/status\/(\d+)/);
+                  setRewardsLoading("manualAdd");
+                  const res = await fetch("/api/admin/rewards", {
+                    method: "POST",
+                    headers: { ...authHeaders, "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "" }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    addLog(`Added @${winner} to rewards queue`, "success");
+                    ["manualWinner","manualWallet","manualTask","manualTweetUrl"].forEach(id => {
+                      const el = document.getElementById(id) as HTMLInputElement;
+                      if (el) el.value = "";
+                    });
+                    loadRewardsQueue();
+                  } else { addLog(`Error: ${data.error}`, "error"); }
+                  setRewardsLoading("");
+                }}
+                disabled={rewardsLoading === "manualAdd"}
+                style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 10px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
+              >
+                {rewardsLoading === "manualAdd" ? "..." : "＋ ADD TO QUEUE"}
+              </button>
+            </div>
+          </div>
+
           {rewardsQueue.filter((r: any) => r.status === "pending").length === 0 ? (
             <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no pending rewards</div>
           ) : (

@@ -202,7 +202,7 @@ export async function decideReply(input: ReplyInput): Promise<ReplyDecision> {
   const sideEffects: ReplyDecision_SideEffects = {};
 
   const taskSignalInReply = /\b(task is (live|incoming|posted|coming)|watch the timeline|just posted it|check my timeline|community task|mission (is )?(live|posted|incoming))\b/i.test(replyText);
-  const taskAssigned = /\b(mission|task|SOL reward|gets? SOL|send SOL|hours|clip.*tag|film.*tag|screenshot.*tag|post.*tag|make it rain|i'll send|i will send)\b/i.test(replyText);
+  const taskAssigned = /\b(mission|task|SOL reward|gets? SOL|send SOL|hours|clip.*tag|film.*tag|screenshot.*tag|post.*tag|make it rain|i'll send|i will send|drop your wallet|post your wallet|send.*wallet|wallet.*address|if you.*paid|getting paid|you're getting paid|you get paid|pay you|send you|i'll pay|i will pay|reward|bounty|you.*earned|you.*win|winner|you.*got it|you qualify|that counts|proof.*wallet|wallet.*proof)\b/i.test(replyText);
 
   if ((taskAssigned || taskSignalInReply) && conversationId) {
     sideEffects.markTaskThread = true;

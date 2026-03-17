@@ -90,5 +90,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (action === "manual_add") {
+    // Admin manually adds a submission to the rewards queue
+    const { winner, walletAddress, taskContext, walletTweetId } = await req.json().catch(() => ({}));
+    if (!winner || !walletAddress) {
+      return NextResponse.json({ error: "Missing winner or walletAddress" }, { status: 400 });
+    }
+    const { addToRewardsQueue } = await import("@/lib/store");
+    const { nanoid } = await import("nanoid");
+    const item = {
+      id: nanoid(10),
+      conversationId: `manual_${nanoid(6)}`,
+      taskTweetId: walletTweetId || "",
+      taskContext: taskContext || "manually added by admin",
+      winner: winner.replace(/^@/, ""),
+      walletAddress,
+      walletTweetId: walletTweetId || "",
+      submittedAt: new Date().toISOString(),
+    };
+    await addToRewardsQueue(item);
+    return NextResponse.json({ success: true, item });
+  }
+
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }
