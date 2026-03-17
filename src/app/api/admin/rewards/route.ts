@@ -68,8 +68,9 @@ export async function POST(req: NextRequest) {
     });
     await updateRewardQueueItem(id, "confirmed");
 
-    // Step 3 — Victory tweet (non-critical, best effort)
+    // Step 3 — Victory tweet thread [1/2] sol + [2/2] lock (non-critical, best effort)
     let victoryTweetId = "";
+    let victoryTweet2Id = "";
     try {
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
       const victoryPrompt = buildVictoryTweetPrompt(winner, taskContext, solAmount, txSig);
@@ -80,19 +81,25 @@ export async function POST(req: NextRequest) {
         temperature: 0.9,
       });
       let victoryText = victoryRes.content[0].type === "text"
-        ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
-        : `task complete. ${solAmount} SOL sent to @${winner}. the machine pays 👽`;
+        ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["'\u2019]$/g, "").trim()
+        : `task complete. sol sent. @${winner} delivered. the machine pays 👽`;
 
-      const walletTweetUrl2 = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
-      const appendUrl2 = walletTweetUrl2 || `https://solscan.io/tx/${txSig}`;
-      const cleanVictory2 = victoryText.replace(/^(@\w+\s*)+/, "").trim();
-      const fullVictory = `${cleanVictory2}\n\n${appendUrl2}`.substring(0, 280);
-      victoryTweetId = await postTweet(fullVictory);
+      const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
+      const solscanLink = `https://solscan.io/tx/${txSig}`;
+      const tweet1 = `${cleanVictory} [1/2]\n\n${solscanLink}`.substring(0, 280);
+      victoryTweetId = await postTweet(tweet1);
+
+      // [2/2] — lock details as self-reply
+      if (victoryTweetId && streamId) {
+        const streamLink = `https://app.streamflow.finance/contract/solana/mainnet/${streamId}`;
+        const tweet2 = `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]\n\n${streamLink}`.substring(0, 280);
+        victoryTweet2Id = await postReply(tweet2, victoryTweetId);
+      }
     } catch (tweetErr) {
-      console.error("[Rewards] Victory tweet failed (SOL already sent):", tweetErr);
+      console.error("[Rewards] Victory tweet thread failed (SOL already sent):", tweetErr);
     }
 
-    return NextResponse.json({ success: true, solAmount, txSignature: txSig, swapTxSignature: swapTxSig, streamId, victoryTweetId: victoryTweetId || null });
+    return NextResponse.json({ success: true, solAmount, txSignature: txSig, swapTxSignature: swapTxSig, streamId, victoryTweetId: victoryTweetId || null, victoryTweet2Id: victoryTweet2Id || null });
   }
   if (action === "manual_add") {
     // winner, walletAddress etc. already destructured from req.json() above
@@ -150,11 +157,14 @@ export async function POST(req: NextRequest) {
         : `mission complete. SOL sent to @${winner}. the machine pays 👽`;
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
-      const appendUrl = solscanUrl || walletTweetUrl || null;
-      const preview = appendUrl
-        ? `${cleanVictory}\n\n${appendUrl}`.substring(0, 280)
-        : cleanVictory.substring(0, 280);
-      return NextResponse.json({ success: true, preview });
+      const solLink = solscanUrl || walletTweetUrl || null;
+      const preview1 = solLink
+        ? `${cleanVictory} [1/2]\n\n${solLink}`.substring(0, 280)
+        : `${cleanVictory} [1/2]`.substring(0, 280);
+      const preview2 = streamId
+        ? `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]\n\nhttps://app.streamflow.finance/contract/solana/mainnet/${streamId}`.substring(0, 280)
+        : `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]`.substring(0, 280);
+      return NextResponse.json({ success: true, preview: preview1, preview2 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json({ error: message }, { status: 500 });
@@ -173,22 +183,33 @@ export async function POST(req: NextRequest) {
         temperature: 0.9,
       });
       let victoryText = victoryRes.content[0].type === "text"
-        ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
-        : `mission complete. SOL sent to @${winner}. the machine pays 👽`;
+        ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']/g, "").trim()
+        : `task complete. sol sent. @${winner} delivered. the machine pays 👽`;
 
-      const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
-      const appendUrl = solscanUrl || walletTweetUrl || null;
-      const fullVictory = appendUrl
-        ? `${cleanVictory}\n\n${appendUrl}`.substring(0, 280)
-        : cleanVictory.substring(0, 280);
-      const victoryTweetId = await postTweet(fullVictory);
-      return NextResponse.json({ success: true, victoryTweetId });
+
+      // [1/2] — SOL payment
+      const solLink = solscanUrl || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
+      const tweet1 = solLink
+        ? `${cleanVictory} [1/2]\n\n${solLink}`.substring(0, 280)
+        : `${cleanVictory} [1/2]`.substring(0, 280);
+      const victoryTweetId = await postTweet(tweet1);
+
+      // [2/2] — lock link (if streamId provided)
+      let victoryTweet2Id = "";
+      if (victoryTweetId && streamId) {
+        const streamLink = `https://app.streamflow.finance/contract/solana/mainnet/${streamId}`;
+        const tweet2 = `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]\n\n${streamLink}`.substring(0, 280);
+        victoryTweet2Id = await postReply(tweet2, victoryTweetId);
+      }
+
+      return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id: victoryTweet2Id || null });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json({ error: message }, { status: 500 });
     }
   }
+
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }

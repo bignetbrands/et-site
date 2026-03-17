@@ -520,10 +520,10 @@ export default function BotDashboard() {
                             const res = await fetch("/api/admin/rewards", {
                               method: "POST",
                               headers: { ...authHeaders, "Content-Type": "application/json" },
-                              body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
+                              body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", streamId: item.streamId || "" }),
                             });
                             const data = await res.json();
-                            if (data.success) setVictoryPreview((p: Record<string,string>) => ({ ...p, [item.id]: data.preview }));
+                            if (data.success) setVictoryPreview((p: Record<string,string>) => ({ ...p, [item.id]: data.preview, [item.id + "_2"]: data.preview2 || "" }));
                             else addLog(`Preview failed: ${data.error}`, "error");
                             setRewardsLoading("");
                           }}
@@ -534,10 +534,14 @@ export default function BotDashboard() {
                         </button>
                       ) : (
                         <div style={{ width: "100%", marginTop: "4px" }}>
-                          <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "6px", whiteSpace: "pre-wrap" }}>
+                          <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
+                            <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.4)", marginBottom: "4px" }}>[1/2]</div>
                             {victoryPreview[item.id]}
                           </div>
-                          <div style={{ display: "flex", gap: "6px" }}>
+                          <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,200,0,0.1)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.45)", lineHeight: "1.5", marginBottom: "6px", whiteSpace: "pre-wrap" }}>
+                            <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.25)", marginBottom: "4px" }}>[2/2]</div>
+                            {victoryPreview[item.id + "_2"] || "the other half is locked as $et for 69 days. claim at streamflow when lock expires 👽 [2/2]"}
+                          </div>
                             <button
                               onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
                               style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(255,255,255,0.4)", borderColor: "rgba(255,255,255,0.1)" }}
@@ -550,7 +554,7 @@ export default function BotDashboard() {
                                 const res = await fetch("/api/admin/rewards", {
                                   method: "POST",
                                   headers: { ...authHeaders, "Content-Type": "application/json" },
-                                  body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
+                                  body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", streamId: item.streamId || "" }),
                                 });
                                 const data = await res.json();
                                 if (data.success) {
