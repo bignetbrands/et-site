@@ -41,6 +41,7 @@ export default function BotDashboard() {
   const [victoryPreview, setVictoryPreview] = useState<Record<string, string>>({});
   const [promptText, setPromptText] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
+  const [riddleAnswer, setRiddleAnswer] = useState("");
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -1013,6 +1014,19 @@ export default function BotDashboard() {
               rows={3}
               style={{ ...styles.input, width: "100%", resize: "vertical" as const, padding: "10px", fontSize: "11px", lineHeight: "1.6", fontFamily: "monospace", boxSizing: "border-box" as const }}
             />
+            {promptPreview && (
+              <div style={{ marginTop: "8px" }}>
+                <input
+                  value={riddleAnswer}
+                  onChange={(e: any) => setRiddleAnswer(e.target.value)}
+                  placeholder="Correct answer (optional — only fill if this is a riddle/challenge)"
+                  style={{ ...styles.input, width: "100%", fontSize: "11px", padding: "8px", boxSizing: "border-box" as const }}
+                />
+                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.35)", marginTop: "4px" }}>
+                  If filled, ET will remember the answer and act as judge when humans reply. Leave blank for regular tweets.
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" as const }}>
               <button
                 onClick={async () => {
@@ -1064,13 +1078,14 @@ export default function BotDashboard() {
                       const res = await fetch("/api/admin/prompt-tweet", {
                         method: "POST",
                         headers: { ...authHeaders, "Content-Type": "application/json" },
-                        body: JSON.stringify({ prompt: promptText, post: true }),
+                        body: JSON.stringify({ prompt: promptText, post: true, riddleAnswer }),
                       });
                       const data = await res.json();
                       if (data.success) {
-                        addLog(`✅ Posted: "${data.tweet.substring(0, 60)}..." (${data.tweetId})`, "success");
+                        addLog(`✅ Posted: "${data.tweet.substring(0, 60)}..." (${data.tweetId})${data.hasRiddle ? " — riddle answer stored 🧩" : ""}`, "success");
                         setPromptText("");
                         setPromptPreview(null);
+                        setRiddleAnswer("");
                       } else { addLog(`Post failed: ${data.error}`, "error"); }
                       setLoading("");
                     }}

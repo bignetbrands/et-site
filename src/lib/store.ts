@@ -1112,3 +1112,35 @@ export async function updateRewardQueueItem(
     await kv.set(REWARDS_QUEUE_KEY, queue);
   } catch (e) { debugWarn("KV updateRewardQueueItem failed:", e); }
 }
+
+// ─── RIDDLE CONTEXT — stores answer for ET-posted riddles/challenges ──────────
+
+const RIDDLE_KEY_PREFIX = "et:riddle:";
+
+export interface RiddleContext {
+  tweetId: string;
+  question: string;   // the tweet text (what ET asked)
+  answer: string;     // the correct answer stored by admin
+  postedAt: string;
+  solved: boolean;
+  solvedBy?: string;
+}
+
+export async function setRiddleContext(tweetId: string, ctx: RiddleContext): Promise<void> {
+  try {
+    await kv.set(`${RIDDLE_KEY_PREFIX}${tweetId}`, ctx, { ex: 60 * 60 * 24 * 14 }); // 14 days
+  } catch (e) { debugWarn("KV setRiddleContext failed:", e); }
+}
+
+export async function getRiddleContext(tweetId: string): Promise<RiddleContext | null> {
+  try {
+    return await kv.get<RiddleContext>(`${RIDDLE_KEY_PREFIX}${tweetId}`) || null;
+  } catch (e) { debugWarn("KV getRiddleContext failed:", e); return null; }
+}
+
+export async function markRiddleSolved(tweetId: string, solvedBy: string): Promise<void> {
+  try {
+    const ctx = await getRiddleContext(tweetId);
+    if (ctx) await kv.set(`${RIDDLE_KEY_PREFIX}${tweetId}`, { ...ctx, solved: true, solvedBy }, { ex: 60 * 60 * 24 * 14 });
+  } catch (e) { debugWarn("KV markRiddleSolved failed:", e); }
+}

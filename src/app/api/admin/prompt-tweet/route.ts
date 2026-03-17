@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { SYSTEM_PROMPT } from "@/lib/prompts";
 import { postTweet } from "@/lib/twitter";
-import { recordTweet } from "@/lib/store";
+import { recordTweet, setRiddleContext } from "@/lib/store";
 
 function auth(req: NextRequest) {
   return req.headers.get("authorization") === `Bearer ${process.env.ADMIN_SECRET}`;
@@ -11,7 +11,7 @@ function auth(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { prompt, post = false } = await req.json();
+  const { prompt, post = false, riddleAnswer = "" } = await req.json();
   if (!prompt?.trim()) return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, tweet: tweetText });
   }
 
+  // Post it
   const tweetId = await postTweet(tweetText);
   await recordTweet({
     id: tweetId,
@@ -46,5 +47,17 @@ export async function POST(req: NextRequest) {
     hasImage: false,
   });
 
-  return NextResponse.json({ success: true, tweet: tweetText, tweetId });
+  // If admin provided an answer, store the riddle context
+  if (riddleAnswer.trim()) {
+    await setRiddleContext(tweetId, {
+      tweetId,
+      question: tweetText,
+      answer: riddleAnswer.trim(),
+      postedAt: new Date().toISOString(),
+      solved: false,
+    });
+    console.log(`[Prompt ET] Riddle posted ${tweetId} — answer stored`);
+  }
+
+  return NextResponse.json({ success: true, tweet: tweetText, tweetId, hasRiddle: !!riddleAnswer.trim() });
 }
