@@ -1079,6 +1079,7 @@ export interface RewardQueueItem {
   winner: string;         // @username
   walletAddress: string;
   walletTweetId: string;  // tweet where winner posted their wallet
+  solscanUrl?: string;    // Solana transaction URL (optional)
   submittedAt: string;
   status: "pending" | "confirmed" | "rejected";
 }
