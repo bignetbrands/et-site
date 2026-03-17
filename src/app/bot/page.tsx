@@ -355,8 +355,7 @@ export default function BotDashboard() {
                   const res = await fetch("/api/admin/rewards", {
                     method: "POST",
                     headers: { ...authHeaders, "Content-Type": "application/json" },
-                    const solscanUrl = (document.getElementById("manualSolscan") as HTMLInputElement)?.value.trim();
-                  body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "", solscanUrl: solscanUrl || "" }),
+                    body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "", solscanUrl: (document.getElementById("manualSolscan") as HTMLInputElement)?.value.trim() || "" }),
                   });
                   const data = await res.json();
                   if (data.success) {
