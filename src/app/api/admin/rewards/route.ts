@@ -30,23 +30,42 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "confirm") {
-    // Double-check not already paid
     const alreadyPaid = await wasRewardPaid(conversationId);
     if (alreadyPaid) {
       await updateRewardQueueItem(id, "confirmed");
       return NextResponse.json({ success: false, error: "Already paid" });
     }
-
     if (!process.env.ET_WALLET_PRIVATE_KEY) {
       return NextResponse.json({ error: "ET_WALLET_PRIVATE_KEY not configured" }, { status: 500 });
     }
 
+    // Step 1 — Send SOL (fail hard if this fails)
+    let solAmount: number;
+    let txSig: string;
     try {
-      // Send SOL
-      const solAmount = pickRewardAmount();
-      const txSig = await sendSol(walletAddress, solAmount);
+      solAmount = pickRewardAmount();
+      txSig = await sendSol(walletAddress, solAmount);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return NextResponse.json({ error: `SOL transfer failed: ${message}` }, { status: 500 });
+    }
 
-      // Generate victory tweet
+    // Step 2 — Record payment immediately (before tweet, so it is never lost)
+    await markRewardPaid({
+      conversationId,
+      winner,
+      walletAddress,
+      amount: solAmount,
+      txSignature: txSig,
+      walletTweetId,
+      victoryTweetId: "",
+      paidAt: new Date().toISOString(),
+    });
+    await updateRewardQueueItem(id, "confirmed");
+
+    // Step 3 — Victory tweet (non-critical, best effort)
+    let victoryTweetId = "";
+    try {
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
       const victoryPrompt = buildVictoryTweetPrompt(winner, taskContext, solAmount, txSig);
       const victoryRes = await client.messages.create({
@@ -56,40 +75,20 @@ export async function POST(req: NextRequest) {
         temperature: 0.9,
       });
       let victoryText = victoryRes.content[0].type === "text"
-        ? victoryRes.content[0].text.trim().replace(/^["']|["']$/g, "").trim()
+        ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
         : `task complete. ${solAmount} SOL sent to @${winner}. the machine pays 👽`;
 
-      // Quote tweet the wallet submission tweet
-      const walletTweetUrl = `https://x.com/${winner}/status/${walletTweetId}`;
-      const fullVictory = `${victoryText}\n\n${walletTweetUrl}`.substring(0, 280);
-      const victoryTweetId = await postTweet(fullVictory);
-
-      // Record payment
-      await markRewardPaid({
-        conversationId,
-        winner,
-        walletAddress,
-        amount: solAmount,
-        txSignature: txSig,
-        walletTweetId,
-        victoryTweetId,
-        paidAt: new Date().toISOString(),
-      });
-
-      await updateRewardQueueItem(id, "confirmed");
-
-      return NextResponse.json({
-        success: true,
-        solAmount,
-        txSignature: txSig,
-        victoryTweetId,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return NextResponse.json({ error: message }, { status: 500 });
+      const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
+      const fullVictory = walletTweetUrl
+        ? `${victoryText}\n\n${walletTweetUrl}`.substring(0, 280)
+        : victoryText.substring(0, 280);
+      victoryTweetId = await postTweet(fullVictory);
+    } catch (tweetErr) {
+      console.error("[Rewards] Victory tweet failed (SOL already sent):", tweetErr);
     }
-  }
 
+    return NextResponse.json({ success: true, solAmount, txSignature: txSig, victoryTweetId: victoryTweetId || null });
+  }
   if (action === "manual_add") {
     // winner, walletAddress etc. already destructured from req.json() above
     if (!winner || !walletAddress) {
