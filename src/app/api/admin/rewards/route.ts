@@ -110,6 +110,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, item });
   }
 
+  if (action === "mark_paid") {
+    // Mark item as confirmed without sending SOL (for cases where SOL already sent but record failed)
+    await updateRewardQueueItem(id, "confirmed");
+    return NextResponse.json({ success: true });
+  }
+
   if (action === "victory_tweet") {
     if (!winner) return NextResponse.json({ error: "Missing winner" }, { status: 400 });
     try {

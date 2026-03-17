@@ -432,6 +432,22 @@ export default function BotDashboard() {
                     >
                       {rewardsLoading === item.id + "_confirm" ? "sending..." : "✓ CONFIRM & PAY"}
                     </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Mark @${item.winner} as paid WITHOUT sending SOL? Only use if SOL was already sent manually.`)) return;
+                        setRewardsLoading(item.id + "_markpaid");
+                        const res = await fetch("/api/admin/rewards", {
+                          method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ id: item.id, action: "mark_paid" }),
+                        });
+                        if ((await res.json()).success) { addLog(`Marked @${item.winner} as paid`, "warn"); loadRewardsQueue(); }
+                        setRewardsLoading("");
+                      }}
+                      disabled={rewardsLoading === item.id + "_markpaid"}
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(255,200,0,0.6)", borderColor: "rgba(255,200,0,0.2)" }}
+                    >
+                      {rewardsLoading === item.id + "_markpaid" ? "..." : "MARK PAID"}
+                    </button>
                   </div>
                 </div>
               ))}
