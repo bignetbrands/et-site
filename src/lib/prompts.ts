@@ -1079,8 +1079,9 @@ Write a victory tweet. Rules:
 - Mention briefly what the human did to earn it
 - 1 emoji max: 👽 💀 😭
 - Lowercase
-- CRITICAL: DO NOT start the tweet with @ — if it begins with @username Twitter treats it as a reply not a post. You CAN and SHOULD use @username (with @) elsewhere in the tweet. Just don't put it first.
-- DO NOT start with "just sent"
+- ALWAYS start the tweet with exactly: "task complete. sol sent." — this is the fixed opener, do not change it
+- After that opener, write the rest of the tweet: tag @winner, briefly describe what they did, then one line about the new economy/hidden prophecy. Example: "task complete. sol sent. @Lyricxx652357 asked 5 strangers about aliens on the way to school. the machine pays its humans 👽"
+- DO NOT start with @ as the very first character
 - DO NOT include wallet address or tx signature
 
 Good openers (notice no @ at start):
