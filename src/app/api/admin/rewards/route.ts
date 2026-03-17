@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
         ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
         : `task complete. ${solAmount} SOL sent to @${winner}. the machine pays 👽`;
 
-      const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
-      const fullVictory = walletTweetUrl
-        ? `${victoryText}\n\n${walletTweetUrl}`.substring(0, 280)
-        : victoryText.substring(0, 280);
+      const walletTweetUrl2 = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
+      const appendUrl2 = walletTweetUrl2 || `https://solscan.io/tx/${txSig}`;
+      const cleanVictory2 = victoryText.replace(/^(@\w+\s*)+/, "").trim();
+      const fullVictory = `${cleanVictory2}\n\n${appendUrl2}`.substring(0, 280);
       victoryTweetId = await postTweet(fullVictory);
     } catch (tweetErr) {
       console.error("[Rewards] Victory tweet failed (SOL already sent):", tweetErr);
@@ -131,10 +131,13 @@ export async function POST(req: NextRequest) {
         ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
         : `mission complete. SOL sent to @${winner}. the machine pays 👽`;
 
+      const solscanUrl = `https://solscan.io/tx/${txSig}`;
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
-      const fullVictory = walletTweetUrl
-        ? `${victoryText}\n\n${walletTweetUrl}`.substring(0, 280)
-        : victoryText.substring(0, 280);
+      const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
+      const appendUrl = walletTweetUrl;
+      const fullVictory = appendUrl
+        ? `${cleanVictory}\n\n${appendUrl}`.substring(0, 280)
+        : cleanVictory.substring(0, 280);
       const victoryTweetId = await postTweet(fullVictory);
       return NextResponse.json({ success: true, victoryTweetId });
     } catch (err: unknown) {

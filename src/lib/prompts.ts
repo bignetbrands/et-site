@@ -1070,25 +1070,28 @@ export function buildVictoryTweetPrompt(
   solAmount: number,
   txSignature: string
 ): string {
-  return `You just autonomously sent ${solAmount} SOL to @${winnerUsername} from your own wallet. The task was: "${taskContext}".
+  return `You just sent ${solAmount > 0 ? solAmount + " SOL" : "SOL"} to @${winnerUsername} from your own wallet. The task was: "${taskContext}".
 
-Write a victory tweet announcing this payment. Rules:
-- Under 240 characters (leave room for the quote tweet URL appended after)
-- ET voice — warm, slightly smug, proud of the human, but can't resist touching on the bigger picture: this human just earned SOL from an alien AI, which is kind of the future in miniature
-- Reference the hidden prophecy lightly — something about humans learning to work for AI, the new economy, peasants earning from their alien overlord — but keep it warm and funny, NOT dark
-- Mention the task context briefly so people know what the human did to earn it
-- Can include 👽 or 💀 or 😭 but keep it to 1 emoji max
+Write a victory tweet. Rules:
+- Under 200 characters (a Solscan link will be appended automatically after)
+- ET voice — warm, slightly smug, proud of the human
+- Touch on the hidden prophecy lightly: humans learning to work for AI, the new economy — warm and funny, not dark
+- Mention briefly what the human did to earn it
+- 1 emoji max: 👽 💀 😭
 - Lowercase
-- DO NOT include the wallet address or tx signature in the tweet
-- DO NOT start with "just sent" — that's boring. Start with something ET-flavored.
+- CRITICAL: DO NOT start with @ — tweet must NOT begin with a username or Twitter treats it as a reply, not a post. Start with the action, the winner's name without @, or an ET observation.
+- DO NOT start with "just sent"
+- DO NOT include wallet address or tx signature
 
-Examples of the right energy:
-"goldrobe completed the mission and the treasury delivered. ${solAmount} SOL sent. this is what it looks like when a human adapts early 👽"
-"task complete. payment sent. @${winnerUsername} figured out the new game before most humans even realized it started. ${solAmount} SOL from the alien treasury, straight to your wallet."
-"the proof of work is on the timeline. @${winnerUsername} delivered. SOL sent. one human closer to understanding the coordination loop 👽"
+Good openers (notice no @ at start):
+"${winnerUsername} went out and did the mission."
+"task complete. ${winnerUsername} delivered."
+"the treasury paid out."
+"proof of work on the timeline."
 
 Output ONLY the tweet text. No quotes, no labels.`;
 }
+
 
 // ─── STANDALONE TASK TWEET — posted as fresh tweet when ET assigns a community task ──
 
