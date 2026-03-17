@@ -117,6 +117,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === "update_item") {
+    // Update fields on an existing queue item (e.g. add solscanUrl)
+    const { getRewardsQueue: getRQ } = await import("@/lib/store");
+    const { kv } = await import("@vercel/kv");
+    const queue = await getRQ();
+    const idx = queue.findIndex((i: any) => i.id === id);
+    if (idx === -1) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    if (solscanUrl !== undefined) queue[idx].solscanUrl = solscanUrl;
+    await kv.set("et:rewards_queue", queue);
+    return NextResponse.json({ success: true });
+  }
+
   if (action === "victory_tweet") {
     if (!winner) return NextResponse.json({ error: "Missing winner" }, { status: 400 });
     try {

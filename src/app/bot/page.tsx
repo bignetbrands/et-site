@@ -471,11 +471,45 @@ export default function BotDashboard() {
                     <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
                       {(item.taskContext || "").substring(0, 100)}
                     </div>
+                    {/* Solscan URL edit field */}
+                    <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+                      <input
+                        id={`solscan_${item.id}`}
+                        defaultValue={item.solscanUrl || ""}
+                        placeholder="Solscan tx URL"
+                        style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
+                      />
+                      <button
+                        onClick={async () => {
+                          const val = (document.getElementById(`solscan_${item.id}`) as HTMLInputElement)?.value.trim();
+                          setRewardsLoading(item.id + "_save");
+                          const res = await fetch("/api/admin/rewards", {
+                            method: "POST",
+                            headers: { ...authHeaders, "Content-Type": "application/json" },
+                            body: JSON.stringify({ id: item.id, action: "update_item", solscanUrl: val }),
+                          });
+                          const data = await res.json();
+                          if (data.success) { addLog(`Saved Solscan URL for @${item.winner}`, "success"); loadRewardsQueue(); }
+                          else { addLog(`Save failed: ${data.error}`, "error"); }
+                          setRewardsLoading("");
+                        }}
+                        disabled={rewardsLoading === item.id + "_save"}
+                        style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
+                      >
+                        {rewardsLoading === item.id + "_save" ? "..." : "SAVE"}
+                      </button>
+                    </div>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
                       {item.walletTweetId && (
                         <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
                           style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
                           VIEW TWEET
+                        </a>
+                      )}
+                      {item.solscanUrl && (
+                        <a href={item.solscanUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(100,200,255,0.7)", border: "1px solid rgba(100,200,255,0.15)" }}>
+                          SOLSCAN ↗
                         </a>
                       )}
                       <button
@@ -487,11 +521,8 @@ export default function BotDashboard() {
                             body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
                           });
                           const data = await res.json();
-                          if (data.success) {
-                            addLog(`Victory tweet posted for @${item.winner}`, "success");
-                          } else {
-                            addLog(`Victory tweet failed: ${data.error}`, "error");
-                          }
+                          if (data.success) { addLog(`Victory tweet posted for @${item.winner}`, "success"); }
+                          else { addLog(`Victory tweet failed: ${data.error}`, "error"); }
                           setRewardsLoading("");
                         }}
                         disabled={rewardsLoading === item.id + "_victory"}
