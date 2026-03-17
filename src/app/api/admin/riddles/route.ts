@@ -49,5 +49,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, action: "winner_picked" });
   }
 
+  if (action === "manual_add") {
+    const { tweetUrl, question, answer } = await req.json().catch(() => ({}));
+    if (!tweetUrl || !question || !answer) {
+      return NextResponse.json({ error: "Missing tweetUrl, question, or answer" }, { status: 400 });
+    }
+    const tweetIdMatch = tweetUrl.match(/status\/(\d+)/);
+    if (!tweetIdMatch) return NextResponse.json({ error: "Invalid tweet URL" }, { status: 400 });
+    const tweetId = tweetIdMatch[1];
+    const { setRiddleContext } = await import("@/lib/store");
+    await setRiddleContext(tweetId, {
+      tweetId,
+      question: question.trim(),
+      answer: answer.trim(),
+      postedAt: new Date().toISOString(),
+      solved: false,
+    });
+    return NextResponse.json({ success: true, tweetId });
+  }
+
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }

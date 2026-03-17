@@ -44,6 +44,7 @@ export default function BotDashboard() {
   const [riddleAnswer, setRiddleAnswer] = useState("");
   const [riddles, setRiddles] = useState<any[]>([]);
   const [riddleWinner, setRiddleWinner] = useState<Record<string, { winner: string; wallet: string; tweetUrl: string }>>({});
+  const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "" });
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -1018,6 +1019,57 @@ export default function BotDashboard() {
               <div style={styles.panelTitle}>🧩 RIDDLE MANAGER</div>
               <button onClick={loadRiddles} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
             </div>
+
+            {/* Manual add form */}
+            <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "4px", padding: "10px", marginBottom: "12px" }}>
+              <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.5)", letterSpacing: "0.1em", marginBottom: "8px" }}>＋ ADD RIDDLE MANUALLY</div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                <input
+                  value={newRiddle.tweetUrl}
+                  onChange={(e: any) => setNewRiddle(p => ({ ...p, tweetUrl: e.target.value }))}
+                  placeholder="Tweet URL (the riddle tweet)"
+                  style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                />
+                <textarea
+                  value={newRiddle.question}
+                  onChange={(e: any) => setNewRiddle(p => ({ ...p, question: e.target.value }))}
+                  placeholder="The riddle / question (what ET asked)"
+                  rows={2}
+                  style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", resize: "vertical" as const, fontFamily: "monospace" }}
+                />
+                <input
+                  value={newRiddle.answer}
+                  onChange={(e: any) => setNewRiddle(p => ({ ...p, answer: e.target.value }))}
+                  placeholder="Correct answer (only visible to admin)"
+                  style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                />
+                <button
+                  onClick={async () => {
+                    if (!newRiddle.tweetUrl || !newRiddle.question || !newRiddle.answer) {
+                      addLog("Fill in all three fields", "warn"); return;
+                    }
+                    setLoading("riddleAdd");
+                    const res = await fetch("/api/admin/riddles", {
+                      method: "POST",
+                      headers: { ...authHeaders, "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "manual_add", tweetUrl: newRiddle.tweetUrl, question: newRiddle.question, answer: newRiddle.answer }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      addLog(`✅ Riddle added (tweet ${data.tweetId})`, "success");
+                      setNewRiddle({ tweetUrl: "", question: "", answer: "" });
+                      loadRiddles();
+                    } else { addLog(`Error: ${data.error}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 10px", background: "rgba(57,255,20,0.08)", borderColor: "rgba(57,255,20,0.2)", color: "#39ff14" }}
+                >
+                  {loading === "riddleAdd" ? "..." : "＋ ADD RIDDLE"}
+                </button>
+              </div>
+            </div>
+
             {riddles.length === 0 ? (
               <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no active riddles</div>
             ) : (
