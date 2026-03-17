@@ -31,7 +31,6 @@ import {
   wasRewardPaid,
   addToRewardsQueue,
   getRiddleContext,
-  markRiddleSolved,
 } from "./store";
 import {
   isFinancialAdvisorMention,
@@ -186,15 +185,15 @@ export async function decideReply(input: ReplyInput): Promise<ReplyDecision> {
     selfAwarenessContext = (selfAwarenessContext || "") + taskNote;
   }
 
-  // ── 4b. RIDDLE CONTEXT — ET knows the answer and acts as judge ───────────────
-  // conversationId for replies is the original tweet ID ET posted the riddle on
+  // ── 4b. RIDDLE CONTEXT — ET acknowledges replies but never picks a winner ─────
+  // Admin picks the winner manually in /bot. ET just engages with the replies.
   if (conversationId) {
     const riddle = await getRiddleContext(conversationId);
     if (riddle && !riddle.solved) {
-      const riddleNote = `\n\n⚠️ [RIDDLE THREAD] You posted a riddle/challenge on this thread. Here is the context:\n\nYOUR RIDDLE: "${riddle.question}"\n\nCORRECT ANSWER: "${riddle.answer}"\n\nYou are now the judge. Evaluate the person's reply against the correct answer:\n- If their reply is correct or very close → declare them the winner. Be excited. Tell them to drop their wallet for SOL. Use ET voice.\n- If their reply is wrong → troll them gently. Give a cryptic hint if you feel like it. Don't reveal the answer.\n- If their reply is off-topic or trolling → stay in character, brush it off.\n\nIMPORTANT: Never reveal the answer directly unless they got it right.`;
+      const riddleNote = `\n\n⚠️ [RIDDLE THREAD] You posted a riddle/challenge on this thread.\n\nYOUR RIDDLE: "${riddle.question}"\n\nYou know the answer but the admin (not you) will decide the winner. Your job is to:\n- Engage with replies naturally and stay in character\n- If their answer seems close or correct → be intrigued, say something like "interesting..." or "you might be onto something" — but DO NOT declare them winner or tell them to drop their wallet\n- If their answer is clearly wrong → troll gently or give a cryptic nudge without revealing the answer\n- Never reveal the correct answer\n- Never say "you win" or "drop your wallet" — the admin decides\n\nKeep the mystery alive. Build suspense.`;
       selfAwarenessContext = (selfAwarenessContext || "") + riddleNote;
     } else if (riddle && riddle.solved && riddle.solvedBy) {
-      const solvedNote = `\n\n⚠️ [RIDDLE SOLVED] This riddle was already solved by @${riddle.solvedBy}. The challenge is over. If someone else is still trying to answer, let them know they missed it — but be warm about it. Don't start a new riddle.`;
+      const solvedNote = `\n\n⚠️ [RIDDLE CLOSED] Admin has already picked a winner (@${riddle.solvedBy}) for this riddle. The challenge is over. If someone else tries to answer, let them know the winner was already chosen — but be warm about it.`;
       selfAwarenessContext = (selfAwarenessContext || "") + solvedNote;
     }
   }
@@ -266,19 +265,6 @@ export async function decideReply(input: ReplyInput): Promise<ReplyDecision> {
           winner: authorUsername,
         };
         sideEffects.acknowledgeWalletReceipt = true;
-      }
-    }
-  }
-
-  // ── 6b. RIDDLE SOLVED DETECTION ──────────────────────────────────────────────
-  // If ET's reply declares a winner (drop wallet, you got it, correct, etc.) → mark riddle solved
-  if (conversationId) {
-    const riddleWinSignal = /\b(correct|you got it|that'?s (it|right)|winner|drop (your )?wallet|you('?ve)? solved|nailed it|first correct|congrats)\b/i.test(replyText);
-    if (riddleWinSignal) {
-      const riddle = await getRiddleContext(conversationId);
-      if (riddle && !riddle.solved) {
-        await markRiddleSolved(conversationId, authorUsername);
-        console.log(`[ReplyEngine] Riddle ${conversationId} marked solved by @${authorUsername}`);
       }
     }
   }

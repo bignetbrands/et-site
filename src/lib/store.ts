@@ -1129,7 +1129,21 @@ export interface RiddleContext {
 export async function setRiddleContext(tweetId: string, ctx: RiddleContext): Promise<void> {
   try {
     await kv.set(`${RIDDLE_KEY_PREFIX}${tweetId}`, ctx, { ex: 60 * 60 * 24 * 14 }); // 14 days
+    // Maintain an index of all riddle IDs so we can list them
+    const index: string[] = await kv.get<string[]>("et:riddle_index") || [];
+    if (!index.includes(tweetId)) {
+      index.unshift(tweetId); // newest first
+      await kv.set("et:riddle_index", index.slice(0, 50), { ex: 60 * 60 * 24 * 14 });
+    }
   } catch (e) { debugWarn("KV setRiddleContext failed:", e); }
+}
+
+export async function getAllRiddles(): Promise<RiddleContext[]> {
+  try {
+    const index: string[] = await kv.get<string[]>("et:riddle_index") || [];
+    const riddles = await Promise.all(index.map(id => getRiddleContext(id)));
+    return riddles.filter(Boolean) as RiddleContext[];
+  } catch (e) { debugWarn("KV getAllRiddles failed:", e); return []; }
 }
 
 export async function getRiddleContext(tweetId: string): Promise<RiddleContext | null> {

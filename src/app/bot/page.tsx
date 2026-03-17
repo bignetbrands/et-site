@@ -42,6 +42,8 @@ export default function BotDashboard() {
   const [promptText, setPromptText] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const [riddleAnswer, setRiddleAnswer] = useState("");
+  const [riddles, setRiddles] = useState<any[]>([]);
+  const [riddleWinner, setRiddleWinner] = useState<Record<string, { winner: string; wallet: string; tweetUrl: string }>>({});
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -89,6 +91,13 @@ export default function BotDashboard() {
   }, [secret]);
 
   // Load rewards queue
+  const loadRiddles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/riddles", { headers: authHeaders });
+      if (res.ok) { const data = await res.json(); setRiddles(data.riddles || []); }
+    } catch { /* silent */ }
+  }, [secret]);
+
   const loadRewardsQueue = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/rewards", { headers: authHeaders });
@@ -197,6 +206,7 @@ export default function BotDashboard() {
     loadDashboard();
       loadWalletInfo();
       loadRewardsQueue();
+    loadRiddles();
     loadScheduled();
     loadHomepageMode();
   };
@@ -997,6 +1007,88 @@ export default function BotDashboard() {
                     {loading === "schedule" ? "..." : "⏰ SCHEDULE"}
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+
+
+          {/* Riddle Manager */}
+          <div style={{ ...styles.panel, gridColumn: "1 / -1", marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={styles.panelTitle}>🧩 RIDDLE MANAGER</div>
+              <button onClick={loadRiddles} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+            </div>
+            {riddles.length === 0 ? (
+              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no active riddles</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: "12px" }}>
+                {riddles.map((r: any) => (
+                  <div key={r.tweetId} style={{ background: r.solved ? "rgba(0,0,0,0.2)" : "rgba(57,255,20,0.03)", border: `1px solid ${r.solved ? "rgba(255,255,255,0.08)" : "rgba(57,255,20,0.12)"}`, borderRadius: "4px", padding: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "9px", color: r.solved ? "rgba(255,200,0,0.5)" : "rgba(57,255,20,0.5)", letterSpacing: "0.1em" }}>
+                        {r.solved ? `✅ SOLVED — winner: @${r.solvedBy}` : "🔴 OPEN"}
+                      </span>
+                      <a href={`https://x.com/etalienx/status/${r.tweetId}`} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)", textDecoration: "none" }}>VIEW TWEET ↗</a>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", marginBottom: "4px", lineHeight: "1.5" }}>
+                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>RIDDLE: </span>{r.question?.substring(0, 150)}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "rgba(57,255,20,0.6)", marginBottom: "10px" }}>
+                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>ANSWER: </span>{r.answer}
+                    </div>
+                    {!r.solved && (
+                      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
+                        <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>PICK WINNER — paste the winning reply details:</div>
+                        <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                          <input
+                            value={riddleWinner[r.tweetId]?.winner || ""}
+                            onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], winner: e.target.value } }))}
+                            placeholder="@winner username"
+                            style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                          />
+                          <input
+                            value={riddleWinner[r.tweetId]?.tweetUrl || ""}
+                            onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], tweetUrl: e.target.value } }))}
+                            placeholder="URL to their winning reply tweet"
+                            style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                          />
+                          <input
+                            value={riddleWinner[r.tweetId]?.wallet || ""}
+                            onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], wallet: e.target.value } }))}
+                            placeholder="Solana wallet (optional — adds to rewards queue)"
+                            style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                          />
+                          <button
+                            onClick={async () => {
+                              const w = riddleWinner[r.tweetId] || {};
+                              if (!w.winner) { addLog("Enter winner username", "warn"); return; }
+                              if (!w.tweetUrl) { addLog("Enter the winning reply URL", "warn"); return; }
+                              setLoading("riddle_" + r.tweetId);
+                              const res = await fetch("/api/admin/riddles", {
+                                method: "POST",
+                                headers: { ...authHeaders, "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "pick_winner", tweetId: r.tweetId, winner: w.winner, walletAddress: w.wallet || "", winnerTweetUrl: w.tweetUrl }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                addLog(`✅ @${w.winner} picked as riddle winner${w.wallet ? " — added to rewards queue" : ""}`, "success");
+                                setRiddleWinner((prev: any) => { const n = {...prev}; delete n[r.tweetId]; return n; });
+                                loadRiddles();
+                                if (w.wallet) loadRewardsQueue();
+                              } else { addLog(`Error: ${data.error}`, "error"); }
+                              setLoading("");
+                            }}
+                            disabled={!!loading}
+                            style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 12px", background: "rgba(57,255,20,0.08)", borderColor: "rgba(57,255,20,0.25)", color: "#39ff14" }}
+                          >
+                            {loading === "riddle_" + r.tweetId ? "..." : "✓ PICK AS WINNER"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
