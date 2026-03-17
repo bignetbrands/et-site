@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRewardsQueue, updateRewardQueueItem, wasRewardPaid, markRewardPaid } from "@/lib/store";
 import { sendSplitReward, pickRewardAmount } from "@/lib/et-wallet";
-import { postTweet } from "@/lib/twitter";
+import { postTweet, postReply } from "@/lib/twitter";
 import { buildVictoryTweetPrompt } from "@/lib/prompts";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, action, conversationId, winner, walletAddress, walletTweetId, taskContext, solscanUrl } = await req.json();
+  const { id, action, conversationId, winner, walletAddress, walletTweetId, taskContext, solscanUrl, streamId } = await req.json();
 
   if (!id || !action) return NextResponse.json({ error: "Missing id or action" }, { status: 400 });
 

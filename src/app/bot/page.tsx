@@ -542,6 +542,7 @@ export default function BotDashboard() {
                             <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.25)", marginBottom: "4px" }}>[2/2]</div>
                             {victoryPreview[item.id + "_2"] || "the other half is locked as $et for 69 days. claim at streamflow when lock expires 👽 [2/2]"}
                           </div>
+                          <div style={{ display: "flex", gap: "6px" }}>
                             <button
                               onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
                               style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(255,255,255,0.4)", borderColor: "rgba(255,255,255,0.1)" }}
