@@ -39,6 +39,8 @@ export default function BotDashboard() {
   const [rewardsQueue, setRewardsQueue] = useState<any[]>([]);
   const [rewardsLoading, setRewardsLoading] = useState("");
   const [victoryPreview, setVictoryPreview] = useState<Record<string, string>>({});
+  const [promptText, setPromptText] = useState("");
+  const [promptPreview, setPromptPreview] = useState<string | null>(null);
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -997,6 +999,97 @@ export default function BotDashboard() {
               </div>
             )}
           </div>
+
+          {/* Prompt ET — custom tweet */}
+          <div style={{ ...styles.panel, gridColumn: "1 / -1" }}>
+            <div style={styles.panelTitle}>✍️ PROMPT ET</div>
+            <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+              Tell ET what to tweet. He'll write it in character. Preview and approve before it goes live.
+            </div>
+            <textarea
+              value={promptText}
+              onChange={(e: any) => { setPromptText(e.target.value); setPromptPreview(null); }}
+              placeholder={`e.g. "tweet a task for humans to solve a riddle only someone who follows ET closely can answer — no AI can solve it"`}
+              rows={3}
+              style={{ ...styles.input, width: "100%", resize: "vertical" as const, padding: "10px", fontSize: "11px", lineHeight: "1.6", fontFamily: "monospace", boxSizing: "border-box" as const }}
+            />
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" as const }}>
+              <button
+                onClick={async () => {
+                  if (!promptText.trim()) { addLog("Enter a prompt first", "warn"); return; }
+                  setLoading("promptDry");
+                  setPromptPreview(null);
+                  const res = await fetch("/api/admin/prompt-tweet", {
+                    method: "POST",
+                    headers: { ...authHeaders, "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: promptText, post: false }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setPromptPreview(data.tweet);
+                    addLog(`Preview ready (${data.tweet.length} chars)`, "info");
+                  } else { addLog(`Error: ${data.error}`, "error"); }
+                  setLoading("");
+                }}
+                disabled={!!loading}
+                style={styles.btnPrimary}
+              >
+                {loading === "promptDry" ? "GENERATING..." : "👁️ PREVIEW"}
+              </button>
+              {promptPreview && (
+                <>
+                  <button
+                    onClick={async () => {
+                      setLoading("promptDry");
+                      setPromptPreview(null);
+                      const res = await fetch("/api/admin/prompt-tweet", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt: promptText, post: false }),
+                      });
+                      const data = await res.json();
+                      if (data.success) { setPromptPreview(data.tweet); addLog("Regenerated", "info"); }
+                      else { addLog(`Error: ${data.error}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={{ ...styles.btnSmall, padding: "6px 14px" }}
+                  >
+                    ↺ REGENERATE
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Post this tweet to ET's timeline?")) return;
+                      setLoading("promptPost");
+                      const res = await fetch("/api/admin/prompt-tweet", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt: promptText, post: true }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        addLog(`✅ Posted: "${data.tweet.substring(0, 60)}..." (${data.tweetId})`, "success");
+                        setPromptText("");
+                        setPromptPreview(null);
+                      } else { addLog(`Post failed: ${data.error}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={styles.btnPost}
+                  >
+                    {loading === "promptPost" ? "POSTING..." : "🚀 APPROVE & POST"}
+                  </button>
+                </>
+              )}
+            </div>
+            {promptPreview && (
+              <div style={{ marginTop: "12px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "12px 14px" }}>
+                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {promptPreview.length}/280</div>
+                <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", lineHeight: "1.6", whiteSpace: "pre-wrap" as const }}>{promptPreview}</div>
+              </div>
+            )}
+          </div>
+
 
           {/* Right: Activity Log */}
           <div style={styles.panel}>
