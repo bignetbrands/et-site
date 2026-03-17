@@ -110,5 +110,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, item });
   }
 
+  if (action === "victory_tweet") {
+    if (!winner) return NextResponse.json({ error: "Missing winner" }, { status: 400 });
+    try {
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+      const victoryPrompt = buildVictoryTweetPrompt(winner, taskContext || "completed the mission", 0, "");
+      const victoryRes = await client.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 300,
+        messages: [{ role: "user", content: victoryPrompt }],
+        temperature: 0.9,
+      });
+      let victoryText = victoryRes.content[0].type === "text"
+        ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
+        : `mission complete. SOL sent to @${winner}. the machine pays 👽`;
+
+      const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
+      const fullVictory = walletTweetUrl
+        ? `${victoryText}\n\n${walletTweetUrl}`.substring(0, 280)
+        : victoryText.substring(0, 280);
+      const victoryTweetId = await postTweet(fullVictory);
+      return NextResponse.json({ success: true, victoryTweetId });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }

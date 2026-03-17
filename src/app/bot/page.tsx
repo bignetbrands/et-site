@@ -437,6 +437,57 @@ export default function BotDashboard() {
               ))}
             </div>
           )}
+
+          {/* Winners — SOL already sent */}
+          {rewardsQueue.filter((r: any) => r.status === "confirmed").length > 0 && (
+            <div style={{ marginTop: "16px", borderTop: "1px solid rgba(0,255,100,0.08)", paddingTop: "12px" }}>
+              <div style={{ fontSize: "9px", color: "rgba(0,255,100,0.4)", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                WINNERS — SOL SENT
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
+                {rewardsQueue.filter((r: any) => r.status === "confirmed").map((item: any) => (
+                  <div key={item.id} style={{ background: "rgba(0,255,100,0.02)", border: "1px solid rgba(0,255,100,0.08)", borderRadius: "4px", padding: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span style={{ color: "#00ff64", fontSize: "12px", fontWeight: 700 }}>@{item.winner}</span>
+                      <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>{new Date(item.submittedAt).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
+                      {(item.taskContext || "").substring(0, 100)}
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
+                      {item.walletTweetId && (
+                        <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                          VIEW TWEET
+                        </a>
+                      )}
+                      <button
+                        onClick={async () => {
+                          setRewardsLoading(item.id + "_victory");
+                          const res = await fetch("/api/admin/rewards", {
+                            method: "POST",
+                            headers: { ...authHeaders, "Content-Type": "application/json" },
+                            body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            addLog(`Victory tweet posted for @${item.winner}`, "success");
+                          } else {
+                            addLog(`Victory tweet failed: ${data.error}`, "error");
+                          }
+                          setRewardsLoading("");
+                        }}
+                        disabled={rewardsLoading === item.id + "_victory"}
+                        style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.08)", borderColor: "rgba(255,200,0,0.25)", color: "#ffcc00" }}
+                      >
+                        {rewardsLoading === item.id + "_victory" ? "posting..." : "POST VICTORY TWEET"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dashboard */}
