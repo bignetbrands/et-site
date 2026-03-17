@@ -1079,7 +1079,7 @@ Write a victory tweet. Rules:
 - Mention briefly what the human did to earn it
 - 1 emoji max: 👽 💀 😭
 - Lowercase
-- CRITICAL: DO NOT start with @ — tweet must NOT begin with a username or Twitter treats it as a reply, not a post. Start with the action, the winner's name without @, or an ET observation.
+- CRITICAL: DO NOT start the tweet with @ — if it begins with @username Twitter treats it as a reply not a post. You CAN and SHOULD use @username (with @) elsewhere in the tweet. Just don't put it first.
 - DO NOT start with "just sent"
 - DO NOT include wallet address or tx signature
 
