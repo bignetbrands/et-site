@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRewardsQueue, updateRewardQueueItem, wasRewardPaid, markRewardPaid } from "@/lib/store";
-import { sendSol, pickRewardAmount } from "@/lib/et-wallet";
+import { sendSplitReward, pickRewardAmount } from "@/lib/et-wallet";
 import { postTweet } from "@/lib/twitter";
 import { buildVictoryTweetPrompt } from "@/lib/prompts";
 import Anthropic from "@anthropic-ai/sdk";
@@ -39,15 +39,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ET_WALLET_PRIVATE_KEY not configured" }, { status: 500 });
     }
 
-    // Step 1 — Send SOL (fail hard if this fails)
+    // Step 1 — Split reward: 50% SOL direct to winner + 50% swapped to $ET locked 69 days
     let solAmount: number;
     let txSig: string;
+    let swapTxSig = "";
+    let streamId = "";
     try {
       solAmount = pickRewardAmount();
-      txSig = await sendSol(walletAddress, solAmount);
+      const result = await sendSplitReward(walletAddress, solAmount);
+      txSig = result.solTxSignature;
+      swapTxSig = result.swapTxSignature;
+      streamId = result.streamId;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      return NextResponse.json({ error: `SOL transfer failed: ${message}` }, { status: 500 });
+      return NextResponse.json({ error: `Reward failed: ${message}` }, { status: 500 });
     }
 
     // Step 2 — Record payment immediately (before tweet, so it is never lost)
@@ -87,7 +92,7 @@ export async function POST(req: NextRequest) {
       console.error("[Rewards] Victory tweet failed (SOL already sent):", tweetErr);
     }
 
-    return NextResponse.json({ success: true, solAmount, txSignature: txSig, victoryTweetId: victoryTweetId || null });
+    return NextResponse.json({ success: true, solAmount, txSignature: txSig, swapTxSignature: swapTxSig, streamId, victoryTweetId: victoryTweetId || null });
   }
   if (action === "manual_add") {
     // winner, walletAddress etc. already destructured from req.json() above

@@ -1080,7 +1080,7 @@ Write a victory tweet. Rules:
 - 1 emoji max: 👽 💀 😭
 - Lowercase
 - ALWAYS start the tweet with exactly: "task complete. sol sent." — this is the fixed opener, do not change it
-- After that opener, write the rest of the tweet: tag @winner, briefly describe what they did, then one line about the new economy/hidden prophecy. Example: "task complete. sol sent. @Lyricxx652357 asked 5 strangers about aliens on the way to school. the machine pays its humans 👽"
+- After that opener, write the rest: tag @winner, briefly describe what they did, then one line about the new economy. Mention that half was sent as SOL and the other half is locked as $ET for 69 days. Example: "task complete. sol sent. @Lyricxx652357 asked 5 strangers about aliens on the way to school. half in sol, half locked as $et for 69 days. the machine rewards its humans 👽"
 - DO NOT start with @ as the very first character
 - DO NOT include wallet address or tx signature
 

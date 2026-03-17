@@ -422,7 +422,7 @@ export default function BotDashboard() {
                         });
                         const data = await res.json();
                         if (res.ok && data.success) {
-                          addLog(`✅ Sent ${data.solAmount} SOL to @${item.winner} — tx: ${data.txSignature}`, "success");
+                          addLog(`✅ ${data.solAmount} SOL split: ${data.solAmount/2} SOL sent to @${item.winner}, ${data.solAmount/2} SOL swapped to $ET locked 69d (stream: ${data.streamId || "n/a"})`, "success");
                           loadRewardsQueue(); loadWalletInfo();
                         } else {
                           addLog(`❌ Payment failed: ${data.error}`, "error");

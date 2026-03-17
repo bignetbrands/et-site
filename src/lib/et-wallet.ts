@@ -6,8 +6,17 @@ import {
   SystemProgram,
   Transaction,
   sendAndConfirmTransaction,
+  VersionedTransaction,
 } from "@solana/web3.js";
+import {
+  getAssociatedTokenAddress,
+  getAccount,
+} from "@solana/spl-token";
 import bs58 from "bs58";
+import BN from "bn.js";
+
+const ET_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
+const SIXTY_NINE_DAYS_SECS = 69 * 24 * 60 * 60;
 
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
@@ -19,8 +28,7 @@ function getKeypair(): Keypair {
   const key = process.env.ET_WALLET_PRIVATE_KEY;
   if (!key) throw new Error("ET_WALLET_PRIVATE_KEY not set");
   try {
-    const decoded = bs58.decode(key);
-    return Keypair.fromSecretKey(decoded);
+    return Keypair.fromSecretKey(bs58.decode(key));
   } catch {
     throw new Error("ET_WALLET_PRIVATE_KEY is invalid — must be base58 encoded secret key");
   }
@@ -37,59 +45,131 @@ export async function getETWalletBalance(): Promise<number> {
   return balance / LAMPORTS_PER_SOL;
 }
 
-/**
- * Send SOL from ET's wallet to a recipient.
- * Returns the transaction signature.
- */
-export async function sendSol(
-  toAddress: string,
-  solAmount: number
-): Promise<string> {
+export async function sendSol(toAddress: string, solAmount: number): Promise<string> {
   const connection = getConnection();
   const keypair = getKeypair();
-
-  // Validate recipient
-  let toPubkey: PublicKey;
-  try {
-    toPubkey = new PublicKey(toAddress);
-  } catch {
-    throw new Error(`Invalid recipient address: ${toAddress}`);
-  }
-
+  const toPubkey = new PublicKey(toAddress);
   const lamports = Math.floor(solAmount * LAMPORTS_PER_SOL);
 
-  // Check balance
   const balance = await connection.getBalance(keypair.publicKey);
-  const fee = 5000; // ~0.000005 SOL for tx fee
-  if (balance < lamports + fee) {
-    throw new Error(
-      `ET wallet has insufficient balance. Has ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL, needs ${solAmount} SOL + fees`
-    );
+  if (balance < lamports + 5000) {
+    throw new Error(`Insufficient balance. Has ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL, needs ${solAmount} SOL`);
   }
 
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: keypair.publicKey,
-      toPubkey,
-      lamports,
-    })
+  const tx = new Transaction().add(
+    SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey, lamports })
   );
 
-  const signature = await sendAndConfirmTransaction(connection, transaction, [keypair], {
-    commitment: "confirmed",
-  });
-
-  console.log(`[ET Wallet] Sent ${solAmount} SOL to ${toAddress} — tx: ${signature}`);
-  return signature;
+  const sig = await sendAndConfirmTransaction(connection, tx, [keypair], { commitment: "confirmed" });
+  console.log(`[ET Wallet] Sent ${solAmount} SOL to ${toAddress} — tx: ${sig}`);
+  return sig;
 }
 
-/**
- * Pick a random reward amount between 0.05 and 0.1 SOL.
- * Rounds to 3 decimal places.
- */
+export async function swapSolForET(solAmount: number): Promise<{ txSignature: string; tokenAmount: bigint }> {
+  const connection = getConnection();
+  const keypair = getKeypair();
+  const lamports = Math.floor(solAmount * LAMPORTS_PER_SOL);
+
+  console.log(`[ET Wallet] Swapping ${solAmount} SOL for $ET via Jupiter...`);
+
+  const quoteRes = await fetch(
+    `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300`
+  );
+  if (!quoteRes.ok) throw new Error(`Jupiter quote failed: ${await quoteRes.text()}`);
+  const quote = await quoteRes.json();
+
+  const swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      quoteResponse: quote,
+      userPublicKey: keypair.publicKey.toBase58(),
+      wrapAndUnwrapSol: true,
+      dynamicComputeUnitLimit: true,
+      prioritizationFeeLamports: 1000,
+    }),
+  });
+  if (!swapRes.ok) throw new Error(`Jupiter swap failed: ${await swapRes.text()}`);
+  const { swapTransaction } = await swapRes.json();
+
+  const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
+  tx.sign([keypair]);
+
+  const txSignature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
+  await connection.confirmTransaction(txSignature, "confirmed");
+  console.log(`[ET Wallet] Jupiter swap done — tx: ${txSignature}`);
+
+  // Read actual received amount from ATA
+  let tokenAmount = BigInt(quote.outAmount);
+  try {
+    const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
+    const acct = await getAccount(connection, ata);
+    tokenAmount = acct.amount;
+  } catch { /* use quote amount as fallback */ }
+
+  return { txSignature, tokenAmount };
+}
+
+export async function lockETForWinner(
+  winnerAddress: string,
+  tokenAmount: bigint
+): Promise<{ streamId: string; txSignature: string }> {
+  const keypair = getKeypair();
+  console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
+
+  const { SolanaStreamClient } = await import("@streamflow/stream");
+  const client = new SolanaStreamClient(process.env.SOLANA_RPC_URL!, "mainnet-beta" as any);
+
+  const now = Math.floor(Date.now() / 1000);
+  const totalBN = new BN(tokenAmount.toString());
+
+  const result = await client.create(
+    {
+      recipient: winnerAddress,
+      tokenId: ET_CA,
+      start: now + 60,
+      amount: totalBN,
+      period: 1,
+      cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
+      cliffAmount: totalBN,
+      amountPerPeriod: new BN(0),
+      name: "ET Mission Reward — 69d lock",
+      cancelableBySender: false,
+      cancelableByRecipient: false,
+      transferableBySender: false,
+      transferableByRecipient: false,
+      automaticWithdrawal: false,
+      canTopup: false,
+    },
+    { sender: keypair as any, isNative: false }
+  );
+
+  console.log(`[ET Wallet] Streamflow lock created — stream: ${result.metadataId}, tx: ${result.txId}`);
+  return { streamId: result.metadataId, txSignature: result.txId };
+}
+
+export async function sendSplitReward(
+  winnerAddress: string,
+  totalSolAmount: number
+): Promise<{
+  solTxSignature: string;
+  swapTxSignature: string;
+  streamId: string;
+  lockTxSignature: string;
+  solSent: number;
+  solSwapped: number;
+}> {
+  const half = Math.round((totalSolAmount / 2) * 1000) / 1000;
+  console.log(`[ET Wallet] Split reward: ${half} SOL direct + ${half} SOL swapped to $ET locked 69d`);
+
+  const solTxSignature = await sendSol(winnerAddress, half);
+  const { txSignature: swapTxSignature, tokenAmount } = await swapSolForET(half);
+  const { streamId, txSignature: lockTxSignature } = await lockETForWinner(winnerAddress, tokenAmount);
+
+  return { solTxSignature, swapTxSignature, streamId, lockTxSignature, solSent: half, solSwapped: half };
+}
+
 export function pickRewardAmount(): number {
-  const min = 0.05;
-  const max = 0.1;
-  const raw = min + Math.random() * (max - min);
+  const raw = 0.05 + Math.random() * 0.05;
   return Math.round(raw * 1000) / 1000;
 }
