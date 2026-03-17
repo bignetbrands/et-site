@@ -342,6 +342,7 @@ export default function BotDashboard() {
               <input id="manualWallet" placeholder="Solana wallet address" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
               <input id="manualTask" placeholder="Task context (what did they do?)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
               <input id="manualTweetUrl" placeholder="Tweet URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+              <input id="manualSolscan" placeholder="Solscan tx URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
               <button
                 onClick={async () => {
                   const winner = (document.getElementById("manualWinner") as HTMLInputElement)?.value.trim();
@@ -354,12 +355,13 @@ export default function BotDashboard() {
                   const res = await fetch("/api/admin/rewards", {
                     method: "POST",
                     headers: { ...authHeaders, "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "" }),
+                    const solscanUrl = (document.getElementById("manualSolscan") as HTMLInputElement)?.value.trim();
+                  body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "", solscanUrl: solscanUrl || "" }),
                   });
                   const data = await res.json();
                   if (data.success) {
                     addLog(`Added @${winner} to rewards queue`, "success");
-                    ["manualWinner","manualWallet","manualTask","manualTweetUrl"].forEach(id => {
+                    ["manualWinner","manualWallet","manualTask","manualTweetUrl","manualSolscan"].forEach(id => {
                       const el = document.getElementById(id) as HTMLInputElement;
                       if (el) el.value = "";
                     });
@@ -483,7 +485,7 @@ export default function BotDashboard() {
                           const res = await fetch("/api/admin/rewards", {
                             method: "POST",
                             headers: { ...authHeaders, "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId }),
+                            body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
                           });
                           const data = await res.json();
                           if (data.success) {

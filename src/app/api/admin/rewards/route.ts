@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, action, conversationId, winner, walletAddress, walletTweetId, taskContext } = await req.json();
+  const { id, action, conversationId, winner, walletAddress, walletTweetId, taskContext, solscanUrl } = await req.json();
 
   if (!id || !action) return NextResponse.json({ error: "Missing id or action" }, { status: 400 });
 
@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
       winner: winner.replace(/^@/, ""),
       walletAddress,
       walletTweetId: walletTweetId || "",
+      solscanUrl: solscanUrl || "",
       submittedAt: new Date().toISOString(),
     };
     await addToRewardsQueue(item);
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
 
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
-      const appendUrl = walletTweetUrl;
+      const appendUrl = solscanUrl || walletTweetUrl || null;
       const fullVictory = appendUrl
         ? `${cleanVictory}\n\n${appendUrl}`.substring(0, 280)
         : cleanVictory.substring(0, 280);
