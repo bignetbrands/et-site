@@ -444,7 +444,7 @@ export default function BotDashboard() {
                         setRewardsLoading("");
                       }}
                       disabled={rewardsLoading === item.id + "_markpaid"}
-                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(255,200,0,0.6)", borderColor: "rgba(255,200,0,0.2)" }}
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.12)", borderColor: "rgba(255,200,0,0.4)", color: "#ffcc00" }}
                     >
                       {rewardsLoading === item.id + "_markpaid" ? "..." : "MARK PAID"}
                     </button>
