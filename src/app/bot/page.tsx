@@ -38,6 +38,7 @@ export default function BotDashboard() {
   const [walletInfo, setWalletInfo] = useState<{ configured: boolean; address?: string; balance?: number; message?: string } | null>(null);
   const [rewardsQueue, setRewardsQueue] = useState<any[]>([]);
   const [rewardsLoading, setRewardsLoading] = useState("");
+  const [victoryPreview, setVictoryPreview] = useState<Record<string, string>>({});
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
