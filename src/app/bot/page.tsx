@@ -512,24 +512,60 @@ export default function BotDashboard() {
                           SOLSCAN ↗
                         </a>
                       )}
-                      <button
-                        onClick={async () => {
-                          setRewardsLoading(item.id + "_victory");
-                          const res = await fetch("/api/admin/rewards", {
-                            method: "POST",
-                            headers: { ...authHeaders, "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
-                          });
-                          const data = await res.json();
-                          if (data.success) { addLog(`Victory tweet posted for @${item.winner}`, "success"); }
-                          else { addLog(`Victory tweet failed: ${data.error}`, "error"); }
-                          setRewardsLoading("");
-                        }}
-                        disabled={rewardsLoading === item.id + "_victory"}
-                        style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.08)", borderColor: "rgba(255,200,0,0.25)", color: "#ffcc00" }}
-                      >
-                        {rewardsLoading === item.id + "_victory" ? "posting..." : "POST VICTORY TWEET"}
-                      </button>
+                      {!victoryPreview[item.id] ? (
+                        <button
+                          onClick={async () => {
+                            setRewardsLoading(item.id + "_preview");
+                            const res = await fetch("/api/admin/rewards", {
+                              method: "POST",
+                              headers: { ...authHeaders, "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
+                            });
+                            const data = await res.json();
+                            if (data.success) setVictoryPreview((p: Record<string,string>) => ({ ...p, [item.id]: data.preview }));
+                            else addLog(`Preview failed: ${data.error}`, "error");
+                            setRewardsLoading("");
+                          }}
+                          disabled={rewardsLoading === item.id + "_preview"}
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.08)", borderColor: "rgba(255,200,0,0.25)", color: "#ffcc00" }}
+                        >
+                          {rewardsLoading === item.id + "_preview" ? "generating..." : "PREVIEW VICTORY TWEET"}
+                        </button>
+                      ) : (
+                        <div style={{ width: "100%", marginTop: "4px" }}>
+                          <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "6px", whiteSpace: "pre-wrap" }}>
+                            {victoryPreview[item.id]}
+                          </div>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button
+                              onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(255,255,255,0.4)", borderColor: "rgba(255,255,255,0.1)" }}
+                            >
+                              ↺ REGENERATE
+                            </button>
+                            <button
+                              onClick={async () => {
+                                setRewardsLoading(item.id + "_victory");
+                                const res = await fetch("/api/admin/rewards", {
+                                  method: "POST",
+                                  headers: { ...authHeaders, "Content-Type": "application/json" },
+                                  body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "" }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  addLog(`Victory tweet posted for @${item.winner}`, "success");
+                                  setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; });
+                                } else addLog(`Victory tweet failed: ${data.error}`, "error");
+                                setRewardsLoading("");
+                              }}
+                              disabled={rewardsLoading === item.id + "_victory"}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.12)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
+                            >
+                              {rewardsLoading === item.id + "_victory" ? "posting..." : "✓ POST TWEET"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
