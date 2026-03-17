@@ -131,7 +131,6 @@ export async function POST(req: NextRequest) {
         ? victoryRes.content[0].text.trim().replace(/^["']/g, "").replace(/["']$/g, "").trim()
         : `mission complete. SOL sent to @${winner}. the machine pays 👽`;
 
-      const solscanUrl = `https://solscan.io/tx/${txSig}`;
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
       const appendUrl = walletTweetUrl;
