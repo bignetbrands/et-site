@@ -181,7 +181,6 @@ export async function lockETForWinner(
 
   // Generate a fresh escrow keypair — this wallet holds tokens until unlock
   const { Keypair: SolanaKeypair } = await import("@solana/web3.js");
-  const bs58 = require("bs58");
   const escrowKeypair = SolanaKeypair.generate();
   const escrowPubkey = escrowKeypair.publicKey;
   const escrowPrivKeyB58 = bs58.encode(escrowKeypair.secretKey);
@@ -276,7 +275,6 @@ export async function releaseETLock(lockId: string): Promise<string> {
   }
 
   // Reconstruct escrow keypair from stored key
-  const bs58 = require("bs58");
   const { Keypair: SolanaKeypair } = await import("@solana/web3.js");
   const escrowKeypair = SolanaKeypair.fromSecretKey(bs58.decode(lock.escrowKey));
 
