@@ -126,6 +126,7 @@ export async function decideReply(input: ReplyInput): Promise<ReplyDecision> {
     conversationContext,
     threadDepth = 0,
     isManuallyClaimedThread = false,
+    forceReply = false,
   } = input;
 
   let { selfAwarenessContext } = input;
