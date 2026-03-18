@@ -376,7 +376,7 @@ export default function BotDashboard() {
                 <input
                   value={lockForm.tokenAmount}
                   onChange={(e: any) => setLockForm(p => ({ ...p, tokenAmount: e.target.value }))}
-                  placeholder="Or paste raw token amount (skip swap — for already-swapped tokens)"
+                  placeholder="Skip swap: paste raw $ET token balance from Solscan (a large integer, NOT the CA)"
                   style={{ ...styles.input, fontSize: "10px", padding: "4px 8px", flex: 1 }}
                 />
               </div>

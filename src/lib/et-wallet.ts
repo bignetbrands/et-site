@@ -78,8 +78,8 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
     "User-Agent": "etsearch.fun/1.0",
   };
 
-  // Step 1 — Get order from Jupiter Ultra (works for pre-bond pump.fun tokens)
-  const orderUrl = `https://ultra-api.jup.ag/order?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&taker=${keypair.publicKey.toBase58()}`;
+  // Step 1 — Get order from Jupiter Ultra lite API
+  const orderUrl = `https://lite-api.jup.ag/ultra/v1/order?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&taker=${keypair.publicKey.toBase58()}`;
   let orderData: any;
   try {
     const orderRes = await fetch(orderUrl, { headers: JUP_HEADERS });
@@ -88,7 +88,10 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
   } catch (e: any) {
     throw new Error(`Jupiter Ultra order failed: ${e?.message || e}`);
   }
-  console.log(`[ET Wallet] Jupiter Ultra order: ${orderData.outAmount} raw $ET, requestId: ${orderData.requestId}`);
+  if (!orderData.transaction || !orderData.requestId) {
+    throw new Error(`Jupiter Ultra order missing transaction/requestId: ${JSON.stringify(orderData)}`);
+  }
+  console.log(`[ET Wallet] Jupiter Ultra order: ~${orderData.outAmount} raw $ET, requestId: ${orderData.requestId}`);
 
   // Step 2 — Sign the transaction
   const tx = VersionedTransaction.deserialize(Buffer.from(orderData.transaction, "base64"));
@@ -98,7 +101,7 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
   // Step 3 — Execute via Ultra
   let executeData: any;
   try {
-    const execRes = await fetch("https://ultra-api.jup.ag/execute", {
+    const execRes = await fetch("https://lite-api.jup.ag/ultra/v1/execute", {
       method: "POST",
       headers: JUP_HEADERS,
       body: JSON.stringify({ signedTransaction: signedTxBase64, requestId: orderData.requestId }),
@@ -110,24 +113,30 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
   }
 
   if (executeData.status !== "Success") {
-    throw new Error(`Jupiter Ultra swap failed: ${executeData.error || JSON.stringify(executeData)}`);
+    throw new Error(`Jupiter Ultra swap failed (${executeData.code}): ${executeData.error || JSON.stringify(executeData)}`);
   }
   const txSignature = executeData.signature;
-  console.log(`[ET Wallet] Jupiter Ultra swap done — tx: ${txSignature}`);
+  // outputAmountResult is the actual tokens received from the execute response
+  const receivedAmount = executeData.outputAmountResult || orderData.outAmount;
+  console.log(`[ET Wallet] Jupiter Ultra swap done — tx: ${txSignature}, received: ${receivedAmount} raw $ET`);
 
-  // Read actual received amount from ATA — retry up to 5x (account may not be indexed yet)
-  let tokenAmount = BigInt(orderData.outAmount || 0);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      await new Promise(r => setTimeout(r, 2000)); // wait 2s between attempts
-      const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
-      const acct = await getAccount(connection, ata);
-      if (acct.amount > BigInt(0)) { tokenAmount = acct.amount; break; }
-    } catch { /* keep retrying */ }
+  // Use outputAmountResult from execute response as the authoritative amount
+  let tokenAmount = BigInt(receivedAmount || 0);
+
+  // Also try reading from ATA to confirm (non-blocking, best effort)
+  if (!tokenAmount || tokenAmount === BigInt(0)) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await new Promise(r => setTimeout(r, 2000));
+        const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
+        const acct = await getAccount(connection, ata);
+        if (acct.amount > BigInt(0)) { tokenAmount = acct.amount; break; }
+      } catch { /* keep retrying */ }
+    }
   }
 
   if (!tokenAmount || tokenAmount === BigInt(0)) {
-    throw new Error(`Token amount is zero after swap — ATA balance not readable. Check wallet on Solscan and use manual lock with exact token amount.`);
+    throw new Error(`Token amount is zero after swap — check Solscan and use manual lock with raw token amount.`);
   }
 
   console.log(`[ET Wallet] Token amount to lock: ${tokenAmount}`);
