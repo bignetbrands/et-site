@@ -49,6 +49,7 @@ export default function BotDashboard() {
   const [checkVerdict, setCheckVerdict] = useState<Record<string, any>>({});
   const [lockForm, setLockForm] = useState({ wallet: "", sol: "", tokenAmount: "" });
   const [lockResult, setLockResult] = useState<any>(null);
+  const [etLocks, setEtLocks] = useState<any[]>([]);
   const [showRiddleAnswer, setShowRiddleAnswer] = useState<Record<string, boolean>>({});
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
@@ -103,6 +104,12 @@ export default function BotDashboard() {
       if (res.ok) { const data = await res.json(); setRiddles(data.riddles || []); }
     } catch { /* silent */ }
   }, [secret]);
+
+  const loadEtLocks = useCallback(async () => {
+    const res = await fetch("/api/admin/lock", { headers: authHeaders });
+    const data = await res.json();
+    if (data.locks) setEtLocks(data.locks);
+  }, []);
 
   const loadRewardsQueue = useCallback(async () => {
     try {
@@ -212,6 +219,8 @@ export default function BotDashboard() {
     loadDashboard();
       loadWalletInfo();
       loadRewardsQueue();
+      loadEtLocks();
+    loadEtLocks();
     loadRiddles();
     loadScheduled();
     loadHomepageMode();
@@ -349,10 +358,47 @@ export default function BotDashboard() {
 
         {/* Manual Lock Panel */}
         <div style={{ ...styles.panel, marginBottom: "16px" }}>
-          <div style={styles.panelTitle}>🔒 MANUAL LOCK</div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            Swap SOL → $ET and lock 69 days for a wallet. Use when auto-lock fails after a reward.
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div style={styles.panelTitle}>🔒 ET LOCKS</div>
+            <button onClick={loadEtLocks} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
           </div>
+          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+            In-house 69-day timelock. Zero fees. Tokens stay in ET wallet, auto-released by daily cron.
+          </div>
+          {etLocks.length > 0 && (
+            <div style={{ marginBottom: "16px" }}>
+              {etLocks.map((lock: any) => {
+                const unlockDate = new Date(Number(lock.unlockTimestamp) * 1000);
+                const isUnlocked = Date.now() / 1000 > Number(lock.unlockTimestamp);
+                const color = lock.status === "released" ? "rgba(100,100,100,0.5)" : isUnlocked ? "#ffcc00" : "rgba(57,255,20,0.6)";
+                return (
+                  <div key={lock.id} style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${color}33`, borderRadius: "3px", padding: "8px 10px", marginBottom: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", marginBottom: "4px" }}>
+                      <span style={{ color }}>{lock.status === "released" ? "✅ RELEASED" : isUnlocked ? "⚡ READY TO RELEASE" : "🔒 LOCKED"}</span>
+                      <span style={{ color: "rgba(255,255,255,0.3)" }}>{unlockDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)" }}>@{lock.winner?.slice(0,8)}... — {Number(lock.tokenAmount).toLocaleString()} $ET</div>
+                    {lock.status === "locked" && isUnlocked && (
+                      <button
+                        onClick={async () => {
+                          setLoading("release_" + lock.id);
+                          const res = await fetch("/api/admin/release-lock", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ lockId: lock.id }) });
+                          const data = await res.json();
+                          if (data.success) { addLog(`✅ Released ${lock.tokenAmount} $ET — ${data.txSig}`, "success"); loadEtLocks(); }
+                          else addLog(`Release failed: ${data.error}`, "error");
+                          setLoading("");
+                        }}
+                        disabled={!!loading}
+                        style={{ marginTop: "6px", ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.1)", borderColor: "rgba(255,200,0,0.3)", color: "#ffcc00" }}
+                      >
+                        {loading === "release_" + lock.id ? "RELEASING..." : "⚡ RELEASE NOW"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
             <input
               value={lockForm.wallet}
