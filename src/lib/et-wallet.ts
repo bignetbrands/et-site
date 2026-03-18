@@ -144,6 +144,21 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
   return { txSignature, tokenAmount };
 }
 
+export async function ensureWinnerATA(winnerAddress: string): Promise<string> {
+  const keypair = getKeypair();
+  const connection = getConnection();
+  const tokenMint = new PublicKey(ET_CA);
+  const winnerPubkey = new PublicKey(winnerAddress);
+  const ata = await getAssociatedTokenAddress(tokenMint, winnerPubkey);
+  try {
+    await createAssociatedTokenAccountIdempotent(connection, keypair, tokenMint, winnerPubkey);
+    console.log(`[ET Wallet] Winner ATA ensured: ${ata.toBase58()}`);
+  } catch (e: any) {
+    console.warn(`[ET Wallet] ATA note (may already exist): ${e?.message}`);
+  }
+  return ata.toBase58();
+}
+
 export async function lockETForWinner(
   winnerAddress: string,
   tokenAmount: bigint
@@ -151,28 +166,14 @@ export async function lockETForWinner(
   const keypair = getKeypair();
   console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
 
-  // Use Streamflow's own getBN and ICluster to avoid BN version conflicts
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
   const client = new SolanaStreamClient(process.env.SOLANA_RPC_URL!, ICluster.Mainnet);
 
-  // Ensure winner's token account exists before Streamflow tries to use it
-  const connection = getConnection();
-  const tokenMint = new PublicKey(ET_CA);
-  const winnerPubkey = new PublicKey(winnerAddress);
-  try {
-    await createAssociatedTokenAccountIdempotent(connection, keypair, tokenMint, winnerPubkey);
-    console.log(`[ET Wallet] Winner ATA ensured for ${winnerAddress}`);
-  } catch (e: any) {
-    // ATA already exists or creation failed — log and continue
-    console.warn(`[ET Wallet] ATA creation note: ${e?.message}`);
-  }
-
   const now = Math.floor(Date.now() / 1000);
   const totalBN = getBN(Number(tokenAmount), 0);
-  // Unique nonce prevents metadata PDA collisions from retries
   const nonce = Math.floor(Math.random() * 1000000);
 
-  console.log(`[ET Wallet] Streamflow params — amount: ${totalBN.toString()}, nonce: ${nonce}`);
+  console.log(`[ET Wallet] Streamflow create — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
   const result = await client.create(
     {
