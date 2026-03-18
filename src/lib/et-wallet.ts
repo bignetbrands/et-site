@@ -167,7 +167,7 @@ export async function lockETForWinner(
   console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
 
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
-  const client = new SolanaStreamClient(process.env.SOLANA_RPC_URL!, ICluster.Mainnet);
+  const client = new SolanaStreamClient({ clusterUrl: process.env.SOLANA_RPC_URL!, cluster: ICluster.Mainnet });
 
   const now = Math.floor(Date.now() / 1000);
   const totalBN = getBN(Number(tokenAmount), 0);
@@ -175,9 +175,10 @@ export async function lockETForWinner(
 
   console.log(`[ET Wallet] Streamflow create — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
+  // Wrap in timeout — Streamflow can hang indefinitely
   let result: any;
   try {
-    result = await client.create(
+    const createPromise = client.create(
       {
         recipient: winnerAddress,
         tokenId: ET_CA,
@@ -197,10 +198,14 @@ export async function lockETForWinner(
       },
       { sender: keypair as any, isNative: false }
     );
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Streamflow create timed out after 45s")), 45000)
+    );
+    result = await Promise.race([createPromise, timeout]);
   } catch (e: any) {
-    // Capture full error — SendTransactionError includes simulation logs
     const logs = typeof e?.getLogs === "function" ? await e.getLogs().catch(() => []) : (e?.logs || []);
     const detail = logs.length > 0 ? `\nLogs: ${JSON.stringify(logs)}` : "";
+    console.error(`[ET Wallet] Streamflow error:`, e?.message, detail);
     throw new Error(`Streamflow create failed: ${e?.message || e}${detail}`);
   }
 
