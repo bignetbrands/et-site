@@ -179,11 +179,9 @@ export async function lockETForWinner(
   // Ensure winner ATA exists — manual send+poll (no WebSocket)
   try {
     const winnerPubkey = new PublicKey(winnerAddress);
+    const ataAddr = await getAssociatedTokenAddress(new PublicKey(ET_CA), winnerPubkey);
     const ataIx = createAssociatedTokenAccountIdempotentInstruction(
-      keypair.publicKey, // payer
-      await getAssociatedTokenAddress(new PublicKey(ET_CA), winnerPubkey),
-      winnerPubkey,
-      new PublicKey(ET_CA)
+      keypair.publicKey, ataAddr, winnerPubkey, new PublicKey(ET_CA)
     );
     const ataTx = new Transaction();
     ataTx.add(ataIx);
@@ -192,7 +190,6 @@ export async function lockETForWinner(
     ataTx.feePayer = keypair.publicKey;
     ataTx.sign(keypair);
     const ataSig = await connection.sendRawTransaction(ataTx.serialize(), { skipPreflight: true });
-    // Poll briefly for ATA (it's idempotent so failure is fine)
     for (let i = 0; i < 5; i++) {
       await new Promise(r => setTimeout(r, 1500));
       const s = await connection.getSignatureStatus(ataSig);
@@ -209,62 +206,53 @@ export async function lockETForWinner(
   const nonce = Math.floor(Math.random() * 1000000);
   console.log(`[Lock] building Streamflow tx — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
-  // Build instructions only — no send
-  const { ixs, metadataId, metadata } = await client.buildCreateTransactionInstructions(
-    {
-      recipient: winnerAddress,
-      tokenId: ET_CA,
-      start: now + 60,
-      amount: totalBN,
-      period: 1,
-      cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
-      cliffAmount: totalBN,
-      amountPerPeriod: getBN(0, 0),
-      name: `ET Reward ${nonce}`,
-      cancelableBySender: false,
-      cancelableByRecipient: false,
-      transferableBySender: false,
-      transferableByRecipient: false,
-      automaticWithdrawal: false,
-      canTopup: false,
-    },
+  const streamParams = {
+    recipient: winnerAddress,
+    tokenId: ET_CA,
+    start: now + 60,
+    amount: totalBN,
+    period: 1,
+    cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
+    cliffAmount: totalBN,
+    amountPerPeriod: getBN(0, 0),
+    name: `ET Reward ${nonce}`,
+    cancelableBySender: false,
+    cancelableByRecipient: false,
+    transferableBySender: false,
+    transferableByRecipient: false,
+    automaticWithdrawal: false,
+    canTopup: false,
+  };
+
+  // buildCreateTransaction returns a fully-formed VersionedTransaction — no manual instruction assembly
+  const { tx: versionedTx, metadataId, metadata } = await client.buildCreateTransaction(
+    streamParams,
     { sender: keypair as any, isNative: false }
   );
-  console.log(`[Lock] instructions built — metadataId: ${metadataId}, ixs: ${ixs.length}`);
+  console.log(`[Lock] tx built — metadataId: ${metadataId}`);
 
-  // Build transaction
-  const tx = new Transaction();
-  for (const ix of ixs) {
-    if (ix && "keys" in ix) tx.add(ix as any);
-  }
+  // Sign: ET keypair + metadata keypair
+  const signers = metadata ? [keypair, metadata as any] : [keypair];
+  versionedTx.sign(signers);
 
-  // Get recent blockhash
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = blockhash;
-  tx.feePayer = keypair.publicKey;
-  tx.sign(keypair, metadata as any);
-
-  // Send raw transaction (no WebSocket subscription — uses HTTP only)
-  const rawTx = tx.serialize();
-  // skipPreflight: true — simulation can give false positives with orphaned metadata accounts
-  // from previous failed attempts. Let it land on-chain and poll for actual result.
+  // Send raw (skipPreflight) + poll HTTP confirmation
+  const rawTx = Buffer.from(versionedTx.serialize());
   const txSignature = await connection.sendRawTransaction(rawTx, { skipPreflight: true, maxRetries: 5 });
-  console.log(`[Lock] tx sent: ${txSignature} — polling for confirmation...`);
+  console.log(`[Lock] tx sent: ${txSignature} — polling...`);
 
-  // Poll for confirmation via HTTP (avoids WebSocket b.mask error on Vercel)
   const startTime = Date.now();
-  let confirmed = false;
   while (Date.now() - startTime < 45000) {
     const status = await connection.getSignatureStatus(txSignature);
     const conf = status?.value?.confirmationStatus;
-    if (conf === "confirmed" || conf === "finalized") { confirmed = true; break; }
-    if (status?.value?.err) throw new Error(`Streamflow tx failed on-chain: ${JSON.stringify(status.value.err)}`);
+    if (conf === "confirmed" || conf === "finalized") {
+      if (status?.value?.err) throw new Error(`Lock tx failed on-chain: ${JSON.stringify(status.value.err)}`);
+      console.log(`[Lock] SUCCESS — stream: ${metadataId}, tx: ${txSignature}`);
+      return { streamId: metadataId, txSignature };
+    }
+    if (status?.value?.err) throw new Error(`Lock tx failed: ${JSON.stringify(status.value.err)}`);
     await new Promise(r => setTimeout(r, 2000));
   }
-  if (!confirmed) throw new Error(`Streamflow tx not confirmed within 45s — sig: ${txSignature}`);
-
-  console.log(`[Lock] SUCCESS — stream: ${metadataId}, tx: ${txSignature}`);
-  return { streamId: metadataId, txSignature };
+  throw new Error(`Lock tx not confirmed in 45s — sig: ${txSignature}`);
 }
 
 export async function sendSplitReward(
