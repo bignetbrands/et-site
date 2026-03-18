@@ -366,9 +366,9 @@ export default function BotDashboard() {
           <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "8px", lineHeight: "1.6" }}>
             In-house 69-day timelock. Zero protocol fees. Escrow keypair holds tokens until unlock.
           </div>
-          {walletInfo?.etBalance && (
+          {walletInfo?.balance && (
             <div style={{ fontSize: "10px", color: "rgba(57,255,20,0.6)", marginBottom: "12px", background: "rgba(57,255,20,0.04)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "3px", padding: "6px 10px" }}>
-              ET wallet available: <strong>{Number(walletInfo.etBalance).toLocaleString()} $ET</strong>
+              ET wallet available: <strong>{Number(walletInfo.balance).toLocaleString()} $ET</strong>
               <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: "8px", fontSize: "9px" }}>enter this number in the token amount field below</span>
             </div>
           )}
