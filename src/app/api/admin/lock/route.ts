@@ -10,19 +10,32 @@ function auth(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { walletAddress, solAmount } = await req.json();
-  if (!walletAddress || !solAmount) {
-    return NextResponse.json({ error: "Missing walletAddress or solAmount" }, { status: 400 });
-  }
-  if (solAmount <= 0 || solAmount > 1) {
-    return NextResponse.json({ error: "solAmount must be between 0 and 1" }, { status: 400 });
+  const { walletAddress, solAmount, tokenAmount: rawTokenAmount } = await req.json();
+  if (!walletAddress) {
+    return NextResponse.json({ error: "Missing walletAddress" }, { status: 400 });
   }
 
   try {
-    const { txSignature: swapTxSig, tokenAmount } = await swapSolForET(solAmount);
+    let swapTxSig = "";
+    let tokenAmount: bigint;
+
+    if (rawTokenAmount) {
+      // Skip swap — use provided token amount directly
+      tokenAmount = BigInt(rawTokenAmount);
+      console.log(`[Lock] Using provided token amount: ${tokenAmount}`);
+    } else {
+      if (!solAmount || solAmount <= 0 || solAmount > 1) {
+        return NextResponse.json({ error: "Provide solAmount (0-1) or tokenAmount" }, { status: 400 });
+      }
+      const result = await swapSolForET(solAmount);
+      swapTxSig = result.txSignature;
+      tokenAmount = result.tokenAmount;
+    }
+
     const { streamId, txSignature: lockTxSig } = await lockETForWinner(walletAddress, tokenAmount);
 
     const streamLink = `https://app.streamflow.finance/contract/solana/mainnet/${streamId}`;
+    console.log(`[Lock] Stream created: ${streamId}`);
     console.log(`[Lock] Swapped ${solAmount} SOL → ${tokenAmount} $ET, locked 69d for ${walletAddress} — stream: ${streamId}`);
 
     return NextResponse.json({ success: true, swapTxSig, lockTxSig, streamId, streamLink, tokenAmount: tokenAmount.toString() });

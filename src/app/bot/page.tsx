@@ -47,7 +47,7 @@ export default function BotDashboard() {
   const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "" });
   const [checkReplyUrl, setCheckReplyUrl] = useState<Record<string, string>>({});
   const [checkVerdict, setCheckVerdict] = useState<Record<string, any>>({});
-  const [lockForm, setLockForm] = useState({ wallet: "", sol: "" });
+  const [lockForm, setLockForm] = useState({ wallet: "", sol: "", tokenAmount: "" });
   const [lockResult, setLockResult] = useState<any>(null);
   const [showRiddleAnswer, setShowRiddleAnswer] = useState<Record<string, boolean>>({});
 
@@ -371,26 +371,37 @@ export default function BotDashboard() {
                 max="1"
                 style={{ ...styles.input, fontSize: "11px", padding: "6px 8px", flex: 1 }}
               />
+              {/* Optional: paste token amount directly to skip the swap step */}
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <input
+                  value={lockForm.tokenAmount}
+                  onChange={(e: any) => setLockForm(p => ({ ...p, tokenAmount: e.target.value }))}
+                  placeholder="Or paste raw token amount (skip swap — for already-swapped tokens)"
+                  style={{ ...styles.input, fontSize: "10px", padding: "4px 8px", flex: 1 }}
+                />
+              </div>
               <button
                 onClick={async () => {
-                  const { wallet, sol } = lockForm;
-                  if (!wallet || !sol) { addLog("Enter wallet and SOL amount", "warn"); return; }
+                  const { wallet, sol, tokenAmount } = lockForm;
+                  if (!wallet) { addLog("Enter wallet address", "warn"); return; }
+                  const usingTokenAmount = !!tokenAmount.trim();
                   const amount = parseFloat(sol);
-                  if (isNaN(amount) || amount <= 0) { addLog("Invalid SOL amount", "warn"); return; }
-                  if (!confirm(`Swap ${amount} SOL → $ET and lock 69 days for ${wallet.substring(0,8)}...?`)) return;
+                  if (!usingTokenAmount && (!sol || isNaN(amount) || amount <= 0)) { addLog("Enter SOL amount or raw token amount", "warn"); return; }
+                  const label = usingTokenAmount ? `lock ${tokenAmount} raw $ET` : `swap ${amount} SOL → $ET and lock`;
+                  if (!confirm(`${label} 69 days for ${wallet.substring(0,8)}...?`)) return;
                   setLockResult(null);
                   setLoading("manualLock");
-                  addLog(`Swapping ${amount} SOL → $ET and locking 69d...`, "info");
+                  addLog(`${usingTokenAmount ? "Locking" : "Swapping"} ${usingTokenAmount ? tokenAmount + " tokens" : amount + " SOL → $ET"} for 69d...`, "info");
                   const res = await fetch("/api/admin/lock", {
                     method: "POST",
                     headers: { ...authHeaders, "Content-Type": "application/json" },
-                    body: JSON.stringify({ walletAddress: wallet, solAmount: amount }),
+                    body: JSON.stringify({ walletAddress: wallet, solAmount: usingTokenAmount ? 0 : amount, tokenAmount: usingTokenAmount ? tokenAmount : undefined }),
                   });
                   const data = await res.json();
                   if (data.success) {
                     setLockResult(data);
                     addLog(`✅ Locked ${amount} SOL of $ET for 69 days — stream: ${data.streamId}`, "success");
-                    setLockForm({ wallet: "", sol: "" });
+                    setLockForm({ wallet: "", sol: "", tokenAmount: "" });
                   } else {
                     addLog(`❌ Lock failed: ${data.error}`, "error");
                   }

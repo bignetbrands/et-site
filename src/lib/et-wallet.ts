@@ -115,14 +115,22 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
   const txSignature = executeData.signature;
   console.log(`[ET Wallet] Jupiter Ultra swap done — tx: ${txSignature}`);
 
-  // Read actual received amount from ATA
+  // Read actual received amount from ATA — retry up to 5x (account may not be indexed yet)
   let tokenAmount = BigInt(orderData.outAmount || 0);
-  try {
-    const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
-    const acct = await getAccount(connection, ata);
-    tokenAmount = acct.amount;
-  } catch { /* use quote amount as fallback */ }
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await new Promise(r => setTimeout(r, 2000)); // wait 2s between attempts
+      const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
+      const acct = await getAccount(connection, ata);
+      if (acct.amount > 0n) { tokenAmount = acct.amount; break; }
+    } catch { /* keep retrying */ }
+  }
 
+  if (!tokenAmount || tokenAmount === 0n) {
+    throw new Error(`Token amount is zero after swap — ATA balance not readable. Check wallet on Solscan and use manual lock with exact token amount.`);
+  }
+
+  console.log(`[ET Wallet] Token amount to lock: ${tokenAmount}`);
   return { txSignature, tokenAmount };
 }
 
