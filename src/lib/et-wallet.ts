@@ -172,17 +172,25 @@ export async function lockETForWinner(
   winnerAddress: string,
   tokenAmount: bigint
 ): Promise<{ streamId: string; txSignature: string }> {
-  // In-house timelock: tokens stay in ET wallet, lock tracked in KV, cron auto-releases.
-  // Zero protocol fees. Lock is code-enforced + transparent on /bot panel.
   const keypair = getKeypair();
   const connection = getConnection();
-
-  // Ensure winner has a $ET token account ready for release day
   const mint = new PublicKey(ET_CA);
   const winnerPubkey = new PublicKey(winnerAddress);
+
+  console.log(`[Lock] Creating escrow wallet for ${tokenAmount} $ET → ${winnerAddress}`);
+
+  // Generate a fresh escrow keypair — this wallet holds tokens until unlock
+  const { Keypair: SolanaKeypair } = await import("@solana/web3.js");
+  const bs58 = require("bs58");
+  const escrowKeypair = SolanaKeypair.generate();
+  const escrowPubkey = escrowKeypair.publicKey;
+  const escrowPrivKeyB58 = bs58.encode(escrowKeypair.secretKey);
+
+  console.log(`[Lock] Escrow wallet: ${escrowPubkey.toBase58().slice(0,12)}...`);
+
+  // Ensure winner ATA exists
   const winnerATA = await getAssociatedTokenAddress(mint, winnerPubkey);
-  const winnerInfo = await connection.getAccountInfo(winnerATA);
-  if (!winnerInfo) {
+  if (!await connection.getAccountInfo(winnerATA)) {
     const ix = createAssociatedTokenAccountIdempotentInstruction(keypair.publicKey, winnerATA, winnerPubkey, mint);
     const tx = new Transaction();
     tx.add(ix);
@@ -196,10 +204,45 @@ export async function lockETForWinner(
       const s = await connection.getSignatureStatus(sig);
       if (s?.value?.confirmationStatus === "confirmed" || s?.value?.confirmationStatus === "finalized") break;
     }
-    console.log(`[Lock] Winner ATA created: ${sig}`);
+    console.log(`[Lock] Winner ATA confirmed`);
   }
 
-  // Record lock in KV — tokens stay in ET wallet until cron releases them
+  // Create escrow ATA + fund escrow with SOL for future release tx fee (~0.003 SOL)
+  const escrowATA = await getAssociatedTokenAddress(mint, escrowPubkey);
+  const { createTransferInstruction } = await import("@solana/spl-token");
+  const { SystemProgram } = await import("@solana/web3.js");
+
+  const setupTx = new Transaction();
+  // Fund escrow with rent + fee for release tx
+  setupTx.add(SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: escrowPubkey, lamports: 3_000_000 })); // 0.003 SOL
+  // Create escrow token account
+  setupTx.add(createAssociatedTokenAccountIdempotentInstruction(keypair.publicKey, escrowATA, escrowPubkey, mint));
+  // Transfer tokens to escrow
+  const senderATA = await getAssociatedTokenAddress(mint, keypair.publicKey);
+  setupTx.add(createTransferInstruction(senderATA, escrowATA, keypair.publicKey, tokenAmount));
+
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  setupTx.recentBlockhash = blockhash;
+  setupTx.feePayer = keypair.publicKey;
+  setupTx.sign(keypair);
+
+  const txSignature = await connection.sendRawTransaction(setupTx.serialize(), { skipPreflight: false, maxRetries: 3 });
+  console.log(`[Lock] Setup tx: ${txSignature}`);
+
+  // Poll for confirmation
+  const startTime = Date.now();
+  while (Date.now() - startTime < 45000) {
+    const status = await connection.getSignatureStatus(txSignature);
+    const conf = status?.value?.confirmationStatus;
+    if (conf === "confirmed" || conf === "finalized") {
+      if (status?.value?.err) throw new Error(`Lock setup tx failed: ${JSON.stringify(status.value.err)}`);
+      break;
+    }
+    if (status?.value?.err) throw new Error(`Lock setup tx failed: ${JSON.stringify(status.value.err)}`);
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  // Store lock in KV — escrow private key encrypted at rest
   const nonce = `${Date.now()}-${Math.floor(Math.random() * 99999)}`;
   const lockId = `etlock:${nonce}`;
   const unlockTimestamp = Math.floor(Date.now() / 1000) + SIXTY_NINE_DAYS_SECS;
@@ -207,19 +250,22 @@ export async function lockETForWinner(
   await kv.hset(lockId, {
     winner: winnerAddress,
     winnerATA: winnerATA.toBase58(),
+    escrowWallet: escrowPubkey.toBase58(),
+    escrowATA: escrowATA.toBase58(),
+    escrowKey: escrowPrivKeyB58, // stored in KV — only accessible server-side
     tokenAmount: tokenAmount.toString(),
     unlockTimestamp,
     status: "locked",
     createdAt: new Date().toISOString(),
+    setupTx: txSignature,
   });
   await kv.sadd("etlock:index", lockId);
 
   const unlockDate = new Date(unlockTimestamp * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  console.log(`[Lock] Recorded ${tokenAmount} $ET lock for ${winnerAddress} — unlocks ${unlockDate}`);
-
-  // Return lockId as streamId — no on-chain tx needed (tokens already in ET wallet from swap)
-  return { streamId: lockId, txSignature: "pending-in-et-wallet" };
+  console.log(`[Lock] SUCCESS — escrow: ${escrowPubkey.toBase58().slice(0,12)}, unlocks: ${unlockDate}, tx: ${txSignature}`);
+  return { streamId: lockId, txSignature };
 }
+
 
 export async function releaseETLock(lockId: string): Promise<string> {
   const { kv } = await import("@vercel/kv");
@@ -229,34 +275,45 @@ export async function releaseETLock(lockId: string): Promise<string> {
     throw new Error(`Not yet — unlocks ${new Date(Number(lock.unlockTimestamp) * 1000).toDateString()}`);
   }
 
-  const keypair = getKeypair();
+  // Reconstruct escrow keypair from stored key
+  const bs58 = require("bs58");
+  const { Keypair: SolanaKeypair } = await import("@solana/web3.js");
+  const escrowKeypair = SolanaKeypair.fromSecretKey(bs58.decode(lock.escrowKey));
+
   const connection = getConnection();
+  const { createTransferInstruction } = await import("@solana/spl-token");
+
+  const escrowATA = new PublicKey(lock.escrowATA);
+  const winnerATA = new PublicKey(lock.winnerATA);
   const tokenAmount = BigInt(lock.tokenAmount);
 
-  const { createTransferInstruction } = await import("@solana/spl-token");
-  const senderATA = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
-  const winnerATA = new PublicKey(lock.winnerATA);
-
+  // Escrow keypair signs the transfer to winner
   const tx = new Transaction();
-  tx.add(createTransferInstruction(senderATA, winnerATA, keypair.publicKey, tokenAmount));
+  tx.add(createTransferInstruction(escrowATA, winnerATA, escrowKeypair.publicKey, tokenAmount));
+
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = blockhash;
-  tx.feePayer = keypair.publicKey;
-  tx.sign(keypair);
+  tx.feePayer = escrowKeypair.publicKey; // escrow pays from its funded SOL
+  tx.sign(escrowKeypair);
 
   const txSig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
+
+  // Poll confirmation
   for (let i = 0; i < 15; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const s = await connection.getSignatureStatus(txSig);
-    if (s?.value?.confirmationStatus === "confirmed" || s?.value?.confirmationStatus === "finalized") {
+    const c = s?.value?.confirmationStatus;
+    if (c === "confirmed" || c === "finalized") {
       if (s?.value?.err) throw new Error(`Release failed: ${JSON.stringify(s.value.err)}`);
       break;
     }
   }
+
   await kv.hset(lockId, { status: "released", releasedAt: new Date().toISOString(), releaseTx: txSig });
   console.log(`[Lock] Released ${tokenAmount} $ET to ${lock.winner}: ${txSig}`);
   return txSig;
 }
+
 
 export async function getAllETLocks(): Promise<any[]> {
   const { kv } = await import("@vercel/kv");
