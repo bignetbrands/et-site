@@ -45,6 +45,7 @@ export default function BotDashboard() {
   const [riddles, setRiddles] = useState<any[]>([]);
   const [riddleWinner, setRiddleWinner] = useState<Record<string, { winner: string; wallet: string; tweetUrl: string }>>({});
   const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "" });
+  const [showRiddleAnswer, setShowRiddleAnswer] = useState<Record<string, boolean>>({});
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -1086,8 +1087,18 @@ export default function BotDashboard() {
                     <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", marginBottom: "4px", lineHeight: "1.5" }}>
                       <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>RIDDLE: </span>{r.question?.substring(0, 150)}
                     </div>
-                    <div style={{ fontSize: "11px", color: "rgba(57,255,20,0.6)", marginBottom: "10px" }}>
-                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>ANSWER: </span>{r.answer}
+                    <div style={{ fontSize: "11px", color: "rgba(57,255,20,0.6)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>ANSWER: </span>
+                      {showRiddleAnswer[r.tweetId]
+                        ? <span style={{ color: "rgba(57,255,20,0.85)" }}>{r.answer}</span>
+                        : <span style={{ color: "rgba(255,255,255,0.15)", fontSize: "11px", letterSpacing: "0.15em" }}>••••••••••</span>
+                      }
+                      <button
+                        onClick={() => setShowRiddleAnswer(p => ({ ...p, [r.tweetId]: !p[r.tweetId] }))}
+                        style={{ background: "transparent", border: "1px solid rgba(57,255,20,0.2)", color: "rgba(57,255,20,0.5)", fontSize: "9px", padding: "2px 8px", cursor: "pointer", fontFamily: "monospace", borderRadius: "2px" }}
+                      >
+                        {showRiddleAnswer[r.tweetId] ? "HIDE" : "REVEAL"}
+                      </button>
                     </div>
                     {!r.solved && (
                       <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
