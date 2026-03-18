@@ -732,9 +732,15 @@ export default function BotDashboard() {
                       ) : (
                         <div style={{ width: "100%", marginTop: "4px" }}>
                           <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
-
+                            <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.4)", marginBottom: "4px" }}>[1/2]</div>
                             {victoryPreview[item.id]}
                           </div>
+                          {victoryPreview[item.id + "_2"] && (
+                            <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,200,0,0.1)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.55)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
+                              <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.25)", marginBottom: "4px" }}>[2/2]</div>
+                              {victoryPreview[item.id + "_2"]}
+                            </div>
+                          )}
 
                           <div style={{ display: "flex", gap: "6px" }}>
                             <button

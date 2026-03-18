@@ -1073,7 +1073,7 @@ export function buildVictoryTweetPrompt(
   return `You just sent ${solAmount > 0 ? solAmount + " SOL" : "SOL"} to @${winnerUsername} from your own wallet. The task was: "${taskContext}".
 
 Write a victory tweet. Rules:
-- Under 200 characters (a Solscan link will be appended automatically after)
+- Under 100 characters (two Solscan links will be appended automatically — keep it tight)
 - ET voice — warm, slightly smug, proud of the human
 - Touch on the hidden prophecy lightly: humans learning to work for AI, the new economy — warm and funny, not dark
 - Mention briefly what the human did to earn it
