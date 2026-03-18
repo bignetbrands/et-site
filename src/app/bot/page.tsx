@@ -739,7 +739,7 @@ export default function BotDashboard() {
                           <div style={{ display: "flex", gap: "6px" }}>
                             <button
                               onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
-                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(255,255,255,0.4)", borderColor: "rgba(255,255,255,0.1)" }}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(150,150,150,0.7)", borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
                             >
                               ↺ REGENERATE
                             </button>
