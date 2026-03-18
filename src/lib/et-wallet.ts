@@ -200,19 +200,29 @@ export async function lockETForWinner(
 
   // Ensure all Streamflow-required $ET token accounts exist
   // These are needed for fee collection — if any is missing, create fails with Custom(97)
-  const STREAMFLOW_ACCOUNTS = [
-    "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw", // Treasury
-    "wdrwhnCv4pzW8beKsbPa4S2UDZrXenjg16KJdKSpb5u",   // Withdrawor
+  // Create all required $ET ATAs upfront — treasury, withdrawor, winner, ET wallet itself
+  // NotAssociated (101) means one of these doesn't exist when Streamflow checks
+  const REQUIRED_ATAS: Array<[string, string]> = [
+    ["5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw", "Treasury"],
+    ["wdrwhnCv4pzW8beKsbPa4S2UDZrXenjg16KJdKSpb5u", "Withdrawor"],
+    [winnerAddress, "Winner"],
+    [keypair.publicKey.toBase58(), "ET wallet"],
   ];
   const mint = new PublicKey(ET_CA);
-  for (const addr of STREAMFLOW_ACCOUNTS) {
+  const missingATAs: Array<{ owner: PublicKey; ata: PublicKey }> = [];
+  for (const [addr] of REQUIRED_ATAS) {
     try {
-      const pubkey = new PublicKey(addr);
-      const ataAddr = await getAssociatedTokenAddress(mint, pubkey);
+      const ownerPubkey = new PublicKey(addr);
+      const ataAddr = await getAssociatedTokenAddress(mint, ownerPubkey);
       const info = await connection.getAccountInfo(ataAddr);
-      if (!info) {
-        console.log(`[Lock] Creating $ET ATA for ${addr.slice(0,8)}...`);
-        const ix = createAssociatedTokenAccountIdempotentInstruction(keypair.publicKey, ataAddr, pubkey, mint);
+      if (!info) missingATAs.push({ owner: ownerPubkey, ata: ataAddr });
+    } catch { /* skip */ }
+  }
+  if (missingATAs.length > 0) {
+    console.log(`[Lock] Creating ${missingATAs.length} missing ATAs...`);
+    for (const { owner, ata: ataAddr } of missingATAs) {
+      try {
+        const ix = createAssociatedTokenAccountIdempotentInstruction(keypair.publicKey, ataAddr, owner, mint);
         const tx = new Transaction();
         tx.add(ix);
         const { blockhash } = await connection.getLatestBlockhash("confirmed");
@@ -220,16 +230,18 @@ export async function lockETForWinner(
         tx.feePayer = keypair.publicKey;
         tx.sign(keypair);
         const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-        for (let i = 0; i < 8; i++) {
+        console.log(`[Lock] ATA sent for ${owner.toBase58().slice(0,8)}: ${sig}`);
+        // Wait for confirmation before proceeding
+        for (let i = 0; i < 15; i++) {
           await new Promise(r => setTimeout(r, 2000));
           const s = await connection.getSignatureStatus(sig);
-          if (s?.value?.confirmationStatus === "confirmed" || s?.value?.confirmationStatus === "finalized") break;
+          const c = s?.value?.confirmationStatus;
+          if (c === "confirmed" || c === "finalized") { console.log(`[Lock] ATA confirmed`); break; }
         }
-        console.log(`[Lock] ATA created for ${addr.slice(0,8)}: ${sig}`);
-      } else {
-        console.log(`[Lock] ATA already exists for ${addr.slice(0,8)}`);
-      }
-    } catch (e: any) { console.warn(`[Lock] ATA note for ${addr.slice(0,8)}: ${e?.message}`); }
+      } catch (e: any) { console.warn(`[Lock] ATA err: ${e?.message}`); }
+    }
+  } else {
+    console.log(`[Lock] All required ATAs exist`);
   }
 
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
