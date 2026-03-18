@@ -246,7 +246,9 @@ export async function lockETForWinner(
 
   // Send raw transaction (no WebSocket subscription — uses HTTP only)
   const rawTx = tx.serialize();
-  const txSignature = await connection.sendRawTransaction(rawTx, { skipPreflight: false, maxRetries: 3 });
+  // skipPreflight: true — simulation can give false positives with orphaned metadata accounts
+  // from previous failed attempts. Let it land on-chain and poll for actual result.
+  const txSignature = await connection.sendRawTransaction(rawTx, { skipPreflight: true, maxRetries: 5 });
   console.log(`[Lock] tx sent: ${txSignature} — polling for confirmation...`);
 
   // Poll for confirmation via HTTP (avoids WebSocket b.mask error on Vercel)
