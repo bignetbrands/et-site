@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRewardsQueue, updateRewardQueueItem, wasRewardPaid, markRewardPaid } from "@/lib/store";
-import { sendSplitReward, pickRewardAmount } from "@/lib/et-wallet";
+import { pickRewardAmount } from "@/lib/et-wallet";
 import { postTweet, postReply } from "@/lib/twitter";
 import { buildVictoryTweetPrompt } from "@/lib/prompts";
 import Anthropic from "@anthropic-ai/sdk";
+
+export const maxDuration = 60; // Jupiter swap + Streamflow lock can take 20-25s
 
 function auth(req: NextRequest) {
   return req.headers.get("authorization") === `Bearer ${process.env.ADMIN_SECRET}`;
@@ -39,23 +41,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ET_WALLET_PRIVATE_KEY not configured" }, { status: 500 });
     }
 
-    // Step 1 — Split reward: 50% SOL direct to winner + 50% swapped to $ET locked 69 days
+    // Step 1a — Send 50% SOL directly (fail hard if this fails)
     let solAmount: number;
     let txSig: string;
-    let swapTxSig = "";
-    let streamId = "";
     try {
       solAmount = pickRewardAmount();
-      const result = await sendSplitReward(walletAddress, solAmount);
-      txSig = result.solTxSignature;
-      swapTxSig = result.swapTxSignature;
-      streamId = result.streamId;
+      const half = Math.round((solAmount / 2) * 1000) / 1000;
+      const { sendSol } = await import("@/lib/et-wallet");
+      txSig = await sendSol(walletAddress, half);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      return NextResponse.json({ error: `Reward failed: ${message}` }, { status: 500 });
+      return NextResponse.json({ error: `SOL transfer failed: ${message}` }, { status: 500 });
     }
 
-    // Step 2 — Record payment immediately (before tweet, so it is never lost)
+    // Step 1b — Record SOL payment IMMEDIATELY (before swap — payment is never lost)
     await markRewardPaid({
       conversationId,
       winner,
@@ -67,6 +66,23 @@ export async function POST(req: NextRequest) {
       paidAt: new Date().toISOString(),
     });
     await updateRewardQueueItem(id, "confirmed");
+
+    // Step 1c — Swap 50% SOL → $ET and lock 69 days (best effort — SOL already safe)
+    let swapTxSig = "";
+    let streamId = "";
+    try {
+      const half = Math.round((solAmount / 2) * 1000) / 1000;
+      const { swapSolForET, lockETForWinner } = await import("@/lib/et-wallet");
+      const { txSignature: swapSig, tokenAmount } = await swapSolForET(half);
+      swapTxSig = swapSig;
+      const { streamId: sid } = await lockETForWinner(walletAddress, tokenAmount);
+      streamId = sid;
+      console.log(`[Rewards] Swap + lock complete — stream: ${streamId}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      // SOL already sent and recorded — log the swap failure but don't fail the request
+      console.error(`[Rewards] Swap/lock failed (SOL already sent): ${message}`);
+    }
 
     // Step 3 — Victory tweet thread [1/2] sol + [2/2] lock (non-critical, best effort)
     let victoryTweetId = "";
