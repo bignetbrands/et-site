@@ -122,11 +122,11 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
       await new Promise(r => setTimeout(r, 2000)); // wait 2s between attempts
       const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
       const acct = await getAccount(connection, ata);
-      if (acct.amount > 0n) { tokenAmount = acct.amount; break; }
+      if (acct.amount > BigInt(0)) { tokenAmount = acct.amount; break; }
     } catch { /* keep retrying */ }
   }
 
-  if (!tokenAmount || tokenAmount === 0n) {
+  if (!tokenAmount || tokenAmount === BigInt(0)) {
     throw new Error(`Token amount is zero after swap — ATA balance not readable. Check wallet on Solscan and use manual lock with exact token amount.`);
   }
 
