@@ -161,6 +161,13 @@ export async function POST(req: NextRequest) {
   if (action === "victory_tweet_preview") {
     if (!winner) return NextResponse.json({ error: "Missing winner" }, { status: 400 });
     try {
+      // Always fetch fresh item from KV so lockTxUrl/solscanUrl are up to date
+      const { getRewardsQueue: getRQp } = await import("@/lib/store");
+      const queueP = await getRQp();
+      const liveItemP = queueP.find((i: any) => i.id === id) as any;
+      const freshSolscanUrl = liveItemP?.solscanUrl || solscanUrl || "";
+      const freshLockTxUrl = liveItemP?.lockTxUrl || lockTxUrl || "";
+
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
       const victoryPrompt = buildVictoryTweetPrompt(winner, taskContext || "completed the mission", 0, "");
       const victoryRes = await client.messages.create({
@@ -174,11 +181,9 @@ export async function POST(req: NextRequest) {
         : `mission complete. SOL sent to @${winner}. the machine pays 👽`;
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
-      const solLink = solscanUrl || walletTweetUrl || null;
-      // preview1 built after preview2 block now
-      // Single tweet: ET voice + SOL link + lock link
-      const solLine = solLink ? `\nsol: ${solLink}` : "";
-      const lockLine = lockTxUrl ? `\nlock: ${lockTxUrl}` : "";
+      const solLink = freshSolscanUrl || walletTweetUrl || null;
+      const solLine = solLink ? `\nsol payment: ${solLink}` : "";
+      const lockLine = freshLockTxUrl ? `\n$et lock (69 days): ${freshLockTxUrl}` : "";
       const preview1 = `${cleanVictory}${solLine}${lockLine}`.substring(0, 280);
       return NextResponse.json({ success: true, preview: preview1, preview2: "" });
     } catch (err: unknown) {
@@ -204,10 +209,16 @@ export async function POST(req: NextRequest) {
 
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
 
-      // Single tweet with ET voice + labeled links
-      const solLink = solscanUrl || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
+      // Always fetch fresh item from KV so lockTxUrl/solscanUrl are current
+      const { getRewardsQueue: getRQv } = await import("@/lib/store");
+      const queueV = await getRQv();
+      const liveItemV = queueV.find((i: any) => i.id === id) as any;
+      const freshSolscanUrlV = liveItemV?.solscanUrl || solscanUrl || "";
+      const freshLockTxUrlV = liveItemV?.lockTxUrl || lockTxUrl || "";
+
+      const solLink = freshSolscanUrlV || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
       const solLine = solLink ? `\nsol payment: ${solLink}` : "";
-      const lockLine = lockTxUrl ? `\n$et lock (69 days): ${lockTxUrl}` : "";
+      const lockLine = freshLockTxUrlV ? `\n$et lock (69 days): ${freshLockTxUrlV}` : "";
       const tweet1 = `${cleanVictory}${solLine}${lockLine}`.substring(0, 280);
       const victoryTweetId = await postTweet(tweet1);
       return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id: null });
