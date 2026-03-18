@@ -165,56 +165,82 @@ export async function lockETForWinner(
 ): Promise<{ streamId: string; txSignature: string }> {
   const keypair = getKeypair();
   const connection = getConnection();
-  console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
+  console.log(`[Lock] Step 1: start — ${tokenAmount} tokens for ${winnerAddress}`);
 
-  // Ensure winner's token account exists
+  // Step 1 — Ensure winner ATA
   try {
     await createAssociatedTokenAccountIdempotent(connection, keypair, new PublicKey(ET_CA), new PublicKey(winnerAddress));
-    console.log(`[ET Wallet] Winner ATA ensured`);
-  } catch (e: any) { console.warn(`[ET Wallet] ATA note: ${e?.message}`); }
+    console.log(`[Lock] Step 1 done: winner ATA ensured`);
+  } catch (e: any) { console.warn(`[Lock] Step 1 note (ATA may exist): ${e?.message}`); }
 
+  // Step 2 — Import Streamflow
+  console.log(`[Lock] Step 2: importing Streamflow SDK...`);
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
-  const client = new SolanaStreamClient({ clusterUrl: process.env.SOLANA_RPC_URL!, cluster: ICluster.Mainnet });
+  console.log(`[Lock] Step 2 done: SDK imported`);
 
+  const client = new SolanaStreamClient({ clusterUrl: process.env.SOLANA_RPC_URL!, cluster: ICluster.Mainnet });
   const now = Math.floor(Date.now() / 1000);
   const totalBN = getBN(Number(tokenAmount), 0);
   const nonce = Math.floor(Math.random() * 1000000);
-  console.log(`[ET Wallet] Building Streamflow tx — amount: ${totalBN.toString()}, nonce: ${nonce}`);
+  console.log(`[Lock] Step 3: building tx instructions — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
-  // Build instructions WITHOUT sending — avoids Streamflow's hanging retry loop
-  const { ixs, metadataId, metadata } = await client.buildCreateTransactionInstructions(
-    {
-      recipient: winnerAddress,
-      tokenId: ET_CA,
-      start: now + 60,
-      amount: totalBN,
-      period: 1,
-      cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
-      cliffAmount: totalBN,
-      amountPerPeriod: getBN(0, 0),
-      name: `ET Reward ${nonce}`,
-      cancelableBySender: false,
-      cancelableByRecipient: false,
-      transferableBySender: false,
-      transferableByRecipient: false,
-      automaticWithdrawal: false,
-      canTopup: false,
-    },
-    { sender: keypair as any, isNative: false }
-  );
+  // Step 3 — Build instructions (with timeout)
+  const streamParams = {
+    recipient: winnerAddress,
+    tokenId: ET_CA,
+    start: now + 60,
+    amount: totalBN,
+    period: 1,
+    cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
+    cliffAmount: totalBN,
+    amountPerPeriod: getBN(0, 0),
+    name: `ET Reward ${nonce}`,
+    cancelableBySender: false,
+    cancelableByRecipient: false,
+    transferableBySender: false,
+    transferableByRecipient: false,
+    automaticWithdrawal: false,
+    canTopup: false,
+  };
 
-  console.log(`[ET Wallet] Streamflow metadataId: ${metadataId} — sending manually...`);
+  let ixs: any[], metadataId: string, metadata: any;
+  try {
+    const buildPromise = client.buildCreateTransactionInstructions(
+      streamParams,
+      { sender: keypair as any, isNative: false }
+    );
+    const buildTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("buildCreateTransactionInstructions timed out after 20s")), 20000)
+    );
+    const result = await Promise.race([buildPromise, buildTimeout]) as any;
+    ixs = result.ixs;
+    metadataId = result.metadataId;
+    metadata = result.metadata;
+  } catch (e: any) {
+    throw new Error(`Streamflow buildTx failed: ${e?.message || e}`);
+  }
+  console.log(`[Lock] Step 3 done: metadataId=${metadataId}, ixs count=${ixs.length}`);
 
-  // Use our own transaction send (same path as SOL transfers — proven to work on Vercel)
-  const { Transaction } = await import("@solana/web3.js");
+  // Step 4 — Build and send transaction manually
+  console.log(`[Lock] Step 4: building Transaction object...`);
   const tx = new Transaction();
   for (const ix of ixs) {
     if (ix && "keys" in ix) tx.add(ix as any);
   }
-  const txSignature = await sendAndConfirmTransaction(connection, tx, [keypair, metadata as any], { commitment: "confirmed" });
+  console.log(`[Lock] Step 4: tx built with ${tx.instructions.length} instructions, sending...`);
 
-  console.log(`[ET Wallet] Streamflow lock created — stream: ${metadataId}, tx: ${txSignature}`);
-  return { streamId: metadataId, txSignature };
+  try {
+    const sendPromise = sendAndConfirmTransaction(connection, tx, [keypair, metadata as any], { commitment: "confirmed" });
+    const sendTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("sendAndConfirmTransaction timed out after 30s")), 30000)
+    );
+    const txSignature = await Promise.race([sendPromise, sendTimeout]) as string;
+    console.log(`[Lock] Step 4 done: tx confirmed — ${txSignature}`);
+    console.log(`[Lock] SUCCESS — stream: ${metadataId}, tx: ${txSignature}`);
+    return { streamId: metadataId, txSignature };
+  } catch (e: any) {
+    throw new Error(`Streamflow send failed: ${e?.message || e}`);
+  }
 }
 
 export async function sendSplitReward(
