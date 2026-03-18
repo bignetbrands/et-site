@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { action, tweetId, winner, walletAddress, winnerTweetUrl } = await req.json();
+  const { action, tweetId, winner, walletAddress, winnerTweetUrl, tweetUrl, question, answer } = await req.json();
 
   if (action === "pick_winner") {
     if (!tweetId || !winner) {
@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "manual_add") {
-    const { tweetUrl, question, answer } = await req.json().catch(() => ({}));
     if (!tweetUrl || !question || !answer) {
       return NextResponse.json({ error: "Missing tweetUrl, question, or answer" }, { status: 400 });
     }
