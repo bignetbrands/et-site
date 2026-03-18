@@ -184,9 +184,7 @@ export async function POST(req: NextRequest) {
       const solLink = freshSolscanUrl || walletTweetUrl || null;
       const solLine = solLink ? `\nsol payment: ${solLink}` : "";
       const lockLine = freshLockTxUrl ? `\n$et lock (69 days): ${freshLockTxUrl}` : "";
-      const linkChars = solLine.length + lockLine.length;
-      const voiceCap = Math.max(50, 278 - linkChars);
-      const preview1 = `${cleanVictory.substring(0, voiceCap)}${solLine}${lockLine}`.substring(0, 280);
+
       return NextResponse.json({ success: true, preview: preview1, preview2: "" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -221,9 +219,7 @@ export async function POST(req: NextRequest) {
       const solLink = freshSolscanUrlV || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
       const solLine = solLink ? `\nsol payment: ${solLink}` : "";
       const lockLine = freshLockTxUrlV ? `\n$et lock (69 days): ${freshLockTxUrlV}` : "";
-      const linkChars = solLine.length + lockLine.length;
-      const voiceCap = Math.max(50, 278 - linkChars);
-      const tweet1 = `${cleanVictory.substring(0, voiceCap)}${solLine}${lockLine}`.substring(0, 280);
+
       const victoryTweetId = await postTweet(tweet1);
       return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id: null });
     } catch (err: unknown) {
