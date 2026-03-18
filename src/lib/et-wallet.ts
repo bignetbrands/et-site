@@ -153,7 +153,14 @@ export async function ensureWinnerATA(winnerAddress: string): Promise<string> {
   const winnerPubkey = new PublicKey(winnerAddress);
   const ata = await getAssociatedTokenAddress(tokenMint, winnerPubkey);
   try {
-    await createAssociatedTokenAccountIdempotent(connection, keypair, tokenMint, winnerPubkey);
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(keypair.publicKey, ata, winnerPubkey, tokenMint);
+    const tx = new Transaction();
+    tx.add(ataIx);
+    const { blockhash } = await connection.getLatestBlockhash("confirmed");
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = keypair.publicKey;
+    tx.sign(keypair);
+    await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
     console.log(`[ET Wallet] Winner ATA ensured: ${ata.toBase58()}`);
   } catch (e: any) {
     console.warn(`[ET Wallet] ATA note (may already exist): ${e?.message}`);
