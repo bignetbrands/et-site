@@ -142,6 +142,7 @@ export async function generateReply(
   imageUrls?: string[],
   threadDepth?: number,
   selfAwarenessContext?: string,
+  forceReply?: boolean,
 ): Promise<string> {
   // Build message content — text + optional images
   const content: Array<{ type: string; source?: Record<string, string>; text?: string }> = [];
@@ -162,7 +163,7 @@ export async function generateReply(
   // Add the text prompt
   content.push({
     type: "text",
-    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, threadDepth, selfAwarenessContext),
+    text: buildReplyPrompt(mentionText, authorUsername, conversationContext, imageUrls && imageUrls.length > 0, threadDepth, selfAwarenessContext, forceReply),
   });
 
   const response = await getClient().messages.create({

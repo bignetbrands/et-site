@@ -225,6 +225,7 @@ export async function decideReply(input: ReplyInput): Promise<ReplyDecision> {
     imageUrls,
     threadDepth,
     selfAwarenessContext,
+    forceReply,
   );
 
   if (!replyText || replyText.trim().toUpperCase() === "SKIP") {

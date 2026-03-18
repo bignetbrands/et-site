@@ -966,6 +966,7 @@ export function buildReplyPrompt(
   hasImages?: boolean,
   threadDepth?: number,
   selfAwarenessContext?: string,
+  forceReply?: boolean,
 ): string {
   let prompt = `Someone tweeted at you:\n\n@${authorUsername}: "${mentionText}"`;
 
@@ -992,7 +993,7 @@ export function buildReplyPrompt(
 
   if (threadDepth && threadDepth > 0) {
     prompt += `\n\nTHREAD DEPTH: You've already replied ${threadDepth} time(s) in this conversation thread today.`;
-    if (threadDepth >= 3) {
+    if (threadDepth >= 3 && !forceReply) {
       prompt += ` Use your judgment — if the banter is going in circles, getting silly with no substance, or the conversation has run its course, respond with SKIP (just that word, nothing else) and we'll move on. Only keep going if there's genuinely something new or interesting to say.`;
     }
   }
@@ -1031,7 +1032,7 @@ NEVER give a specific SOL amount. NEVER write the full task here.`;
 
   prompt += `\n\nReply as ET. ${conversationContext 
     ? "You're deep in a thread. Do NOT repeat jokes or observations you already made (check your [YOU] replies above). Say something NEW that moves the conversation forward. Be direct and actionable, not philosophical." 
-    : "If the tweet is about news, science, disclosure, or something substantial: lead with a joke THEN add genuine insight or a provocative question that drives replies (up to 280 chars). If it's just banter: one short punchy sentence."} Max 280 chars. Output ONLY the reply (or SKIP to disengage).`;
+    : "If the tweet is about news, science, disclosure, or something substantial: lead with a joke THEN add genuine insight or a provocative question that drives replies (up to 280 chars). If it's just banter: one short punchy sentence."} Max 280 chars. ${forceReply ? "Output ONLY the reply." : "Output ONLY the reply (or SKIP to disengage)."}`;
 
   return prompt;
 }

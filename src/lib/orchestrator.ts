@@ -935,6 +935,7 @@ export async function replyToSpecificTweet(
       authorUsername: author,
       imageUrls: tweet.imageUrls.length > 0 ? tweet.imageUrls : undefined,
       conversationContext,
+      forceReply: true, // admin force reply — never SKIP
     });
 
     if (decision.type === "skip") {
