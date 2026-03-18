@@ -901,10 +901,8 @@ export async function replyToSpecificTweet(
         depth++;
       }
       if (contextParts.length > 0) {
-        conversationContext = contextParts.join("
-");
-        console.log(`[ET Reply] Thread context (${contextParts.length} tweets):
-${conversationContext}`);
+        conversationContext = contextParts.join("\n");
+        console.log(`[ET Reply] Thread context (${contextParts.length} tweets): ${conversationContext}`);
       }
     }
 
