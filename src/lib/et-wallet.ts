@@ -72,13 +72,20 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
 
   console.log(`[ET Wallet] Swapping ${solAmount} SOL for $ET via Jupiter...`);
 
-  const quoteRes = await fetch(
-    `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300`
-  );
-  if (!quoteRes.ok) throw new Error(`Jupiter quote failed: ${await quoteRes.text()}`);
+  let quoteRes: Response;
+  try {
+    quoteRes = await fetch(
+      `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300`
+    );
+  } catch (e: any) {
+    throw new Error(`Jupiter quote fetch failed (network error — check if quote-api.jup.ag is reachable): ${e?.message || e}`);
+  }
+  if (!quoteRes.ok) throw new Error(`Jupiter quote error ${quoteRes.status}: ${await quoteRes.text()}`);
   const quote = await quoteRes.json();
 
-  const swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
+  let swapRes: Response;
+  try {
+    swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -89,7 +96,10 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
       prioritizationFeeLamports: 1000,
     }),
   });
-  if (!swapRes.ok) throw new Error(`Jupiter swap failed: ${await swapRes.text()}`);
+  } catch (e: any) {
+    throw new Error(`Jupiter swap fetch failed (network error): ${e?.message || e}`);
+  }
+  if (!swapRes.ok) throw new Error(`Jupiter swap error ${swapRes.status}: ${await swapRes.text()}`);
   const { swapTransaction } = await swapRes.json();
 
   const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
