@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, action, conversationId, winner, walletAddress, walletTweetId, taskContext, solscanUrl, streamId } = await req.json();
+  const { id, action, conversationId, winner, walletAddress, walletTweetId, taskContext, solscanUrl, lockTxUrl, streamId } = await req.json();
 
   if (!id || !action) return NextResponse.json({ error: "Missing id or action" }, { status: 400 });
 
@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
     const idx = queue.findIndex((i: any) => i.id === id);
     if (idx === -1) return NextResponse.json({ error: "Item not found" }, { status: 404 });
     if (solscanUrl !== undefined) queue[idx].solscanUrl = solscanUrl;
+    if (lockTxUrl !== undefined) queue[idx].lockTxUrl = lockTxUrl;
     await kv.set("et:rewards_queue", queue);
     return NextResponse.json({ success: true });
   }

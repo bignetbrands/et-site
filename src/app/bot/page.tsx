@@ -635,34 +635,62 @@ export default function BotDashboard() {
                     <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
                       {(item.taskContext || "").substring(0, 100)}
                     </div>
-                    {/* Solscan URL edit field */}
-                    <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
-                      <input
-                        id={`solscan_${item.id}`}
-                        defaultValue={item.solscanUrl || ""}
-                        placeholder="Solscan tx URL"
-                        style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
-                      />
-                      <button
-                        onClick={async () => {
-                          const val = (document.getElementById(`solscan_${item.id}`) as HTMLInputElement)?.value.trim();
-                          setRewardsLoading(item.id + "_save");
-                          const res = await fetch("/api/admin/rewards", {
-                            method: "POST",
-                            headers: { ...authHeaders, "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: item.id, action: "update_item", solscanUrl: val }),
-                          });
-                          const data = await res.json();
-                          if (data.success) { addLog(`Saved Solscan URL for @${item.winner}`, "success"); loadRewardsQueue(); }
-                          else { addLog(`Save failed: ${data.error}`, "error"); }
-                          setRewardsLoading("");
-                        }}
-                        disabled={rewardsLoading === item.id + "_save"}
-                        style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
-                      >
-                        {rewardsLoading === item.id + "_save" ? "..." : "SAVE"}
-                      </button>
-                    </div>
+                    {/* Solscan + Lock TX URLs — hides when both are saved */}
+                    {(!item.solscanUrl || !item.lockTxUrl) && (
+                      <div style={{ marginBottom: "8px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "3px", padding: "8px" }}>
+                        <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", marginBottom: "6px" }}>TRANSACTION URLS</div>
+                        {!item.solscanUrl && (
+                          <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
+                            <input
+                              id={`solscan_${item.id}`}
+                              defaultValue={item.solscanUrl || ""}
+                              placeholder="SOL payment — Solscan URL"
+                              style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
+                            />
+                            <button
+                              onClick={async () => {
+                                const val = (document.getElementById(`solscan_${item.id}`) as HTMLInputElement)?.value.trim();
+                                setRewardsLoading(item.id + "_save");
+                                const res = await fetch("/api/admin/rewards", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, action: "update_item", solscanUrl: val }) });
+                                const data = await res.json();
+                                if (data.success) { addLog(`Saved SOL tx for @${item.winner}`, "success"); loadRewardsQueue(); }
+                                else addLog(`Save failed: ${data.error}`, "error");
+                                setRewardsLoading("");
+                              }}
+                              disabled={rewardsLoading === item.id + "_save"}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
+                            >
+                              {rewardsLoading === item.id + "_save" ? "..." : "SAVE"}
+                            </button>
+                          </div>
+                        )}
+                        {!item.lockTxUrl && (
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <input
+                              id={`locktx_${item.id}`}
+                              defaultValue={item.lockTxUrl || ""}
+                              placeholder="Lock tx — Solscan URL (from ET Locks panel)"
+                              style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
+                            />
+                            <button
+                              onClick={async () => {
+                                const val = (document.getElementById(`locktx_${item.id}`) as HTMLInputElement)?.value.trim();
+                                setRewardsLoading(item.id + "_savelock");
+                                const res = await fetch("/api/admin/rewards", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, action: "update_item", lockTxUrl: val }) });
+                                const data = await res.json();
+                                if (data.success) { addLog(`Saved lock tx for @${item.winner}`, "success"); loadRewardsQueue(); }
+                                else addLog(`Save failed: ${data.error}`, "error");
+                                setRewardsLoading("");
+                              }}
+                              disabled={rewardsLoading === item.id + "_savelock"}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(100,150,255,0.08)", borderColor: "rgba(100,150,255,0.2)", color: "rgba(100,150,255,0.8)" }}
+                            >
+                              {rewardsLoading === item.id + "_savelock" ? "..." : "SAVE"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
                       {item.walletTweetId && (
                         <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
@@ -673,7 +701,13 @@ export default function BotDashboard() {
                       {item.solscanUrl && (
                         <a href={item.solscanUrl} target="_blank" rel="noopener noreferrer"
                           style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(100,200,255,0.7)", border: "1px solid rgba(100,200,255,0.15)" }}>
-                          SOLSCAN ↗
+                          SOL TX ↗
+                        </a>
+                      )}
+                      {item.lockTxUrl && (
+                        <a href={item.lockTxUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(150,180,255,0.7)", border: "1px solid rgba(150,180,255,0.15)" }}>
+                          🔒 LOCK TX ↗
                         </a>
                       )}
                       {!victoryPreview[item.id] ? (
