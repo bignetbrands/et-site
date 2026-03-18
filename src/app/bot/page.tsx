@@ -45,6 +45,8 @@ export default function BotDashboard() {
   const [riddles, setRiddles] = useState<any[]>([]);
   const [riddleWinner, setRiddleWinner] = useState<Record<string, { winner: string; wallet: string; tweetUrl: string }>>({});
   const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "" });
+  const [checkReplyUrl, setCheckReplyUrl] = useState<Record<string, string>>({});
+  const [checkVerdict, setCheckVerdict] = useState<Record<string, any>>({});
   const [showRiddleAnswer, setShowRiddleAnswer] = useState<Record<string, boolean>>({});
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
@@ -1125,6 +1127,72 @@ export default function BotDashboard() {
                     </div>
                     {!r.solved && (
                       <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
+
+                        {/* Check if winner */}
+                        <div style={{ marginBottom: "12px" }}>
+                          <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>🔍 CHECK REPLY — paste a reply URL to see if it is correct:</div>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <input
+                              value={checkReplyUrl[r.tweetId] || ""}
+                              onChange={(e: any) => {
+                                setCheckReplyUrl(p => ({ ...p, [r.tweetId]: e.target.value }));
+                                setCheckVerdict(p => { const n = {...p}; delete n[r.tweetId]; return n; });
+                              }}
+                              placeholder="https://x.com/.../status/..."
+                              style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", flex: 1 }}
+                            />
+                            <button
+                              onClick={async () => {
+                                const url = checkReplyUrl[r.tweetId];
+                                if (!url) { addLog("Paste a reply URL first", "warn"); return; }
+                                setLoading("check_" + r.tweetId);
+                                const res = await fetch("/api/admin/riddle-check", {
+                                  method: "POST",
+                                  headers: { ...authHeaders, "Content-Type": "application/json" },
+                                  body: JSON.stringify({ tweetId: r.tweetId, replyUrl: url }),
+                                });
+                                const data = await res.json();
+                                if (data.success) setCheckVerdict(p => ({ ...p, [r.tweetId]: data }));
+                                else addLog(`Check failed: ${data.error}`, "error");
+                                setLoading("");
+                              }}
+                              disabled={!!loading}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", whiteSpace: "nowrap" as const }}
+                            >
+                              {loading === "check_" + r.tweetId ? "checking..." : "CHECK"}
+                            </button>
+                          </div>
+                          {checkVerdict[r.tweetId] && (() => {
+                            const v = checkVerdict[r.tweetId];
+                            const correct = v.verdict?.correct;
+                            const confidence = v.verdict?.confidence;
+                            const color = correct ? "#00ff64" : confidence === "low" ? "#ff4444" : "#ffcc00";
+                            const icon = correct ? "✅" : "❌";
+                            return (
+                              <div style={{ marginTop: "8px", background: "rgba(0,0,0,0.3)", border: `1px solid ${color}33`, borderRadius: "3px", padding: "8px 10px" }}>
+                                <div style={{ fontSize: "10px", color, fontWeight: 700, marginBottom: "4px" }}>
+                                  {icon} @{v.replyAuthor} — {correct ? "CORRECT" : "WRONG"} ({confidence} confidence)
+                                </div>
+                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "4px", fontStyle: "italic" }}>
+                                  "{v.replyText?.substring(0, 120)}"
+                                </div>
+                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)" }}>{v.verdict?.reasoning}</div>
+                                {correct && (
+                                  <button
+                                    onClick={() => {
+                                      setRiddleWinner(p => ({ ...p, [r.tweetId]: { winner: v.replyAuthor, wallet: "", tweetUrl: checkReplyUrl[r.tweetId] } }));
+                                      addLog(`@${v.replyAuthor} pre-filled as winner — add wallet and confirm below`, "info");
+                                    }}
+                                    style={{ marginTop: "6px", ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.1)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
+                                  >
+                                    → USE AS WINNER
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
                         <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>PICK WINNER — paste the winning reply details:</div>
                         <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
                           <input
