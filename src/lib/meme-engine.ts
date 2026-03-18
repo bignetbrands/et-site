@@ -160,3 +160,25 @@ export function isFinancialAdvisorMention(text: string): boolean {
 export function isTokenOpinionRequest(text: string): boolean {
   return /\b(should i (buy|sell|ape|hold|yolo)|is .{1,20} (worth|good|legit)|what.*think.*\$[A-Z]|gem or rug|rug or gem)\b/i.test(text);
 }
+
+// Alpha request troll texts — brief, ends with bio callout
+const ALPHA_TEXTS = [
+  "check my bio for coordinates 👽",
+  "bio has the signal. IYKYK 😉",
+  "i scan signals not floor prices. coordinates in bio 👽",
+  "the alpha is in the bio fren 😉",
+  "real ones already know. bio 👽",
+  "IYKYK 😉",
+  "it's in the bio. the rest is up to you 👽",
+];
+
+export function getAlphaText(): string {
+  return ALPHA_TEXTS[Math.floor(Math.random() * ALPHA_TEXTS.length)];
+}
+
+/**
+ * Detect if a mention is asking for alpha / CA / what to buy.
+ */
+export function isAlphaRequest(text: string): boolean {
+  return /\b(gib\s*(me\s*)?alpha|drop\s*(the\s*)?alpha|can\s*(you\s*)?bless|bless\s+\w+\s+with|what.*alpha|alpha\?|ca\s*pls|ca\s*please|gib\s*ca|drop\s*ca|what.*ca|contract\s*address|what\s*(should\s*i|to)\s*(buy|ape|degen|get into))\b/i.test(text);
+}
