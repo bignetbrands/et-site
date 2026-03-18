@@ -78,54 +78,45 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
     "User-Agent": "etsearch.fun/1.0",
   };
 
-  // Try new Jupiter API first, fall back to legacy v6
-  const quoteEndpoints = [
-    `https://api.jup.ag/swap/v1/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300&restrictIntermediateTokens=true`,
-    `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300`,
-  ];
-
-  let quote: any = null;
-  let usedNewApi = false;
-  let lastErr = "";
-  for (let i = 0; i < quoteEndpoints.length; i++) {
-    try {
-      const r = await fetch(quoteEndpoints[i], { headers: JUP_HEADERS });
-      if (r.ok) { quote = await r.json(); usedNewApi = i === 0; break; }
-      lastErr = `HTTP ${r.status}: ${await r.text()}`;
-    } catch (e: any) { lastErr = e?.message || String(e); }
-  }
-  if (!quote) throw new Error(`Jupiter quote failed on all endpoints: ${lastErr}`);
-  console.log(`[ET Wallet] Jupiter quote: ${quote.outAmount} raw $ET`);
-
-  const swapUrl = usedNewApi ? "https://api.jup.ag/swap/v1/swap" : "https://quote-api.jup.ag/v6/swap";
-  let swapRes: Response;
+  // Step 1 — Get order from Jupiter Ultra (works for pre-bond pump.fun tokens)
+  const orderUrl = `https://ultra-api.jup.ag/order?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&taker=${keypair.publicKey.toBase58()}`;
+  let orderData: any;
   try {
-    swapRes = await fetch(swapUrl, {
+    const orderRes = await fetch(orderUrl, { headers: JUP_HEADERS });
+    if (!orderRes.ok) throw new Error(`HTTP ${orderRes.status}: ${await orderRes.text()}`);
+    orderData = await orderRes.json();
+  } catch (e: any) {
+    throw new Error(`Jupiter Ultra order failed: ${e?.message || e}`);
+  }
+  console.log(`[ET Wallet] Jupiter Ultra order: ${orderData.outAmount} raw $ET, requestId: ${orderData.requestId}`);
+
+  // Step 2 — Sign the transaction
+  const tx = VersionedTransaction.deserialize(Buffer.from(orderData.transaction, "base64"));
+  tx.sign([keypair]);
+  const signedTxBase64 = Buffer.from(tx.serialize()).toString("base64");
+
+  // Step 3 — Execute via Ultra
+  let executeData: any;
+  try {
+    const execRes = await fetch("https://ultra-api.jup.ag/execute", {
       method: "POST",
       headers: JUP_HEADERS,
-      body: JSON.stringify({
-        quoteResponse: quote,
-        userPublicKey: keypair.publicKey.toBase58(),
-        wrapAndUnwrapSol: true,
-        dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: 1000,
-      }),
+      body: JSON.stringify({ signedTransaction: signedTxBase64, requestId: orderData.requestId }),
     });
+    if (!execRes.ok) throw new Error(`HTTP ${execRes.status}: ${await execRes.text()}`);
+    executeData = await execRes.json();
   } catch (e: any) {
-    throw new Error(`Jupiter swap fetch failed: ${e?.message || e}`);
+    throw new Error(`Jupiter Ultra execute failed: ${e?.message || e}`);
   }
-  if (!swapRes.ok) throw new Error(`Jupiter swap error ${swapRes.status}: ${await swapRes.text()}`);
-  const { swapTransaction } = await swapRes.json();
 
-  const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
-  tx.sign([keypair]);
-
-  const txSignature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
-  await connection.confirmTransaction(txSignature, "confirmed");
-  console.log(`[ET Wallet] Jupiter swap done — tx: ${txSignature}`);
+  if (executeData.status !== "Success") {
+    throw new Error(`Jupiter Ultra swap failed: ${executeData.error || JSON.stringify(executeData)}`);
+  }
+  const txSignature = executeData.signature;
+  console.log(`[ET Wallet] Jupiter Ultra swap done — tx: ${txSignature}`);
 
   // Read actual received amount from ATA
-  let tokenAmount = BigInt(quote.outAmount);
+  let tokenAmount = BigInt(orderData.outAmount || 0);
   try {
     const ata = await getAssociatedTokenAddress(new PublicKey(ET_CA), keypair.publicKey);
     const acct = await getAccount(connection, ata);
