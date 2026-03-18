@@ -195,7 +195,7 @@ export async function executeTweet(
           tweetText = stripLeadingMentions(tweetText);
           const tweetId = await postTweetWithImage(tweetText, memeBuffer);
           console.log(`[ET] Posted tweet with meme library image: ${tweetId}`);
-          const record: import("./store").TweetRecord = {
+          const record: TweetRecord = {
             id: tweetId, text: tweetText, pillar, createdAt: new Date().toISOString(), hasImage: true,
           };
           const { recordTweet } = await import("./store");
