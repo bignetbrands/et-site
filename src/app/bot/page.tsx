@@ -363,9 +363,15 @@ export default function BotDashboard() {
             <div style={styles.panelTitle}>🔒 ET LOCKS</div>
             <button onClick={loadEtLocks} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
           </div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            In-house 69-day timelock. Zero fees. Tokens stay in ET wallet, auto-released by daily cron.
+          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "8px", lineHeight: "1.6" }}>
+            In-house 69-day timelock. Zero protocol fees. Escrow keypair holds tokens until unlock.
           </div>
+          {walletInfo?.etBalance && (
+            <div style={{ fontSize: "10px", color: "rgba(57,255,20,0.6)", marginBottom: "12px", background: "rgba(57,255,20,0.04)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "3px", padding: "6px 10px" }}>
+              ET wallet available: <strong>{Number(walletInfo.etBalance).toLocaleString()} $ET</strong>
+              <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: "8px", fontSize: "9px" }}>enter this number in the token amount field below</span>
+            </div>
+          )}
           {etLocks.length > 0 && (
             <div style={{ marginBottom: "16px" }}>
               {etLocks.map((lock: any) => {
@@ -448,7 +454,7 @@ export default function BotDashboard() {
                   const res = await fetch("/api/admin/lock", {
                     method: "POST",
                     headers: { ...authHeaders, "Content-Type": "application/json" },
-                    body: JSON.stringify({ walletAddress: wallet, solAmount: usingTokenAmount ? 0 : amount, tokenAmount: usingTokenAmount ? tokenAmount : undefined }),
+                    body: JSON.stringify({ walletAddress: wallet, solAmount: usingTokenAmount ? 0 : amount, tokenAmount: usingTokenAmount ? String(Math.round(parseFloat(tokenAmount) * 1_000_000)) : undefined }),
                   });
                   const data = await res.json();
                   if (data.success) {
