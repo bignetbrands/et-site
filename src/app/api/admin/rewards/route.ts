@@ -219,11 +219,18 @@ export async function POST(req: NextRequest) {
       const freshLockTxUrlV = liveItemV?.lockTxUrl || lockTxUrl || "";
 
       const solLink = freshSolscanUrlV || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
-      const solLine = solLink ? `\nsol payment: ${solLink}` : "";
-      const lockLine = freshLockTxUrlV ? `\n$et lock (69 days): ${freshLockTxUrlV}` : "";
-
+      // [1/2] full ET voice only
+      const tweet1 = `${cleanVictory} 👽 [1/2]`.substring(0, 280);
       const victoryTweetId = await postTweet(tweet1);
-      return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id: null });
+      // [2/2] links only, posted as reply
+      let victoryTweet2Id = null;
+      if (victoryTweetId) {
+        const solLine = solLink ? `sol payment: ${solLink}` : "";
+        const lockLine = freshLockTxUrlV ? `$et lock (69 days): ${freshLockTxUrlV}` : "";
+        const tweet2 = ([solLine, lockLine].filter(Boolean).join("\n") + " [2/2]").substring(0, 280);
+        victoryTweet2Id = await postReply(tweet2, victoryTweetId);
+      }
+      return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json({ error: message }, { status: 500 });
