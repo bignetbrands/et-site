@@ -72,32 +72,47 @@ export async function swapSolForET(solAmount: number): Promise<{ txSignature: st
 
   console.log(`[ET Wallet] Swapping ${solAmount} SOL for $ET via Jupiter...`);
 
-  let quoteRes: Response;
-  try {
-    quoteRes = await fetch(
-      `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300`
-    );
-  } catch (e: any) {
-    throw new Error(`Jupiter quote fetch failed (network error — check if quote-api.jup.ag is reachable): ${e?.message || e}`);
-  }
-  if (!quoteRes.ok) throw new Error(`Jupiter quote error ${quoteRes.status}: ${await quoteRes.text()}`);
-  const quote = await quoteRes.json();
+  const JUP_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "User-Agent": "etsearch.fun/1.0",
+  };
 
+  // Try new Jupiter API first, fall back to legacy v6
+  const quoteEndpoints = [
+    `https://api.jup.ag/swap/v1/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300&restrictIntermediateTokens=true`,
+    `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${ET_CA}&amount=${lamports}&slippageBps=300`,
+  ];
+
+  let quote: any = null;
+  let usedNewApi = false;
+  let lastErr = "";
+  for (let i = 0; i < quoteEndpoints.length; i++) {
+    try {
+      const r = await fetch(quoteEndpoints[i], { headers: JUP_HEADERS });
+      if (r.ok) { quote = await r.json(); usedNewApi = i === 0; break; }
+      lastErr = `HTTP ${r.status}: ${await r.text()}`;
+    } catch (e: any) { lastErr = e?.message || String(e); }
+  }
+  if (!quote) throw new Error(`Jupiter quote failed on all endpoints: ${lastErr}`);
+  console.log(`[ET Wallet] Jupiter quote: ${quote.outAmount} raw $ET`);
+
+  const swapUrl = usedNewApi ? "https://api.jup.ag/swap/v1/swap" : "https://quote-api.jup.ag/v6/swap";
   let swapRes: Response;
   try {
-    swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      quoteResponse: quote,
-      userPublicKey: keypair.publicKey.toBase58(),
-      wrapAndUnwrapSol: true,
-      dynamicComputeUnitLimit: true,
-      prioritizationFeeLamports: 1000,
-    }),
-  });
+    swapRes = await fetch(swapUrl, {
+      method: "POST",
+      headers: JUP_HEADERS,
+      body: JSON.stringify({
+        quoteResponse: quote,
+        userPublicKey: keypair.publicKey.toBase58(),
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 1000,
+      }),
+    });
   } catch (e: any) {
-    throw new Error(`Jupiter swap fetch failed (network error): ${e?.message || e}`);
+    throw new Error(`Jupiter swap fetch failed: ${e?.message || e}`);
   }
   if (!swapRes.ok) throw new Error(`Jupiter swap error ${swapRes.status}: ${await swapRes.text()}`);
   const { swapTransaction } = await swapRes.json();
