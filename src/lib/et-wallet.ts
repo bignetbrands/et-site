@@ -268,7 +268,7 @@ export async function lockETForWinner(
     transferableByRecipient: false,
     automaticWithdrawal: false,
     canTopup: false,
-    nonce, // pass nonce so Streamflow derives a PDA metadata account (required by program)
+    // No nonce — use keypair-based metadata (create_v1 instruction, known good on mainnet)
   };
 
   // buildCreateTransaction returns a fully-formed VersionedTransaction — no manual instruction assembly
@@ -278,9 +278,10 @@ export async function lockETForWinner(
   );
   console.log(`[Lock] tx built — metadataId: ${metadataId}`);
 
-  // When nonce is passed, metadata is a PDA (no keypair to sign)
-  // Only ET keypair needs to sign
-  versionedTx.sign([keypair]);
+  // Sign with ET keypair + metadata keypair (required for create instruction)
+  const signers: any[] = [keypair];
+  if (metadata) signers.push(metadata);
+  versionedTx.sign(signers);
 
   // Send raw (skipPreflight) + poll HTTP confirmation
   const rawTx = Buffer.from(versionedTx.serialize());
