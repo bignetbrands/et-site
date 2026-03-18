@@ -1038,12 +1038,35 @@ export default function BotDashboard() {
                   rows={2}
                   style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", resize: "vertical" as const, fontFamily: "monospace" }}
                 />
-                <input
-                  value={newRiddle.answer}
-                  onChange={(e: any) => setNewRiddle(p => ({ ...p, answer: e.target.value }))}
-                  placeholder="Correct answer (only visible to admin)"
-                  style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
-                />
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <input
+                    value={newRiddle.answer}
+                    onChange={(e: any) => setNewRiddle(p => ({ ...p, answer: e.target.value }))}
+                    placeholder="Correct answer (only visible to admin)"
+                    style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", flex: 1 }}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!newRiddle.question.trim()) { addLog("Enter the riddle question first", "warn"); return; }
+                      setLoading("riddleAnswerGen");
+                      const res = await fetch("/api/admin/riddle-answer", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ question: newRiddle.question }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setNewRiddle(p => ({ ...p, answer: data.answer }));
+                        addLog("ET determined the answer — review before saving", "info");
+                      } else { addLog(`Error: ${data.error}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", whiteSpace: "nowrap" as const, background: "rgba(57,255,20,0.06)", borderColor: "rgba(57,255,20,0.15)", color: "rgba(57,255,20,0.6)" }}
+                  >
+                    {loading === "riddleAnswerGen" ? "thinking..." : "👽 ASK ET"}
+                  </button>
+                </div>
                 <button
                   onClick={async () => {
                     if (!newRiddle.tweetUrl || !newRiddle.question || !newRiddle.answer) {
