@@ -61,6 +61,7 @@ export interface ReplyInput {
 
   // Self-awareness context from ET's reflection system
   selfAwarenessContext?: string;
+  forceReply?: boolean;
 }
 
 export interface ReplyDecision {
