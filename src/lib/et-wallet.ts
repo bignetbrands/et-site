@@ -11,6 +11,7 @@ import {
 import {
   getAssociatedTokenAddress,
   getAccount,
+  createAssociatedTokenAccountIdempotent,
 } from "@solana/spl-token";
 import bs58 from "bs58";
 // BN imported from Streamflow to avoid version conflicts
@@ -150,14 +151,28 @@ export async function lockETForWinner(
   const keypair = getKeypair();
   console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
 
-  // Use Streamflow's own getBN to avoid BN version conflicts (_bn error)
+  // Use Streamflow's own getBN and ICluster to avoid BN version conflicts
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
   const client = new SolanaStreamClient(process.env.SOLANA_RPC_URL!, ICluster.Mainnet);
 
-  const now = Math.floor(Date.now() / 1000);
-  const totalBN = getBN(Number(tokenAmount), 0); // 0 decimals — raw token units
+  // Ensure winner's token account exists before Streamflow tries to use it
+  const connection = getConnection();
+  const tokenMint = new PublicKey(ET_CA);
+  const winnerPubkey = new PublicKey(winnerAddress);
+  try {
+    await createAssociatedTokenAccountIdempotent(connection, keypair, tokenMint, winnerPubkey);
+    console.log(`[ET Wallet] Winner ATA ensured for ${winnerAddress}`);
+  } catch (e: any) {
+    // ATA already exists or creation failed — log and continue
+    console.warn(`[ET Wallet] ATA creation note: ${e?.message}`);
+  }
 
-  console.log(`[ET Wallet] Streamflow params — amount: ${totalBN.toString()}, cliff: ${now + 60 + SIXTY_NINE_DAYS_SECS}`);
+  const now = Math.floor(Date.now() / 1000);
+  const totalBN = getBN(Number(tokenAmount), 0);
+  // Unique nonce prevents metadata PDA collisions from retries
+  const nonce = Math.floor(Math.random() * 1000000);
+
+  console.log(`[ET Wallet] Streamflow params — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
   const result = await client.create(
     {
@@ -169,7 +184,7 @@ export async function lockETForWinner(
       cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
       cliffAmount: totalBN,
       amountPerPeriod: getBN(0, 0),
-      name: "ET Mission Reward 69d",
+      name: `ET Reward ${nonce}`,
       cancelableBySender: false,
       cancelableByRecipient: false,
       transferableBySender: false,
