@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRewardsQueue, updateRewardQueueItem, wasRewardPaid, markRewardPaid } from "@/lib/store";
 import { pickRewardAmount } from "@/lib/et-wallet";
-import { postTweet, postReply } from "@/lib/twitter";
+import { postTweet, postReply, postQuoteTweet } from "@/lib/twitter";
 import { buildVictoryTweetPrompt } from "@/lib/prompts";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -182,8 +182,9 @@ export async function POST(req: NextRequest) {
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
       const solLink = freshSolscanUrl || walletTweetUrl || null;
-      // [1/2] full ET voice, [2/2] links only
-      const preview1 = `${cleanVictory} 👽 [1/2]`.substring(0, 280);
+      // [1/2] ET voice — quote tweets the task submission
+      const quoteTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
+      const preview1 = (`${cleanVictory} 👽 [1/2]` + (quoteTweetUrl ? `\n[quote: ${quoteTweetUrl}]` : "")).substring(0, 300);
       const solLine = solLink ? `sol payment: ${solLink}` : "";
       const lockLine = freshLockTxUrl ? `$et lock (69 days): ${freshLockTxUrl}` : "";
       const preview2 = ([solLine, lockLine].filter(Boolean).join("\n") + " [2/2]").substring(0, 280);
@@ -219,9 +220,11 @@ export async function POST(req: NextRequest) {
       const freshLockTxUrlV = liveItemV?.lockTxUrl || lockTxUrl || "";
 
       const solLink = freshSolscanUrlV || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
-      // [1/2] full ET voice only
-      const tweet1 = `${cleanVictory} 👽 [1/2]`.substring(0, 280);
-      const victoryTweetId = await postTweet(tweet1);
+      // [1/2] ET voice — quote tweets the task submission
+      const tweet1Text = `${cleanVictory} 👽 [1/2]`.substring(0, 280);
+      const victoryTweetId = walletTweetId
+        ? await postQuoteTweet(tweet1Text, walletTweetId)
+        : await postTweet(tweet1Text);
       // [2/2] links only, posted as reply
       let victoryTweet2Id = null;
       if (victoryTweetId) {
