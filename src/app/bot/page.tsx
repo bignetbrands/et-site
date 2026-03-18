@@ -47,6 +47,8 @@ export default function BotDashboard() {
   const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "" });
   const [checkReplyUrl, setCheckReplyUrl] = useState<Record<string, string>>({});
   const [checkVerdict, setCheckVerdict] = useState<Record<string, any>>({});
+  const [lockForm, setLockForm] = useState({ wallet: "", sol: "" });
+  const [lockResult, setLockResult] = useState<any>(null);
   const [showRiddleAnswer, setShowRiddleAnswer] = useState<Record<string, boolean>>({});
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
@@ -344,6 +346,80 @@ export default function BotDashboard() {
             )}
           </div>
         )}
+
+        {/* Manual Lock Panel */}
+        <div style={{ ...styles.panel, marginBottom: "16px" }}>
+          <div style={styles.panelTitle}>🔒 MANUAL LOCK</div>
+          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+            Swap SOL → $ET and lock 69 days for a wallet. Use when auto-lock fails after a reward.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+            <input
+              value={lockForm.wallet}
+              onChange={(e: any) => setLockForm(p => ({ ...p, wallet: e.target.value }))}
+              placeholder="Solana wallet address"
+              style={{ ...styles.input, fontSize: "11px", padding: "6px 8px" }}
+            />
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <input
+                value={lockForm.sol}
+                onChange={(e: any) => setLockForm(p => ({ ...p, sol: e.target.value }))}
+                placeholder="SOL amount to swap (e.g. 0.05)"
+                type="number"
+                step="0.001"
+                min="0.001"
+                max="1"
+                style={{ ...styles.input, fontSize: "11px", padding: "6px 8px", flex: 1 }}
+              />
+              <button
+                onClick={async () => {
+                  const { wallet, sol } = lockForm;
+                  if (!wallet || !sol) { addLog("Enter wallet and SOL amount", "warn"); return; }
+                  const amount = parseFloat(sol);
+                  if (isNaN(amount) || amount <= 0) { addLog("Invalid SOL amount", "warn"); return; }
+                  if (!confirm(`Swap ${amount} SOL → $ET and lock 69 days for ${wallet.substring(0,8)}...?`)) return;
+                  setLockResult(null);
+                  setLoading("manualLock");
+                  addLog(`Swapping ${amount} SOL → $ET and locking 69d...`, "info");
+                  const res = await fetch("/api/admin/lock", {
+                    method: "POST",
+                    headers: { ...authHeaders, "Content-Type": "application/json" },
+                    body: JSON.stringify({ walletAddress: wallet, solAmount: amount }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setLockResult(data);
+                    addLog(`✅ Locked ${amount} SOL of $ET for 69 days — stream: ${data.streamId}`, "success");
+                    setLockForm({ wallet: "", sol: "" });
+                  } else {
+                    addLog(`❌ Lock failed: ${data.error}`, "error");
+                  }
+                  setLoading("");
+                }}
+                disabled={!!loading}
+                style={{ ...styles.btnPrimary, padding: "6px 16px", fontSize: "10px" }}
+              >
+                {loading === "manualLock" ? "LOCKING..." : "🔒 SWAP & LOCK"}
+              </button>
+            </div>
+          </div>
+          {lockResult && (
+            <div style={{ marginTop: "10px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "3px", padding: "10px", fontSize: "10px" }}>
+              <div style={{ color: "#00ff64", fontWeight: 700, marginBottom: "6px" }}>✅ LOCK CREATED</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>Tokens: {lockResult.tokenAmount}</div>
+              <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" as const }}>
+                <a href={`https://solscan.io/tx/${lockResult.swapTxSig}`} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: "9px", color: "rgba(100,200,255,0.7)", textDecoration: "none", border: "1px solid rgba(100,200,255,0.2)", padding: "2px 8px", borderRadius: "2px" }}>
+                  SWAP TX ↗
+                </a>
+                <a href={lockResult.streamLink} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: "9px", color: "rgba(100,200,255,0.7)", textDecoration: "none", border: "1px solid rgba(100,200,255,0.2)", padding: "2px 8px", borderRadius: "2px" }}>
+                  STREAMFLOW ↗
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Rewards Queue */}
         <div style={{ ...styles.panel, marginBottom: "16px" }}>
