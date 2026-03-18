@@ -182,10 +182,12 @@ export async function POST(req: NextRequest) {
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
       const solLink = freshSolscanUrl || walletTweetUrl || null;
-      const solLine = solLink ? `\nsol payment: ${solLink}` : "";
-      const lockLine = freshLockTxUrl ? `\n$et lock (69 days): ${freshLockTxUrl}` : "";
-
-      return NextResponse.json({ success: true, preview: preview1, preview2: "" });
+      // [1/2] full ET voice, [2/2] links only
+      const preview1 = `${cleanVictory} 👽 [1/2]`.substring(0, 280);
+      const solLine = solLink ? `sol payment: ${solLink}` : "";
+      const lockLine = freshLockTxUrl ? `$et lock (69 days): ${freshLockTxUrl}` : "";
+      const preview2 = ([solLine, lockLine].filter(Boolean).join("\n") + " [2/2]").substring(0, 280);
+      return NextResponse.json({ success: true, preview: preview1, preview2 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json({ error: message }, { status: 500 });
