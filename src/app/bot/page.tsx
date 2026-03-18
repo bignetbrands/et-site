@@ -1533,8 +1533,8 @@ export default function BotDashboard() {
             </div>
             {promptPreview && (
               <div style={{ marginTop: "12px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "12px 14px" }}>
-                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {promptPreview.length}/280</div>
-                <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", lineHeight: "1.6", whiteSpace: "pre-wrap" as const }}>{promptPreview}</div>
+                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {promptPreview.replace("[ATTACH_MEME]","").trim().length}/280{promptPreview.includes("[ATTACH_MEME]") && <span style={{ marginLeft: "10px", color: "rgba(255,200,0,0.7)", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🖼️ MEME ATTACHED</span>}</div>
+                <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", lineHeight: "1.6", whiteSpace: "pre-wrap" as const }}>{promptPreview.replace("[ATTACH_MEME]","").trim()}</div>
               </div>
             )}
           </div>
