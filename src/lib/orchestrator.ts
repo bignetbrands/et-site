@@ -185,6 +185,28 @@ export async function executeTweet(
       }
     }
 
+    // Check if Claude signaled to attach a meme library image
+    if (tweetText.includes("[ATTACH_MEME]")) {
+      tweetText = tweetText.replace("[ATTACH_MEME]", "").trim();
+      try {
+        const { getRandomETMeme } = await import("./meme-engine");
+        const memeBuffer = await getRandomETMeme();
+        if (memeBuffer) {
+          tweetText = stripLeadingMentions(tweetText);
+          const tweetId = await postTweetWithImage(tweetText, memeBuffer);
+          console.log(`[ET] Posted tweet with meme library image: ${tweetId}`);
+          const record: import("./store").TweetRecord = {
+            id: tweetId, text: tweetText, pillar, createdAt: new Date().toISOString(), hasImage: true,
+          };
+          const { recordTweet } = await import("./store");
+          await recordTweet(record);
+          return record;
+        }
+      } catch (e) {
+        console.warn("[ET] Meme attach failed, falling through to text:", e);
+      }
+    }
+
     return await postAndRecord(tweetText, pillar, config.generateImage || useRiddle);
   } catch (error) {
     console.error(`[ET] Error in executeTweet:`, error);
