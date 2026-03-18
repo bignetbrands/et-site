@@ -1177,6 +1177,11 @@ export default function BotDashboard() {
                                   "{v.replyText?.substring(0, 120)}"
                                 </div>
                                 <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)" }}>{v.verdict?.reasoning}</div>
+                                {!correct && v.trollReplyId && (
+                                  <div style={{ fontSize: "9px", color: "rgba(255,150,0,0.6)", marginTop: "4px" }}>
+                                    👽 ET already replied with a troll
+                                  </div>
+                                )}
                                 {correct && (
                                   <button
                                     onClick={() => {

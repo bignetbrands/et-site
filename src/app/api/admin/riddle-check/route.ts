@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getRiddleContext } from "@/lib/store";
-import { getTweet } from "@/lib/twitter";
+import { getTweet, postReply } from "@/lib/twitter";
 
 function auth(req: NextRequest) {
   return req.headers.get("authorization") === `Bearer ${process.env.ADMIN_SECRET}`;
@@ -61,11 +61,40 @@ Reply with ONLY a JSON object in this format:
     verdict = JSON.parse(cleaned);
   } catch { /* use default */ }
 
+  // If wrong — ET auto-trolls the reply instantly
+  let trollReplyId = "";
+  if (!verdict.correct) {
+    try {
+      const trollRes = await client.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 100,
+        system: `You are ET (@etalienx), an alien stranded on Earth. You just posted a riddle and someone got it wrong. Troll them in one short sentence. Be playful, not cruel. ET voice — lowercase, dry humor, alien perspective. No emojis unless it serves the joke. Under 200 characters.`,
+        messages: [{
+          role: "user",
+          content: `Your riddle: "${riddle.question}"
+
+Their wrong answer: "${replyText}"
+
+Write one short troll reply. One sentence only.`,
+        }],
+        temperature: 0.95,
+      });
+      const trollText = trollRes.content[0].type === "text"
+        ? trollRes.content[0].text.trim().replace(/^["']|["']$/g, "").trim()
+        : "that's not it 👽";
+      trollReplyId = await postReply(trollText, replyTweetId);
+      console.log(`[Riddle] Trolled @${replyAuthor} with: "${trollText}"`);
+    } catch (e) {
+      console.warn("[Riddle] Troll reply failed:", e);
+    }
+  }
+
   return NextResponse.json({
     success: true,
     replyText,
     replyAuthor,
     replyTweetId,
     verdict,
+    trollReplyId: trollReplyId || null,
   });
 }
