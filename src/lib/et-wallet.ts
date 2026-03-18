@@ -164,7 +164,14 @@ export async function lockETForWinner(
   tokenAmount: bigint
 ): Promise<{ streamId: string; txSignature: string }> {
   const keypair = getKeypair();
+  const connection = getConnection();
   console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
+
+  // Ensure winner's token account exists
+  try {
+    await createAssociatedTokenAccountIdempotent(connection, keypair, new PublicKey(ET_CA), new PublicKey(winnerAddress));
+    console.log(`[ET Wallet] Winner ATA ensured`);
+  } catch (e: any) { console.warn(`[ET Wallet] ATA note: ${e?.message}`); }
 
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
   const client = new SolanaStreamClient({ clusterUrl: process.env.SOLANA_RPC_URL!, cluster: ICluster.Mainnet });
@@ -172,45 +179,42 @@ export async function lockETForWinner(
   const now = Math.floor(Date.now() / 1000);
   const totalBN = getBN(Number(tokenAmount), 0);
   const nonce = Math.floor(Math.random() * 1000000);
+  console.log(`[ET Wallet] Building Streamflow tx — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
-  console.log(`[ET Wallet] Streamflow create — amount: ${totalBN.toString()}, nonce: ${nonce}`);
+  // Build instructions WITHOUT sending — avoids Streamflow's hanging retry loop
+  const { ixs, metadataId, metadata } = await client.buildCreateTransactionInstructions(
+    {
+      recipient: winnerAddress,
+      tokenId: ET_CA,
+      start: now + 60,
+      amount: totalBN,
+      period: 1,
+      cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
+      cliffAmount: totalBN,
+      amountPerPeriod: getBN(0, 0),
+      name: `ET Reward ${nonce}`,
+      cancelableBySender: false,
+      cancelableByRecipient: false,
+      transferableBySender: false,
+      transferableByRecipient: false,
+      automaticWithdrawal: false,
+      canTopup: false,
+    },
+    { sender: keypair as any, isNative: false }
+  );
 
-  // Wrap in timeout — Streamflow can hang indefinitely
-  let result: any;
-  try {
-    const createPromise = client.create(
-      {
-        recipient: winnerAddress,
-        tokenId: ET_CA,
-        start: now + 60,
-        amount: totalBN,
-        period: 1,
-        cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
-        cliffAmount: totalBN,
-        amountPerPeriod: getBN(0, 0),
-        name: `ET Reward ${nonce}`,
-        cancelableBySender: false,
-        cancelableByRecipient: false,
-        transferableBySender: false,
-        transferableByRecipient: false,
-        automaticWithdrawal: false,
-        canTopup: false,
-      },
-      { sender: keypair as any, isNative: false }
-    );
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Streamflow create timed out after 45s")), 45000)
-    );
-    result = await Promise.race([createPromise, timeout]);
-  } catch (e: any) {
-    const logs = typeof e?.getLogs === "function" ? await e.getLogs().catch(() => []) : (e?.logs || []);
-    const detail = logs.length > 0 ? `\nLogs: ${JSON.stringify(logs)}` : "";
-    console.error(`[ET Wallet] Streamflow error:`, e?.message, detail);
-    throw new Error(`Streamflow create failed: ${e?.message || e}${detail}`);
+  console.log(`[ET Wallet] Streamflow metadataId: ${metadataId} — sending manually...`);
+
+  // Use our own transaction send (same path as SOL transfers — proven to work on Vercel)
+  const { Transaction } = await import("@solana/web3.js");
+  const tx = new Transaction();
+  for (const ix of ixs) {
+    if (ix && "keys" in ix) tx.add(ix as any);
   }
+  const txSignature = await sendAndConfirmTransaction(connection, tx, [keypair, metadata as any], { commitment: "confirmed" });
 
-  console.log(`[ET Wallet] Streamflow lock created — stream: ${result.metadataId}, tx: ${result.txId}`);
-  return { streamId: result.metadataId, txSignature: result.txId };
+  console.log(`[ET Wallet] Streamflow lock created — stream: ${metadataId}, tx: ${txSignature}`);
+  return { streamId: metadataId, txSignature };
 }
 
 export async function sendSplitReward(
