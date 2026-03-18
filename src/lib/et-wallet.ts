@@ -175,26 +175,34 @@ export async function lockETForWinner(
 
   console.log(`[ET Wallet] Streamflow create — amount: ${totalBN.toString()}, nonce: ${nonce}`);
 
-  const result = await client.create(
-    {
-      recipient: winnerAddress,
-      tokenId: ET_CA,
-      start: now + 60,
-      amount: totalBN,
-      period: 1,
-      cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
-      cliffAmount: totalBN,
-      amountPerPeriod: getBN(0, 0),
-      name: `ET Reward ${nonce}`,
-      cancelableBySender: false,
-      cancelableByRecipient: false,
-      transferableBySender: false,
-      transferableByRecipient: false,
-      automaticWithdrawal: false,
-      canTopup: false,
-    },
-    { sender: keypair as any, isNative: false }
-  );
+  let result: any;
+  try {
+    result = await client.create(
+      {
+        recipient: winnerAddress,
+        tokenId: ET_CA,
+        start: now + 60,
+        amount: totalBN,
+        period: 1,
+        cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
+        cliffAmount: totalBN,
+        amountPerPeriod: getBN(0, 0),
+        name: `ET Reward ${nonce}`,
+        cancelableBySender: false,
+        cancelableByRecipient: false,
+        transferableBySender: false,
+        transferableByRecipient: false,
+        automaticWithdrawal: false,
+        canTopup: false,
+      },
+      { sender: keypair as any, isNative: false }
+    );
+  } catch (e: any) {
+    // Capture full error — SendTransactionError includes simulation logs
+    const logs = typeof e?.getLogs === "function" ? await e.getLogs().catch(() => []) : (e?.logs || []);
+    const detail = logs.length > 0 ? `\nLogs: ${JSON.stringify(logs)}` : "";
+    throw new Error(`Streamflow create failed: ${e?.message || e}${detail}`);
+  }
 
   console.log(`[ET Wallet] Streamflow lock created — stream: ${result.metadataId}, tx: ${result.txId}`);
   return { streamId: result.metadataId, txSignature: result.txId };
