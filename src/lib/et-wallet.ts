@@ -198,6 +198,36 @@ export async function lockETForWinner(
     console.log(`[Lock] winner ATA tx: ${ataSig}`);
   } catch (e: any) { console.warn(`[Lock] ATA note: ${e?.message}`); }
 
+  // Ensure Streamflow treasury has a $ET token account — required for fee collection
+  // Without this, the create instruction fails with Custom(97) Invalid Metadata
+  const STREAMFLOW_TREASURY = "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw";
+  try {
+    const treasuryPubkey = new PublicKey(STREAMFLOW_TREASURY);
+    const treasuryATA = await getAssociatedTokenAddress(new PublicKey(ET_CA), treasuryPubkey);
+    const treasuryInfo = await connection.getAccountInfo(treasuryATA);
+    if (!treasuryInfo) {
+      console.log(`[Lock] Creating Streamflow treasury $ET ATA...`);
+      const ix = createAssociatedTokenAccountIdempotentInstruction(
+        keypair.publicKey, treasuryATA, treasuryPubkey, new PublicKey(ET_CA)
+      );
+      const tx = new Transaction();
+      tx.add(ix);
+      const { blockhash } = await connection.getLatestBlockhash("confirmed");
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = keypair.publicKey;
+      tx.sign(keypair);
+      const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
+      for (let i = 0; i < 8; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const s = await connection.getSignatureStatus(sig);
+        if (s?.value?.confirmationStatus === "confirmed" || s?.value?.confirmationStatus === "finalized") break;
+      }
+      console.log(`[Lock] Treasury ATA created: ${sig}`);
+    } else {
+      console.log(`[Lock] Treasury ATA already exists`);
+    }
+  } catch (e: any) { console.warn(`[Lock] Treasury ATA note: ${e?.message}`); }
+
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
   const client = new SolanaStreamClient({ clusterUrl: process.env.SOLANA_RPC_URL!, cluster: ICluster.Mainnet });
 
