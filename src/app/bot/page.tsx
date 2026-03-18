@@ -717,7 +717,7 @@ export default function BotDashboard() {
                             const res = await fetch("/api/admin/rewards", {
                               method: "POST",
                               headers: { ...authHeaders, "Content-Type": "application/json" },
-                              body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", streamId: item.streamId || "" }),
+                              body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", lockTxUrl: item.lockTxUrl || "", streamId: item.streamId || "" }),
                             });
                             const data = await res.json();
                             if (data.success) setVictoryPreview((p: Record<string,string>) => ({ ...p, [item.id]: data.preview, [item.id + "_2"]: data.preview2 || "" }));
@@ -732,13 +732,10 @@ export default function BotDashboard() {
                       ) : (
                         <div style={{ width: "100%", marginTop: "4px" }}>
                           <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
-                            <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.4)", marginBottom: "4px" }}>[1/2]</div>
+
                             {victoryPreview[item.id]}
                           </div>
-                          <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,200,0,0.1)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.45)", lineHeight: "1.5", marginBottom: "6px", whiteSpace: "pre-wrap" }}>
-                            <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.25)", marginBottom: "4px" }}>[2/2]</div>
-                            {victoryPreview[item.id + "_2"] || "the other half is locked as $et for 69 days. claim at streamflow when lock expires 👽 [2/2]"}
-                          </div>
+
                           <div style={{ display: "flex", gap: "6px" }}>
                             <button
                               onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
@@ -752,7 +749,7 @@ export default function BotDashboard() {
                                 const res = await fetch("/api/admin/rewards", {
                                   method: "POST",
                                   headers: { ...authHeaders, "Content-Type": "application/json" },
-                                  body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", streamId: item.streamId || "" }),
+                                  body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", lockTxUrl: item.lockTxUrl || "", streamId: item.streamId || "" }),
                                 });
                                 const data = await res.json();
                                 if (data.success) {

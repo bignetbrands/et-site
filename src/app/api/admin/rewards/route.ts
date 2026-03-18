@@ -175,13 +175,12 @@ export async function POST(req: NextRequest) {
       const walletTweetUrl = walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null;
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
       const solLink = solscanUrl || walletTweetUrl || null;
-      const preview1 = solLink
-        ? `${cleanVictory} [1/2]\n\n${solLink}`.substring(0, 280)
-        : `${cleanVictory} [1/2]`.substring(0, 280);
-      const preview2 = streamId
-        ? `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]\n\nhttps://app.streamflow.finance/contract/solana/mainnet/${streamId}`.substring(0, 280)
-        : `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]`.substring(0, 280);
-      return NextResponse.json({ success: true, preview: preview1, preview2 });
+      // preview1 built after preview2 block now
+      // Single tweet: ET voice + SOL link + lock link
+      const solLine = solLink ? `\nsol: ${solLink}` : "";
+      const lockLine = lockTxUrl ? `\nlock: ${lockTxUrl}` : "";
+      const preview1 = `${cleanVictory}${solLine}${lockLine}`.substring(0, 280);
+      return NextResponse.json({ success: true, preview: preview1, preview2: "" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json({ error: message }, { status: 500 });
@@ -205,22 +204,13 @@ export async function POST(req: NextRequest) {
 
       const cleanVictory = victoryText.replace(/^(@\w+\s*)+/, "").trim();
 
-      // [1/2] — SOL payment
+      // Single tweet with ET voice + labeled links
       const solLink = solscanUrl || (walletTweetId ? `https://x.com/${winner}/status/${walletTweetId}` : null);
-      const tweet1 = solLink
-        ? `${cleanVictory} [1/2]\n\n${solLink}`.substring(0, 280)
-        : `${cleanVictory} [1/2]`.substring(0, 280);
+      const solLine = solLink ? `\nsol payment: ${solLink}` : "";
+      const lockLine = lockTxUrl ? `\n$et lock (69 days): ${lockTxUrl}` : "";
+      const tweet1 = `${cleanVictory}${solLine}${lockLine}`.substring(0, 280);
       const victoryTweetId = await postTweet(tweet1);
-
-      // [2/2] — lock link (if streamId provided)
-      let victoryTweet2Id = "";
-      if (victoryTweetId && streamId) {
-        const streamLink = `https://app.streamflow.finance/contract/solana/mainnet/${streamId}`;
-        const tweet2 = `the other half is locked as $et for 69 days. @${winner} can claim it at streamflow when the lock expires. the alien treasury plays the long game 👽 [2/2]\n\n${streamLink}`.substring(0, 280);
-        victoryTweet2Id = await postReply(tweet2, victoryTweetId);
-      }
-
-      return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id: victoryTweet2Id || null });
+      return NextResponse.json({ success: true, victoryTweetId, victoryTweet2Id: null });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json({ error: message }, { status: 500 });
