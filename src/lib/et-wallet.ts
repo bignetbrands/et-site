@@ -13,7 +13,7 @@ import {
   getAccount,
 } from "@solana/spl-token";
 import bs58 from "bs58";
-import BN from "bn.js";
+// BN imported from Streamflow to avoid version conflicts
 
 const ET_CA = "A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF";
 const SIXTY_NINE_DAYS_SECS = 69 * 24 * 60 * 60;
@@ -150,11 +150,14 @@ export async function lockETForWinner(
   const keypair = getKeypair();
   console.log(`[ET Wallet] Locking ${tokenAmount} $ET tokens for ${winnerAddress} — 69 days via Streamflow...`);
 
-  const { SolanaStreamClient } = await import("@streamflow/stream");
-  const client = new SolanaStreamClient(process.env.SOLANA_RPC_URL!, "mainnet-beta" as any);
+  // Use Streamflow's own getBN to avoid BN version conflicts (_bn error)
+  const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
+  const client = new SolanaStreamClient(process.env.SOLANA_RPC_URL!, ICluster.Mainnet);
 
   const now = Math.floor(Date.now() / 1000);
-  const totalBN = new BN(tokenAmount.toString());
+  const totalBN = getBN(Number(tokenAmount), 0); // 0 decimals — raw token units
+
+  console.log(`[ET Wallet] Streamflow params — amount: ${totalBN.toString()}, cliff: ${now + 60 + SIXTY_NINE_DAYS_SECS}`);
 
   const result = await client.create(
     {
@@ -165,8 +168,8 @@ export async function lockETForWinner(
       period: 1,
       cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
       cliffAmount: totalBN,
-      amountPerPeriod: new BN(0),
-      name: "ET Mission Reward — 69d lock",
+      amountPerPeriod: getBN(0, 0),
+      name: "ET Mission Reward 69d",
       cancelableBySender: false,
       cancelableByRecipient: false,
       transferableBySender: false,
