@@ -4,6 +4,7 @@ import { SYSTEM_PROMPT } from "@/lib/prompts";
 import { postTweet, postTweetWithImage } from "@/lib/twitter";
 import { recordTweet, setRiddleContext } from "@/lib/store";
 import { getRandomETMeme } from "@/lib/meme-engine";
+import { generateImage, downloadImage } from "@/lib/dalle";
 
 function auth(req: NextRequest) {
   return req.headers.get("authorization") === `Bearer ${process.env.ADMIN_SECRET}`;
@@ -34,19 +35,40 @@ export async function POST(req: NextRequest) {
 
   if (!tweetText) return NextResponse.json({ error: "Failed to generate tweet" }, { status: 500 });
 
-  // Strip [ATTACH_MEME] from display text
+  // Detect image signals
   const hasMeme = tweetText.includes("[ATTACH_MEME]");
-  const cleanText = tweetText.replace("[ATTACH_MEME]", "").trim();
+  const generateImageMatch = tweetText.match(/\[GENERATE_IMAGE:\s*([^\]]+)\]/i);
+  const hasGeneratedImage = !!generateImageMatch;
+  const imagePrompt = generateImageMatch?.[1]?.trim() || "";
+
+  // Clean text
+  let cleanText = tweetText
+    .replace("[ATTACH_MEME]", "")
+    .replace(/\[GENERATE_IMAGE:[^\]]+\]/i, "")
+    .trim();
 
   if (!post) {
-    return NextResponse.json({ success: true, tweet: cleanText + (hasMeme ? "\n[ATTACH_MEME]" : "") });
+    let previewSignal = hasMeme ? "\n[ATTACH_MEME]" : hasGeneratedImage ? `\n[GENERATE_IMAGE: ${imagePrompt}]` : "";
+    return NextResponse.json({ success: true, tweet: cleanText + previewSignal });
   }
 
   // Post it
   let tweetId: string;
   let hasImage = false;
 
-  if (hasMeme) {
+  if (hasGeneratedImage && imagePrompt) {
+    try {
+      console.log(`[Prompt ET] Generating DALL-E image: "${imagePrompt.substring(0, 80)}..."`);
+      const imageUrl = await generateImage(imagePrompt, "human_observation");
+      const imageBuffer = await downloadImage(imageUrl, "human_observation");
+      tweetId = await postTweetWithImage(cleanText, imageBuffer);
+      hasImage = true;
+      console.log(`[Prompt ET] Posted with DALL-E image: ${tweetId}`);
+    } catch (e) {
+      console.error("[Prompt ET] DALL-E failed, posting text-only:", e);
+      tweetId = await postTweet(cleanText);
+    }
+  } else if (hasMeme) {
     const memeBuffer = await getRandomETMeme();
     if (memeBuffer) {
       tweetId = await postTweetWithImage(cleanText, memeBuffer);
