@@ -176,52 +176,22 @@ export async function lockETForWinner(
   const connection = getConnection();
   console.log(`[Lock] start — ${tokenAmount} tokens for ${winnerAddress}`);
 
-  // Ensure winner ATA exists — manual send+poll (no WebSocket)
-  try {
-    const winnerPubkey = new PublicKey(winnerAddress);
-    const ataAddr = await getAssociatedTokenAddress(new PublicKey(ET_CA), winnerPubkey);
-    const ataIx = createAssociatedTokenAccountIdempotentInstruction(
-      keypair.publicKey, ataAddr, winnerPubkey, new PublicKey(ET_CA)
-    );
-    const ataTx = new Transaction();
-    ataTx.add(ataIx);
-    const { blockhash: ataHash } = await connection.getLatestBlockhash("confirmed");
-    ataTx.recentBlockhash = ataHash;
-    ataTx.feePayer = keypair.publicKey;
-    ataTx.sign(keypair);
-    const ataSig = await connection.sendRawTransaction(ataTx.serialize(), { skipPreflight: true });
-    for (let i = 0; i < 5; i++) {
-      await new Promise(r => setTimeout(r, 1500));
-      const s = await connection.getSignatureStatus(ataSig);
-      if (s?.value?.confirmationStatus === "confirmed" || s?.value?.confirmationStatus === "finalized") break;
-    }
-    console.log(`[Lock] winner ATA tx: ${ataSig}`);
-  } catch (e: any) { console.warn(`[Lock] ATA note: ${e?.message}`); }
-
-  // Ensure all Streamflow-required $ET token accounts exist
-  // These are needed for fee collection — if any is missing, create fails with Custom(97)
-  // Create all required $ET ATAs upfront — treasury, withdrawor, winner, ET wallet itself
-  // NotAssociated (101) means one of these doesn't exist when Streamflow checks
-  const REQUIRED_ATAS: Array<[string, string]> = [
-    ["5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw", "Treasury"],
-    ["wdrwhnCv4pzW8beKsbPa4S2UDZrXenjg16KJdKSpb5u", "Withdrawor"],
-    [winnerAddress, "Winner"],
-    [keypair.publicKey.toBase58(), "ET wallet"],
-  ];
   const mint = new PublicKey(ET_CA);
-  const missingATAs: Array<{ owner: PublicKey; ata: PublicKey }> = [];
-  for (const [addr] of REQUIRED_ATAS) {
+  const winnerPubkey = new PublicKey(winnerAddress);
+
+  // Ensure all required ATAs exist
+  const requiredOwners = [
+    { key: "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw", label: "Treasury" },
+    { key: "wdrwhnCv4pzW8beKsbPa4S2UDZrXenjg16KJdKSpb5u", label: "Withdrawor" },
+    { key: winnerAddress, label: "Winner" },
+    { key: keypair.publicKey.toBase58(), label: "ET wallet" },
+  ];
+  for (const { key, label } of requiredOwners) {
     try {
-      const ownerPubkey = new PublicKey(addr);
-      const ataAddr = await getAssociatedTokenAddress(mint, ownerPubkey);
+      const owner = new PublicKey(key);
+      const ataAddr = await getAssociatedTokenAddress(mint, owner);
       const info = await connection.getAccountInfo(ataAddr);
-      if (!info) missingATAs.push({ owner: ownerPubkey, ata: ataAddr });
-    } catch { /* skip */ }
-  }
-  if (missingATAs.length > 0) {
-    console.log(`[Lock] Creating ${missingATAs.length} missing ATAs...`);
-    for (const { owner, ata: ataAddr } of missingATAs) {
-      try {
+      if (!info) {
         const ix = createAssociatedTokenAccountIdempotentInstruction(keypair.publicKey, ataAddr, owner, mint);
         const tx = new Transaction();
         tx.add(ix);
@@ -230,62 +200,131 @@ export async function lockETForWinner(
         tx.feePayer = keypair.publicKey;
         tx.sign(keypair);
         const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-        console.log(`[Lock] ATA sent for ${owner.toBase58().slice(0,8)}: ${sig}`);
-        // Wait for confirmation before proceeding
         for (let i = 0; i < 15; i++) {
           await new Promise(r => setTimeout(r, 2000));
           const s = await connection.getSignatureStatus(sig);
           const c = s?.value?.confirmationStatus;
-          if (c === "confirmed" || c === "finalized") { console.log(`[Lock] ATA confirmed`); break; }
+          if (c === "confirmed" || c === "finalized") { console.log(`[Lock] ${label} ATA confirmed`); break; }
         }
-      } catch (e: any) { console.warn(`[Lock] ATA err: ${e?.message}`); }
-    }
-  } else {
-    console.log(`[Lock] All required ATAs exist`);
+      } else { console.log(`[Lock] ${label} ATA exists`); }
+    } catch (e: any) { console.warn(`[Lock] ATA ${label}: ${e?.message}`); }
   }
 
-  const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
-  const client = new SolanaStreamClient({ clusterUrl: process.env.SOLANA_RPC_URL!, cluster: ICluster.Mainnet });
+  // Build Streamflow create instruction MANUALLY using old layout (without pausable/canUpdateRate Option bytes)
+  // SDK 11.2.1 adds _pausable_discriminator bytes that the on-chain program doesn't know about
+  const { Keypair: SolanaKeypair, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction: TxIx, PublicKey: PK } = await import("@solana/web3.js");
+  const bufferLayout = require("buffer-layout");
+  const { createHash } = require("crypto");
+
+  const STREAMFLOW_PROGRAM = new PublicKey("strmRqUCoQUgGUan5YhzUZa6KqdzwX5L6FpUxfmKg5m");
+  const STREAMFLOW_TREASURY = new PublicKey("5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw");
+  const WITHDRAWOR = new PublicKey("wdrwhnCv4pzW8beKsbPa4S2UDZrXenjg16KJdKSpb5u");
+  const FEE_ORACLE = new PublicKey("B743wFVk2pCYhV91cn287e1xY7f1vt4gdY48hhNiuQmT");
+  const { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID: ASSOC_TOKEN_PROG } = await import("@solana/spl-token");
+
+  // Fresh metadata keypair
+  const metadata = SolanaKeypair.generate();
+  const metadataPubkey = metadata.publicKey;
+
+  // Derive escrow tokens PDA
+  const [escrowTokens] = PublicKey.findProgramAddressSync(
+    [Buffer.from("strm"), metadataPubkey.toBuffer()],
+    STREAMFLOW_PROGRAM
+  );
+
+  const senderTokens = await getAssociatedTokenAddress(mint, keypair.publicKey);
+  const recipientTokens = await getAssociatedTokenAddress(mint, winnerPubkey);
+  const treasuryTokens = await getAssociatedTokenAddress(mint, STREAMFLOW_TREASURY);
+  const partnerTokens = senderTokens; // ET wallet is both sender and partner
 
   const now = Math.floor(Date.now() / 1000);
-  const totalBN = getBN(Number(tokenAmount), 0);
-  const nonce = Math.floor(Math.random() * 1000000);
-  console.log(`[Lock] building Streamflow tx — amount: ${totalBN.toString()}, nonce: ${nonce}`);
+  const streamName = `ET Reward ${Math.floor(Math.random() * 1000000)}`;
+  // OLD layout without Option discriminator bytes for pausable/canUpdateRate
+  const layout = bufferLayout.struct([
+    bufferLayout.blob(8, "start_time"),
+    bufferLayout.blob(8, "net_amount_deposited"),
+    bufferLayout.blob(8, "period"),
+    bufferLayout.blob(8, "amount_per_period"),
+    bufferLayout.blob(8, "cliff"),
+    bufferLayout.blob(8, "cliff_amount"),
+    bufferLayout.u8("cancelable_by_sender"),
+    bufferLayout.u8("cancelable_by_recipient"),
+    bufferLayout.u8("automatic_withdrawal"),
+    bufferLayout.u8("transferable_by_sender"),
+    bufferLayout.u8("transferable_by_recipient"),
+    bufferLayout.u8("can_topup"),
+    bufferLayout.blob(64, "stream_name"),
+    bufferLayout.blob(8, "withdraw_frequency"),
+  ]);
 
-  const streamParams = {
-    recipient: winnerAddress,
-    tokenId: ET_CA,
-    start: now + 60,
-    amount: totalBN,
-    period: 1,
-    cliff: now + 60 + SIXTY_NINE_DAYS_SECS,
-    cliffAmount: totalBN,
-    amountPerPeriod: getBN(0, 0),
-    name: `ET Reward ${nonce}`,
-    cancelableBySender: false,
-    cancelableByRecipient: false,
-    transferableBySender: false,
-    transferableByRecipient: false,
-    automaticWithdrawal: false,
-    canTopup: false,
-    // No nonce — use keypair-based metadata (create_v1 instruction, known good on mainnet)
+  const nameBytes = Buffer.alloc(64);
+  Buffer.from(streamName).copy(nameBytes);
+
+  const toLE8 = (n: number | bigint) => {
+    // Write as 64-bit little-endian using Buffer arithmetic
+    const buf = Buffer.alloc(8);
+    let val = typeof n === "bigint" ? n : BigInt(Math.floor(Number(n)));
+    const mask = BigInt(0xff);
+    const eight = BigInt(8);
+    for (let i = 0; i < 8; i++) { buf[i] = Number(val & mask); val = val >> eight; }
+    return buf;
   };
 
-  // buildCreateTransaction returns a fully-formed VersionedTransaction — no manual instruction assembly
-  const { tx: versionedTx, metadataId, metadata } = await client.buildCreateTransaction(
-    streamParams,
-    { sender: keypair as any, isNative: false }
-  );
-  console.log(`[Lock] tx built — metadataId: ${metadataId}`);
+  let dataBuffer = Buffer.alloc(layout.span);
+  layout.encode({
+    start_time: toLE8(now + 60),
+    net_amount_deposited: toLE8(tokenAmount),
+    period: toLE8(1),
+    amount_per_period: toLE8(0),
+    cliff: toLE8(now + 60 + SIXTY_NINE_DAYS_SECS),
+    cliff_amount: toLE8(tokenAmount),
+    cancelable_by_sender: 0,
+    cancelable_by_recipient: 0,
+    automatic_withdrawal: 0,
+    transferable_by_sender: 0,
+    transferable_by_recipient: 0,
+    can_topup: 0,
+    stream_name: nameBytes,
+    withdraw_frequency: toLE8(1),
+  }, dataBuffer);
 
-  // Sign with ET keypair + metadata keypair (required for create instruction)
-  const signers: any[] = [keypair];
-  if (metadata) signers.push(metadata);
-  versionedTx.sign(signers);
+  const discriminator = createHash("sha256").update("global:create").digest().slice(0, 8);
+  const ixData = Buffer.concat([discriminator, dataBuffer, Buffer.alloc(10)]);
 
-  // Send raw (skipPreflight) + poll HTTP confirmation
-  const rawTx = Buffer.from(versionedTx.serialize());
-  const txSignature = await connection.sendRawTransaction(rawTx, { skipPreflight: true, maxRetries: 5 });
+  const ix = new TxIx({
+    programId: STREAMFLOW_PROGRAM,
+    keys: [
+      { pubkey: keypair.publicKey, isSigner: true, isWritable: true },
+      { pubkey: senderTokens, isSigner: false, isWritable: true },
+      { pubkey: winnerPubkey, isSigner: false, isWritable: true },
+      { pubkey: metadataPubkey, isSigner: true, isWritable: true },
+      { pubkey: escrowTokens, isSigner: false, isWritable: true },
+      { pubkey: recipientTokens, isSigner: false, isWritable: true },
+      { pubkey: STREAMFLOW_TREASURY, isSigner: false, isWritable: true },
+      { pubkey: treasuryTokens, isSigner: false, isWritable: true },
+      { pubkey: WITHDRAWOR, isSigner: false, isWritable: true },
+      { pubkey: keypair.publicKey, isSigner: true, isWritable: true },
+      { pubkey: partnerTokens, isSigner: false, isWritable: true },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: FEE_ORACLE, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: STREAMFLOW_PROGRAM, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOC_TOKEN_PROG, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: ixData,
+  });
+
+  const tx = new Transaction();
+  tx.add(ix);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = keypair.publicKey;
+  tx.sign(keypair, metadata);
+
+  console.log(`[Lock] Sending manual create tx — metadata: ${metadataPubkey.toBase58().slice(0,8)}, stream: ${streamName}`);
+  const txSignature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 5 });
   console.log(`[Lock] tx sent: ${txSignature} — polling...`);
 
   const startTime = Date.now();
@@ -293,9 +332,9 @@ export async function lockETForWinner(
     const status = await connection.getSignatureStatus(txSignature);
     const conf = status?.value?.confirmationStatus;
     if (conf === "confirmed" || conf === "finalized") {
-      if (status?.value?.err) throw new Error(`Lock tx failed on-chain: ${JSON.stringify(status.value.err)}`);
-      console.log(`[Lock] SUCCESS — stream: ${metadataId}, tx: ${txSignature}`);
-      return { streamId: metadataId, txSignature };
+      if (status?.value?.err) throw new Error(`Lock tx failed: ${JSON.stringify(status.value.err)}`);
+      console.log(`[Lock] SUCCESS — stream: ${metadataPubkey.toBase58()}, tx: ${txSignature}`);
+      return { streamId: metadataPubkey.toBase58(), txSignature };
     }
     if (status?.value?.err) throw new Error(`Lock tx failed: ${JSON.stringify(status.value.err)}`);
     await new Promise(r => setTimeout(r, 2000));
