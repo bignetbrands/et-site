@@ -377,7 +377,13 @@ export default function BotDashboard() {
                       <span style={{ color }}>{lock.status === "released" ? "✅ RELEASED" : isUnlocked ? "⚡ READY TO RELEASE" : "🔒 LOCKED"}</span>
                       <span style={{ color: "rgba(255,255,255,0.3)" }}>{unlockDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                     </div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)" }}>@{lock.winner?.slice(0,8)}... — {Number(lock.tokenAmount).toLocaleString()} $ET</div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginBottom: "2px" }}>Winner: {lock.winner?.slice(0,8)}...</div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "2px" }}>{Number(lock.tokenAmount).toLocaleString()} $ET</div>
+                    {lock.escrowWallet && (
+                      <div style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)" }}>
+                        Escrow: <a href={`https://solscan.io/account/${lock.escrowWallet}`} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(100,200,255,0.7)", textDecoration: "none" }}>{lock.escrowWallet?.slice(0,12)}... ↗</a>
+                      </div>
+                    )}
                     {lock.status === "locked" && isUnlocked && (
                       <button
                         onClick={async () => {
@@ -446,7 +452,7 @@ export default function BotDashboard() {
                   const data = await res.json();
                   if (data.success) {
                     setLockResult(data);
-                    addLog(`✅ Locked ${amount} SOL of $ET for 69 days — stream: ${data.streamId}`, "success");
+                    addLog(`✅ Locked ${usingTokenAmount ? tokenAmount + " tokens" : amount + " SOL swap"} of $ET for 69 days — lockId: ${data.lockId}`, "success");
                     setLockForm({ wallet: "", sol: "", tokenAmount: "" });
                   } else {
                     addLog(`❌ Lock failed: ${data.error}`, "error");
