@@ -109,7 +109,8 @@ export default function BotDashboard() {
     const res = await fetch("/api/admin/lock", { headers: authHeaders });
     const data = await res.json();
     if (data.locks) setEtLocks(data.locks);
-  }, []);
+    else console.error("[Locks]", data);
+  }, [authHeaders]);
 
   const loadRewardsQueue = useCallback(async () => {
     try {
