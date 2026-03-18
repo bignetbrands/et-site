@@ -11,7 +11,7 @@ import {
 import {
   getAssociatedTokenAddress,
   getAccount,
-  createAssociatedTokenAccountIdempotent,
+  createAssociatedTokenAccountIdempotentInstruction,
 } from "@solana/spl-token";
 import bs58 from "bs58";
 // BN imported from Streamflow to avoid version conflicts
@@ -22,7 +22,9 @@ const SIXTY_NINE_DAYS_SECS = 69 * 24 * 60 * 60;
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL not set");
-  return new Connection(rpc, "confirmed");
+  // wsEndpoint: "" disables WebSocket — Vercel can't use WS (b.mask error)
+  // All confirmation uses HTTP polling via getSignatureStatus
+  return new Connection(rpc, { commitment: "confirmed", wsEndpoint: "" });
 }
 
 function getKeypair(): Keypair {
@@ -167,10 +169,29 @@ export async function lockETForWinner(
   const connection = getConnection();
   console.log(`[Lock] start — ${tokenAmount} tokens for ${winnerAddress}`);
 
-  // Ensure winner ATA exists
+  // Ensure winner ATA exists — manual send+poll (no WebSocket)
   try {
-    await createAssociatedTokenAccountIdempotent(connection, keypair, new PublicKey(ET_CA), new PublicKey(winnerAddress));
-    console.log(`[Lock] winner ATA ensured`);
+    const winnerPubkey = new PublicKey(winnerAddress);
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(
+      keypair.publicKey, // payer
+      await getAssociatedTokenAddress(new PublicKey(ET_CA), winnerPubkey),
+      winnerPubkey,
+      new PublicKey(ET_CA)
+    );
+    const ataTx = new Transaction();
+    ataTx.add(ataIx);
+    const { blockhash: ataHash } = await connection.getLatestBlockhash("confirmed");
+    ataTx.recentBlockhash = ataHash;
+    ataTx.feePayer = keypair.publicKey;
+    ataTx.sign(keypair);
+    const ataSig = await connection.sendRawTransaction(ataTx.serialize(), { skipPreflight: true });
+    // Poll briefly for ATA (it's idempotent so failure is fine)
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 1500));
+      const s = await connection.getSignatureStatus(ataSig);
+      if (s?.value?.confirmationStatus === "confirmed" || s?.value?.confirmationStatus === "finalized") break;
+    }
+    console.log(`[Lock] winner ATA tx: ${ataSig}`);
   } catch (e: any) { console.warn(`[Lock] ATA note: ${e?.message}`); }
 
   const { SolanaStreamClient, ICluster, getBN } = await import("@streamflow/stream");
