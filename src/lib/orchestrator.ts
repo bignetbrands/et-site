@@ -885,12 +885,36 @@ export async function replyToSpecificTweet(
     const author = tweet.authorUsername || "someone";
     console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."`);
 
+    // ── WALK PARENT CHAIN for context (same logic as normal reply flow) ──────
+    let conversationContext: string | undefined;
+    if (tweet.inReplyToId) {
+      const contextParts: string[] = [];
+      let currentId: string | undefined = tweet.inReplyToId;
+      let depth = 0;
+      const ownId = await getOwnUserId();
+      while (currentId && depth < 5) {
+        const parent = await getTweet(currentId);
+        if (!parent) break;
+        const speaker = parent.authorId === ownId ? "[YOU]" : `[${parent.authorUsername || "USER"}]`;
+        contextParts.unshift(`${speaker}: "${parent.text.substring(0, 200)}"`);
+        currentId = parent.inReplyToId;
+        depth++;
+      }
+      if (contextParts.length > 0) {
+        conversationContext = contextParts.join("
+");
+        console.log(`[ET Reply] Thread context (${contextParts.length} tweets):
+${conversationContext}`);
+      }
+    }
+
     // ── ALL INTELLIGENCE CENTRALIZED IN decideReply() ──────────────────────
     const decision = await decideReply({
       tweetId,
       tweetText: tweet.text,
       authorUsername: author,
       imageUrls: tweet.imageUrls.length > 0 ? tweet.imageUrls : undefined,
+      conversationContext,
     });
 
     if (decision.type === "skip") {
