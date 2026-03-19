@@ -1253,6 +1253,12 @@ export default function BotDashboard() {
                     {loading === "riddleAnswerGen" ? "thinking..." : "👽 ASK ET"}
                   </button>
                 </div>
+                <input
+                  value={newRiddle.imageUrl}
+                  onChange={(e: any) => setNewRiddle(p => ({ ...p, imageUrl: e.target.value }))}
+                  placeholder="Image URL (optional — paste if riddle has a DALL-E image, ET will examine it)"
+                  style={{ ...styles.input, width: "100%", fontSize: "10px", padding: "4px 8px", color: "rgba(100,200,255,0.7)", boxSizing: "border-box" as const }}
+                />
                 <button
                   onClick={async () => {
                     if (!newRiddle.tweetUrl || !newRiddle.question || !newRiddle.answer) {
