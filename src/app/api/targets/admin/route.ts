@@ -128,7 +128,7 @@ export async function POST(request: Request) {
 
         // Extract tweet ID
         const { postReply, postQuoteTweet, postTweet } = await import("@/lib/twitter");
-        const { markTweetQuoted, recordBotPostedTweet, recordAction } = await import("@/lib/store");
+        const { markTweetQuoted, recordBotPostedTweet, recordAction, recordReply, recordParentReplied } = await import("@/lib/store");
         
         const idMatch2 = previewUrl.match(/status\/(\d+)/);
         const tid = idMatch2 ? idMatch2[1] : previewUrl.replace(/\D/g, "");
@@ -138,6 +138,7 @@ export async function POST(request: Request) {
           const rid = await postReply(previewText, tid);
           await markTweetQuoted(tid);
           await recordBotPostedTweet(rid);
+          await recordReply(tid); // prevent cron double-reply
           await recordAction();
           return NextResponse.json({ success: true, tweetId: tid, replyText: previewText, replyId: rid, method: "reply" });
         } catch (e: any) {
@@ -146,6 +147,7 @@ export async function POST(request: Request) {
               const qtId = await postQuoteTweet(previewText, tid);
               await markTweetQuoted(tid);
               await recordBotPostedTweet(qtId);
+              await recordReply(tid);
               await recordAction();
               return NextResponse.json({ success: true, tweetId: tid, replyText: previewText, replyId: qtId, method: "quote" });
             } catch {
@@ -155,6 +157,7 @@ export async function POST(request: Request) {
               const stId = await postTweet(`${trimmed}\n\n${link}`);
               await markTweetQuoted(tid);
               await recordBotPostedTweet(stId);
+              await recordReply(tid);
               await recordAction();
               return NextResponse.json({ success: true, tweetId: tid, replyText: trimmed, replyId: stId, method: "standalone" });
             }
