@@ -1267,7 +1267,7 @@ export default function BotDashboard() {
                     const data = await res.json();
                     if (data.success) {
                       addLog(`✅ Riddle added (tweet ${data.tweetId})`, "success");
-                      setNewRiddle({ tweetUrl: "", question: "", answer: "" });
+                      setNewRiddle({ tweetUrl: "", question: "", answer: "", imageUrl: "" });
                       loadRiddles();
                     } else { addLog(`Error: ${data.error}`, "error"); }
                     setLoading("");
