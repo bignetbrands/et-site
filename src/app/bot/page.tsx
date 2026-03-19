@@ -42,9 +42,10 @@ export default function BotDashboard() {
   const [promptText, setPromptText] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const [riddleAnswer, setRiddleAnswer] = useState("");
+  const [lastPostedImageUrl, setLastPostedImageUrl] = useState("");
   const [riddles, setRiddles] = useState<any[]>([]);
   const [riddleWinner, setRiddleWinner] = useState<Record<string, { winner: string; wallet: string; tweetUrl: string }>>({});
-  const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "" });
+  const [newRiddle, setNewRiddle] = useState({ tweetUrl: "", question: "", answer: "", imageUrl: "" });
   const [checkReplyUrl, setCheckReplyUrl] = useState<Record<string, string>>({});
   const [checkVerdict, setCheckVerdict] = useState<Record<string, any>>({});
   const [lockForm, setLockForm] = useState({ wallet: "", sol: "", tokenAmount: "" });
@@ -1237,7 +1238,7 @@ export default function BotDashboard() {
                       const res = await fetch("/api/admin/riddle-answer", {
                         method: "POST",
                         headers: { ...authHeaders, "Content-Type": "application/json" },
-                        body: JSON.stringify({ question: newRiddle.question }),
+                        body: JSON.stringify({ question: newRiddle.question, imageUrl: newRiddle.imageUrl || "" }),
                       });
                       const data = await res.json();
                       if (data.success) {
@@ -1450,13 +1451,45 @@ export default function BotDashboard() {
             />
             {promptPreview && (
               <div style={{ marginTop: "8px" }}>
-                <input
-                  value={riddleAnswer}
-                  onChange={(e: any) => setRiddleAnswer(e.target.value)}
-                  placeholder="Correct answer (optional — only fill if this is a riddle/challenge)"
-                  style={{ ...styles.input, width: "100%", fontSize: "11px", padding: "8px", boxSizing: "border-box" as const }}
-                />
-                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.35)", marginTop: "4px" }}>
+                <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
+                  <input
+                    value={riddleAnswer}
+                    onChange={(e: any) => setRiddleAnswer(e.target.value)}
+                    placeholder="Correct answer (optional — only fill if this is a riddle/challenge)"
+                    style={{ ...styles.input, flex: 1, fontSize: "11px", padding: "8px" }}
+                  />
+                  <button
+                    onClick={async () => {
+                      setLoading("riddleAnswerGen");
+                      const imageUrl = lastPostedImageUrl || (promptPreview.match(/\[GENERATE_IMAGE:[^\]]+\]/) ? "" : "");
+                      const res = await fetch("/api/admin/riddle-answer", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ question: promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim(), imageUrl }),
+                      });
+                      const data = await res.json();
+                      if (data.success) setRiddleAnswer(data.answer);
+                      else addLog(`Answer gen failed: ${data.error}`, "error");
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", background: "rgba(57,255,20,0.06)", borderColor: "rgba(57,255,20,0.2)", color: "rgba(57,255,20,0.7)", whiteSpace: "nowrap" as const }}
+                  >
+                    {loading === "riddleAnswerGen" ? "thinking..." : "👽 GET ANSWER"}
+                  </button>
+                </div>
+                {lastPostedImageUrl && (
+                  <div style={{ marginBottom: "6px" }}>
+                    <input
+                      value={lastPostedImageUrl}
+                      onChange={(e: any) => setLastPostedImageUrl(e.target.value)}
+                      placeholder="Image URL (auto-filled after posting with AI image)"
+                      style={{ ...styles.input, width: "100%", fontSize: "9px", padding: "5px 8px", color: "rgba(100,200,255,0.6)", boxSizing: "border-box" as const }}
+                    />
+                    <div style={{ fontSize: "9px", color: "rgba(100,200,255,0.3)", marginTop: "2px" }}>Claude will examine this image to determine the answer</div>
+                  </div>
+                )}
+                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.35)" }}>
                   If filled, ET will remember the answer and act as judge when humans reply. Leave blank for regular tweets.
                 </div>
               </div>
@@ -1517,6 +1550,7 @@ export default function BotDashboard() {
                       const data = await res.json();
                       if (data.success) {
                         addLog(`✅ Posted: "${data.tweet.substring(0, 60)}..." (${data.tweetId})${data.hasRiddle ? " — riddle answer stored 🧩" : ""}`, "success");
+                        if (data.imageUrl) setLastPostedImageUrl(data.imageUrl);
                         setPromptText("");
                         setPromptPreview(null);
                         setRiddleAnswer("");

@@ -55,12 +55,14 @@ export async function POST(req: NextRequest) {
   // Post it
   let tweetId: string;
   let hasImage = false;
+  let postedImageUrl = "";
 
   if (hasGeneratedImage && imagePrompt) {
     try {
       console.log(`[Prompt ET] Generating DALL-E image: "${imagePrompt.substring(0, 80)}..."`);
-      const imageUrl = await generateImage(imagePrompt, "human_observation");
-      const imageBuffer = await downloadImage(imageUrl, "human_observation");
+      const dalleUrl = await generateImage(imagePrompt, "human_observation");
+      postedImageUrl = dalleUrl;
+      const imageBuffer = await downloadImage(dalleUrl, "human_observation");
       tweetId = await postTweetWithImage(cleanText, imageBuffer);
       hasImage = true;
       console.log(`[Prompt ET] Posted with DALL-E image: ${tweetId}`);
@@ -102,5 +104,5 @@ export async function POST(req: NextRequest) {
     console.log(`[Prompt ET] Riddle posted ${tweetId} — answer stored`);
   }
 
-  return NextResponse.json({ success: true, tweet: tweetText, tweetId, hasRiddle: !!riddleAnswer.trim() });
+  return NextResponse.json({ success: true, tweet: cleanText, tweetId, hasRiddle: !!riddleAnswer.trim(), imageUrl: postedImageUrl || null });
 }
