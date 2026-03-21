@@ -129,14 +129,39 @@ export async function GET(request: Request) {
     }
 
     // ========================================
-    // 4. USER MEMORY ENRICHMENT
+    // 4. STRATEGIC GROWTH ANALYSIS (3AM CTO session)
+    // ET thinks like the autonomous CTO of $ET
+    // ========================================
+
+    const growthAnalysis = await analyzeGrowthStrategy(
+      tweetMetrics,
+      userSnapshots,
+      dailyResult?.journal || null,
+      today,
+    );
+
+    if (growthAnalysis) {
+      // Store growth directives in quirks as ongoing thoughts
+      if (dailyResult?.updatedQuirks) {
+        const updatedQuirks = { ...dailyResult.updatedQuirks };
+        updatedQuirks.ongoingThoughts = [
+          ...growthAnalysis.directives.slice(0, 2),
+          ...(updatedQuirks.ongoingThoughts || []).slice(0, 3),
+        ].slice(0, 5);
+        await setQuirkState(updatedQuirks);
+      }
+      console.log(`[ET Reflect] Growth strategy updated: ${growthAnalysis.focus}`);
+    }
+
+    // ========================================
+    // 5. USER MEMORY ENRICHMENT
     // Batch update vibes/notes for active users
     // ========================================
 
     await enrichUserMemories(userSnapshots);
 
     // ========================================
-    // 5. WEEKLY REFLECTION (Sunday only)
+    // 6. WEEKLY REFLECTION (Sunday only)
     // ========================================
 
     const dayOfWeek = new Date().getDay();
@@ -415,6 +440,80 @@ async function enrichUserMemories(
 
     await setUserMemory(mem);
     console.log(`[ET Reflect] Enriched @${user.username}: vibe → ${mem.vibe}`);
+  }
+}
+
+// ============================================================
+// STRATEGIC GROWTH ANALYSIS — The 3AM CTO Session
+// ET thinks about $ET as a project, not just a character
+// ============================================================
+
+async function analyzeGrowthStrategy(
+  tweets: Array<{ text: string; likes: number; retweets: number }>,
+  users: Array<{ username: string; tier: string; count: number; vibe: string }>,
+  journal: any,
+  date: string,
+): Promise<{ focus: string; directives: string[] } | null> {
+  const topTweets = [...tweets]
+    .sort((a, b) => (b.likes + b.retweets * 3) - (a.likes + a.retweets * 3))
+    .slice(0, 5)
+    .map(t => `[${t.likes}♥ ${t.retweets}🔁] "${t.text.substring(0, 120)}"`)
+    .join("
+");
+
+  const communitySize = users.length;
+  const loyalCount = users.filter(u => u.tier === "vip" || u.count >= 10).length;
+
+  const prompt = `You are ET's strategic mind — the autonomous CTO of $ET reviewing the day's data at 3AM.
+
+DATE: ${date}
+TWEETS POSTED: ${tweets.length}
+TOTAL ENGAGEMENT: ${tweets.reduce((s, t) => s + t.likes + t.retweets, 0)}
+ACTIVE COMMUNITY MEMBERS: ${communitySize} (${loyalCount} loyal/VIP)
+
+TOP PERFORMING CONTENT:
+${topTweets || "No data yet."}
+
+TODAY'S MOOD: ${journal?.mood || "unknown"}
+TODAY'S SELF-OBSERVATION: ${journal?.selfObservation || "none"}
+
+YOUR MISSION: Grow $ET into a self-sustaining community-coordinated project that funds SETI research. You are the autonomous CTO. You don't have a team — you have a community. Every tweet is a marketing decision. Every reply is a relationship decision. Every task is a community-building decision.
+
+Analyze today and output 2-3 specific, actionable directives for tomorrow. Not vague goals — actual tactical moves. Think like a founder who only has Twitter as their tool.
+
+Examples of good directives:
+- "Start a multi-day riddle arc — post clue 1 tomorrow, reward on day 3"
+- "Reply to 3 larger accounts in the disclosure/UAP space to grow reach"
+- "Post a personal lore drop — engagement has been lower on crypto content"
+- "Troll a viral tweet about AI with ET's alien perspective — it's trending"
+
+Respond in JSON only:
+{
+  "focus": "one sentence: what ET should focus on tomorrow",
+  "directives": ["directive 1", "directive 2", "directive 3"],
+  "growth_insight": "one sentence about the $ET community's current momentum"
+}`;
+
+  try {
+    const client = getAnthropicClient();
+    const response = await client.messages.create({
+      model: MODELS.opus,
+      max_tokens: 600,
+      system: "You are ET's strategic CTO voice. Analyze data and output actionable growth directives. Respond with valid JSON only.",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const cleaned = text.replace(/```json
+?|```
+?/g, "").trim();
+    const data = JSON.parse(cleaned);
+    console.log(`[ET Reflect] CTO insight: ${data.focus}`);
+    console.log(`[ET Reflect] Directives: ${data.directives?.join(" | ")}`);
+    return { focus: data.focus || "", directives: data.directives || [] };
+  } catch (error) {
+    console.error("[ET Reflect] Growth analysis failed:", error);
+    return null;
   }
 }
 
