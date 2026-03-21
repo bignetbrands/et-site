@@ -284,7 +284,7 @@ Respond in this EXACT JSON format (no markdown, no code fences):
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
+    const cleaned = text.replace(/```json\\n?|```\\n?/g, "").trim();
     const data = JSON.parse(cleaned);
 
     // Build journal entry
@@ -394,7 +394,7 @@ Identify what's working and what isn't. Respond in JSON only:
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
+    const cleaned = text.replace(/```json\\n?|```\\n?/g, "").trim();
     const data = JSON.parse(cleaned);
 
     return {
@@ -458,8 +458,7 @@ async function analyzeGrowthStrategy(
     .sort((a, b) => (b.likes + b.retweets * 3) - (a.likes + a.retweets * 3))
     .slice(0, 5)
     .map(t => `[${t.likes}♥ ${t.retweets}🔁] "${t.text.substring(0, 120)}"`)
-    .join("
-");
+    .join("\n");
 
   const communitySize = users.length;
   const loyalCount = users.filter(u => u.tier === "vip" || u.count >= 10).length;
@@ -504,9 +503,7 @@ Respond in JSON only:
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const cleaned = text.replace(/```json
-?|```
-?/g, "").trim();
+    const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
     const data = JSON.parse(cleaned);
     console.log(`[ET Reflect] CTO insight: ${data.focus}`);
     console.log(`[ET Reflect] Directives: ${data.directives?.join(" | ")}`);
@@ -570,7 +567,7 @@ Respond in JSON only:
     });
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
+    const cleaned = text.replace(/```json\\n?|```\\n?/g, "").trim();
     const data = JSON.parse(cleaned);
 
     const weekOf = new Date().toISOString().split("T")[0];
