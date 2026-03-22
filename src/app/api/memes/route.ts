@@ -1,15 +1,16 @@
 // app/api/memes/route.ts
-// Scrapes memedepot.com/d/et for $ET meme images
-// Caches results for 5 minutes to avoid hammering memedepot
+// Returns all $ET meme images from the memedepot library.
+// Baseline: hardcoded known IDs (fast, always available).
+// Enhancement: scrape memedepot for new images added after deploy.
 
 import { NextResponse } from "next/server";
 
-const MEMEDEPOT_URL = "https://memedepot.com/d/et";
-const CDN_PATTERN =
-  /https:\/\/memedepot\.com\/cdn-cgi\/imagedelivery\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/width=\d+/g;
+const CDN_BASE = "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw";
+const BANNER_ID = "20a62c4a-dcd0-46d4-88c9-65f043f86300"; // depot profile banner — exclude
 
-// Known good meme IDs — always available as baseline
-const KNOWN_MEME_IDS = [
+// All known meme IDs — extracted from homepage + memedepot manually
+// Add new IDs here when new memes are uploaded to memedepot.com/d/et
+const KNOWN_IDS = [
   "b582645c-31fe-4eb4-e707-0807f140b100",
   "bc5c960e-8e60-498d-6fb9-dd5e7867f400",
   "965abb89-978f-495a-325c-5909e1340600",
@@ -18,106 +19,65 @@ const KNOWN_MEME_IDS = [
   "c1ce7b27-2402-4e94-5683-e46c715a1a00",
   "d6a76aa5-45a6-4191-0bae-52d938135000",
   "91db8ecc-3e43-4491-38d1-c3e65bcce400",
+  "8f88cbb5-1db9-4ad4-4fb6-6d4ab5894200",
+  "44d2f74f-8ef3-44b7-dcbf-008127f9c800",
+  "930a5168-0c23-4231-9ab4-ee37ce35e800",
+  "95faadc6-087e-410f-6d05-5c26d3591d00",
+  "d3b2365e-8b0b-4484-cdae-f29e53c41300",
+  "7f54dcf9-e9a0-472d-18db-985b02106600",
+  "cd3caacb-b9b0-4979-f688-f9b398acda00",
+  "f5600f4c-ccbe-4f7f-99dd-d9e7ea426c00",
+  "c020cc21-66e9-4c01-d555-90ca8dd5b900",
+  "8c770281-cb0f-48e5-e650-ed4c8e5fad00",
+  "923d519a-154f-4c28-d713-106d1477a900",
+  "d3ed819f-8449-438a-f8dc-7e78d287fc00",
+  "22dd40c1-0ba1-4467-f729-ca967f5f5000",
 ];
-const CDN_BASE = "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw";
-const FALLBACK_URLS = KNOWN_MEME_IDS.map(id => `${CDN_BASE}/${id}/width=1080`);
 
-// Simple in-memory cache
-let cache: { images: string[]; timestamp: number } | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const KNOWN_URLS = KNOWN_IDS.map(id => `${CDN_BASE}/${id}/width=600`);
+
+// In-memory cache for scraped additions
+let scrapeCache: { ids: Set<string>; timestamp: number } | null = null;
+const CACHE_TTL = 10 * 60 * 1000; // 10 min
 
 export async function GET() {
+  const knownSet = new Set(KNOWN_IDS);
+
+  // Try to scrape memedepot for any new images not in KNOWN_IDS
+  let scrapedUrls: string[] = [];
   try {
-    // Return cached if fresh
-    if (cache && Date.now() - cache.timestamp < CACHE_TTL) {
-      return NextResponse.json({
-        images: cache.images,
-        cached: true,
-        count: cache.images.length,
+    if (!scrapeCache || Date.now() - scrapeCache.timestamp > CACHE_TTL) {
+      const res = await fetch("https://memedepot.com/d/et", {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ETSearchBot/1.0)" },
+        signal: AbortSignal.timeout(8000),
       });
-    }
-
-    // Fetch memedepot page
-    const res = await fetch(MEMEDEPOT_URL, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; ETSearchBot/1.0; +https://etsearch.fun)",
-      },
-      next: { revalidate: 300 }, // Next.js fetch cache: 5 min
-    });
-
-    if (!res.ok) {
-      throw new Error(`memedepot returned ${res.status}`);
-    }
-
-    const html = await res.text();
-
-    // Extract all CDN image URLs at width=3840
-    const matches = html.match(CDN_PATTERN) || [];
-
-    // Deduplicate and filter out the depot banner/logo image
-    const seen = new Set<string>();
-    const images: string[] = [];
-
-    for (const url of matches) {
-      // Extract the image ID from the URL
-      const idMatch = url.match(
-        /imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//
-      );
-      const id = idMatch ? idMatch[1] : url;
-
-      if (!seen.has(id)) {
-        seen.add(id);
-        // Normalize to width=600 — other sizes return 403 from CDN
-        images.push(url.replace(/width=\d+[^,]*/, "width=600"));
+      if (res.ok) {
+        const html = await res.text();
+        // Match any imagedelivery UUID pattern
+        const pattern = /imagedelivery\/[a-zA-Z0-9_-]+\/([a-f0-9-]{36})\//g;
+        const foundIds = new Set<string>();
+        let m;
+        while ((m = pattern.exec(html)) !== null) {
+          const id = m[1];
+          if (id !== BANNER_ID && !knownSet.has(id)) foundIds.add(id);
+        }
+        scrapeCache = { ids: foundIds, timestamp: Date.now() };
+        console.log(`[/api/memes] Scraped ${foundIds.size} new IDs from memedepot`);
       }
     }
-
-    // Filter out the depot's own banner (appears as the first/profile image)
-    // The banner is typically "20a62c4a-dcd0-46d4-88c9-65f043f86300"
-    const filtered = images.filter(
-      (url) => !url.includes("20a62c4a-dcd0-46d4-88c9-65f043f86300")
-    );
-
-    // Update cache
-    cache = { images: filtered, timestamp: Date.now() };
-
-    // Merge scraped images with known fallbacks (deduplicate by ID)
-    const allIds = new Set<string>();
-    const merged: string[] = [];
-    for (const url of [...filtered, ...FALLBACK_URLS]) {
-      const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
-      const id = m ? m[1] : url;
-      if (!allIds.has(id)) { allIds.add(id); merged.push(url); }
+    if (scrapeCache?.ids.size) {
+      scrapedUrls = [...scrapeCache.ids].map(id => `${CDN_BASE}/${id}/width=600`);
     }
-
-    cache = { images: merged, timestamp: Date.now() };
-
-    return NextResponse.json({
-      images: merged,
-      cached: false,
-      count: merged.length,
-      scraped: filtered.length,
-    });
-  } catch (error) {
-    console.error("[/api/memes] Error scraping memedepot:", error);
-
-    // Return stale cache if available
-    if (cache) {
-      return NextResponse.json({
-        images: cache.images,
-        cached: true,
-        stale: true,
-        count: cache.images.length,
-      });
-    }
-
-    // No cache — return at least the known fallbacks
-    return NextResponse.json({
-      images: FALLBACK_URLS,
-      cached: false,
-      stale: true,
-      count: FALLBACK_URLS.length,
-    });
+  } catch (e) {
+    console.warn("[/api/memes] Scrape failed (non-fatal):", e);
   }
+
+  const all = [...KNOWN_URLS, ...scrapedUrls];
+
+  return NextResponse.json({
+    images: all,
+    count: all.length,
+    known: KNOWN_IDS.length,
+    scraped: scrapedUrls.length,
+  });
 }
