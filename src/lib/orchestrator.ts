@@ -390,20 +390,32 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   // SECOND DEDUP LAYER: Skip if ET already replied to a mention from this same author
   // about this same parent tweet. Catches race conditions / KV inconsistency.
-  // Uses parent_tweet:author combo so different users can still mention ET on the same tweet.
   const parentKey = mention.inReplyToId || mention.conversationId;
   const parentAuthorKey = parentKey ? `${parentKey}:${authorUsername.toLowerCase()}` : null;
   if (parentAuthorKey && await hasRepliedToParent(parentAuthorKey)) {
-    await recordReply(mention.id); // Mark this mention too
+    await recordReply(mention.id);
     return {
-      mentionId: mention.id,
-      mentionText: mention.text,
-      authorUsername,
-      replyText: "",
-      replyId: "",
-      skipped: true,
+      mentionId: mention.id, mentionText: mention.text, authorUsername,
+      replyText: "", replyId: "", skipped: true,
       skipReason: "Already replied to this user on this tweet",
     };
+  }
+
+  // THIRD DEDUP LAYER: Skip if ET has already replied in this conversation today.
+  // Catches: force-reply then cron fires again, or second mention in same thread.
+  if (mention.conversationId) {
+    const [threadCount, alreadyInConv] = await Promise.all([
+      getThreadReplyCount(mention.conversationId),
+      hasRepliedToParent(mention.conversationId), // conversation-level dedup key
+    ]);
+    if (threadCount >= 1 || alreadyInConv) {
+      await recordReply(mention.id);
+      return {
+        mentionId: mention.id, mentionText: mention.text, authorUsername,
+        replyText: "", replyId: "", skipped: true,
+        skipReason: `Already replied in this conversation (threadCount: ${threadCount})`,
+      };
+    }
   }
 
   // Skip all mentions in raid threads — ET posts TLDR then ignores the chain
@@ -636,6 +648,8 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
 
   const postedParentKey = mention.inReplyToId || mention.conversationId;
   if (postedParentKey) await recordParentReplied(`${postedParentKey}:${authorUsername.toLowerCase()}`);
+  // Also record conversation-level key so any future mention in this thread is skipped
+  if (mention.conversationId) await recordParentReplied(mention.conversationId);
 
   // Non-blocking memory + style learning
   recordUserMemoryInteraction(authorUsername, mention.text, replyText, extractTopicsFromText(mention.text))
