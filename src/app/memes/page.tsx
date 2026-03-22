@@ -7,6 +7,7 @@ interface MemeImage {
   id: string;
   index: number;
   thumbnailUrl: string;
+  fullUrl: string;
 }
 
 function extractId(url: string): string {
@@ -15,7 +16,15 @@ function extractId(url: string): string {
 }
 
 function toThumbnail(url: string): string {
-  return url.replace(/width=\d+/, "width=400");
+  const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
+  const id = m ? m[1] : "";
+  return id ? `/api/memes/proxy?id=${id}&w=400` : url;
+}
+
+function toFullUrl(url: string): string {
+  const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
+  const id = m ? m[1] : "";
+  return id ? `/api/memes/proxy?id=${id}&w=1080` : url;
 }
 
 export default function MemesPage() {
@@ -35,6 +44,7 @@ export default function MemesPage() {
           id: extractId(url),
           index: i + 1,
           thumbnailUrl: toThumbnail(url),
+          fullUrl: toFullUrl(url),
         }));
         setMemes(images);
         setLoading(false);
@@ -48,7 +58,7 @@ export default function MemesPage() {
   const copyToClipboard = useCallback(async (meme: MemeImage, e?: React.MouseEvent) => {
     e?.stopPropagation();
     try {
-      const res = await fetch(meme.thumbnailUrl);
+      const res = await fetch(meme.fullUrl);
       const blob = await res.blob();
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob })
@@ -186,7 +196,7 @@ export default function MemesPage() {
                   {copied?.startsWith(selected.id) ? "✓ COPIED" : "⎘ COPY IMAGE"}
                 </button>
                 <a
-                  href={selected.url}
+                  href={selected.fullUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", color: "rgba(255,255,255,0.5)", fontFamily: "monospace", fontSize: "10px", letterSpacing: "1px", padding: "8px", cursor: "pointer", textDecoration: "none", textAlign: "center", display: "block" }}
