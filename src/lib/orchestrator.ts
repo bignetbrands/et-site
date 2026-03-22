@@ -638,8 +638,29 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
       await recordReply(mention.id);
       return { mentionId: mention.id, mentionText: mention.text, authorUsername, replyText: "", replyId: "", skipped: true, skipReason: "Empty reply after truncation" };
     }
-    replyId = await postReply(text, mention.id);
-    replyText = text;
+    // Check if ET wants to attach a meme
+    if (text.includes("[ATTACH_MEME]")) {
+      const cleanText = text.replace("[ATTACH_MEME]", "").trim();
+      try {
+        const { getRandomETMeme } = await import("./meme-engine");
+        const memeBuffer = await getRandomETMeme();
+        if (memeBuffer) {
+          replyId = await postReplyWithImage(cleanText, mention.id, memeBuffer);
+          replyText = cleanText;
+          console.log(`[ET Replies] Posted reply with meme image`);
+        } else {
+          replyId = await postReply(cleanText, mention.id);
+          replyText = cleanText;
+        }
+      } catch (e) {
+        console.warn("[ET Replies] Meme attach failed, posting text only:", e);
+        replyId = await postReply(text.replace("[ATTACH_MEME]", "").trim(), mention.id);
+        replyText = text.replace("[ATTACH_MEME]", "").trim();
+      }
+    } else {
+      replyId = await postReply(text, mention.id);
+      replyText = text;
+    }
   }
 
   await recordReply(mention.id);
@@ -981,6 +1002,25 @@ export async function replyToSpecificTweet(
     // Text reply — with fallback chain (reply → quote → standalone)
     replyText = decision.text ?? "";
     if (!replyText) return { success: false, error: "Empty reply generated" };
+
+    // Strip [ATTACH_MEME] and handle image attachment
+    if (replyText.includes("[ATTACH_MEME]")) {
+      const cleanReplyText = replyText.replace("[ATTACH_MEME]", "").trim();
+      try {
+        const { getRandomETMeme } = await import("./meme-engine");
+        const memeBuffer = await getRandomETMeme();
+        if (memeBuffer) {
+          replyId = await postReplyWithImage(cleanReplyText, tweetId, memeBuffer);
+          replyText = cleanReplyText;
+          await markTweetQuoted(tweetId);
+          await recordBotPostedTweet(replyId);
+          await recordReply(tweetId);
+          await recordParentReplied(`${tweetId}:${author.toLowerCase()}`);
+          return { success: true, tweetId, replyText, replyId, method: "reply+meme" };
+        }
+        replyText = cleanReplyText; // fall through to normal post if no meme
+      } catch { replyText = replyText.replace("[ATTACH_MEME]", "").trim(); }
+    }
 
     try {
       replyId = await postReply(replyText, tweetId);
