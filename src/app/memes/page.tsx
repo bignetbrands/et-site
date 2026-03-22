@@ -13,6 +13,61 @@ const FALLBACK_MEME_IMAGES = [
   "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/91db8ecc-3e43-4491-38d1-c3e65bcce400/width=600",
 ];
 
+function CopyBtn({ url }: { url: string }) {
+  const [state, setState] = useState<"idle"|"copying"|"done"|"err">("idle");
+
+  const copy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setState("copying");
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      setState("done");
+    } catch {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = url;
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0);
+        const png = await new Promise<Blob>(r => canvas.toBlob(r as any, "image/png"));
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+        setState("done");
+      } catch {
+        setState("err");
+      }
+    }
+    setTimeout(() => setState("idle"), 2000);
+  };
+
+  const color = state === "done" ? "#00ff64" : state === "err" ? "#ff5555" : "#fff";
+  const bg = state === "done" ? "rgba(0,255,100,0.25)" : state === "err" ? "rgba(255,80,80,0.2)" : "rgba(0,0,0,0.7)";
+
+  return (
+    <button
+      onClick={copy}
+      title="Copy image to clipboard"
+      style={{ position: "absolute", bottom: 8, left: 8, width: 30, height: 30, borderRadius: "50%", background: bg, border: `1px solid ${state === "done" ? "rgba(0,255,100,0.4)" : "rgba(255,255,255,0.15)"}`, color, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: state === "idle" ? 0.7 : 1, backdropFilter: "blur(4px)", zIndex: 2, transition: "all 0.2s" }}
+    >
+      {state === "copying" ? (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/></svg>
+      ) : state === "done" ? (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      ) : state === "err" ? (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      ) : (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function MemesPage() {
   const [memeImages, setMemeImages] = useState(FALLBACK_MEME_IMAGES);
   const [shareUrl, setShareUrl] = useState(null);
@@ -125,10 +180,13 @@ export default function MemesPage() {
               <img src={url} alt={`ET meme ${i + 1}`} loading="lazy" onClick={() => openSharePopup(url)}
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s ease", cursor: "pointer" }} />
               <div style={{ position: "absolute", top: 6, left: 8, fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)", background: "rgba(0,0,0,0.55)", borderRadius: 4, padding: "1px 5px", pointerEvents: "none" }}>#{i + 1}</div>
-              <button style={{ position: "absolute", bottom: 8, right: 8, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0.6, backdropFilter: "blur(4px)", zIndex: 2 }}
+              {/* Share on X */}
+              <button style={{ position: "absolute", bottom: 8, right: 8, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0.7, backdropFilter: "blur(4px)", zIndex: 2 }}
                 onClick={e => { e.stopPropagation(); openSharePopup(url); }} title="Share on X">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
+              {/* Copy to clipboard */}
+              <CopyBtn url={url} />
             </div>
           ))}
         </div>
