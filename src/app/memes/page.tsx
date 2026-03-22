@@ -124,6 +124,7 @@ export default function MemesPage() {
               onMouseLeave={e => { e.currentTarget.querySelector("img").style.transform = "scale(1)"; }}>
               <img src={url} alt={`ET meme ${i + 1}`} loading="lazy" onClick={() => openSharePopup(url)}
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s ease", cursor: "pointer" }} />
+              <div style={{ position: "absolute", top: 6, left: 8, fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)", background: "rgba(0,0,0,0.55)", borderRadius: 4, padding: "1px 5px", pointerEvents: "none" }}>#{i + 1}</div>
               <button style={{ position: "absolute", bottom: 8, right: 8, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0.6, backdropFilter: "blur(4px)", zIndex: 2 }}
                 onClick={e => { e.stopPropagation(); openSharePopup(url); }} title="Share on X">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
