@@ -1,216 +1,196 @@
 // @ts-nocheck
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 
-interface MemeImage {
-  url: string;
-  id: string;
-  index: number;
-  thumbnailUrl: string;
-  fullUrl: string;
-}
-
-function extractId(url: string): string {
-  const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
-  return m ? m[1] : url;
-}
-
-function toThumbnail(url: string): string {
-  // width=600 is the allowed size on memedepot CDN — other sizes 403
-  return url.replace(/width=\d+[^,]*/g, "width=600");
-}
-
-function toFullUrl(url: string): string {
-  return url.replace(/width=\d+[^,]*/g, "width=600");
-}
+const FALLBACK_MEME_IMAGES = [
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/b582645c-31fe-4eb4-e707-0807f140b100/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/bc5c960e-8e60-498d-6fb9-dd5e7867f400/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/965abb89-978f-495a-325c-5909e1340600/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/1da10545-a6ac-4870-dd82-5592c96c2800/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/a4035e7d-c7da-48cd-80ce-83baf13bb400/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/c1ce7b27-2402-4e94-5683-e46c715a1a00/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/d6a76aa5-45a6-4191-0bae-52d938135000/width=600",
+  "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/91db8ecc-3e43-4491-38d1-c3e65bcce400/width=600",
+];
 
 export default function MemesPage() {
-  const [memes, setMemes] = useState<MemeImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
-  const [selected, setSelected] = useState<MemeImage | null>(null);
-  const [filter, setFilter] = useState("");
+  const [memeImages, setMemeImages] = useState(FALLBACK_MEME_IMAGES);
+  const [shareUrl, setShareUrl] = useState(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [tweetOptions, setTweetOptions] = useState([]);
+  const [tweetLoading, setTweetLoading] = useState(false);
+  const [selectedTweet, setSelectedTweet] = useState("$ET 👽");
 
   useEffect(() => {
     fetch("/api/memes")
       .then(r => r.json())
       .then(data => {
-        const images: MemeImage[] = (data.images || []).map((url: string, i: number) => ({
-          url,
-          id: extractId(url),
-          index: i + 1,
-          thumbnailUrl: toThumbnail(url),
-          fullUrl: toFullUrl(url),
-        }));
-        setMemes(images);
-        setLoading(false);
+        if (data.images?.length) setMemeImages(data.images);
+      })
+      .catch(() => {});
+  }, []);
+
+  const openSharePopup = (url) => {
+    setShareUrl(url);
+    setShareCopied(false);
+    setSelectedTweet("$ET 👽");
+    setTweetOptions([]);
+    setTweetLoading(true);
+    const hiRes = url.replace("width=600", "width=3840");
+    fetch("/api/meme-tweets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: hiRes }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.tweets?.length) {
+          setTweetOptions(data.tweets);
+          setSelectedTweet(data.tweets[0].text || data.tweets[0]);
+        }
       })
       .catch(() => {
-        setError("Failed to load meme library");
-        setLoading(false);
-      });
-  }, []);
+        const fb = [
+          { text: "$ET 👽 we out here", usedCount: 0 },
+          { text: "ngl this goes hard. $ET", usedCount: 0 },
+          { text: "the search continues. $ET", usedCount: 0 },
+          { text: "ET sees you 👽", usedCount: 0 },
+        ];
+        setTweetOptions(fb);
+        setSelectedTweet(fb[0].text);
+      })
+      .finally(() => setTweetLoading(false));
+  };
 
-  const copyToClipboard = useCallback(async (meme: MemeImage, e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const markTweetUsed = (index) => {
+    if (!shareUrl) return;
+    fetch("/api/meme-tweets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: shareUrl.replace("width=600", "width=3840"), action: "use", tweetIndex: index }),
+    }).catch(() => {});
+  };
+
+  const handleCopyImage = async () => {
     try {
-      const res = await fetch(meme.thumbnailUrl);
+      const res = await fetch(shareUrl.replace("width=600", "width=3840"));
       const blob = await res.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob })
-      ]);
-      setCopied(meme.id);
-      setTimeout(() => setCopied(null), 2000);
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      setShareCopied(true);
     } catch {
-      // Fallback: copy URL
-      await navigator.clipboard.writeText(meme.url);
-      setCopied(meme.id + "_url");
-      setTimeout(() => setCopied(null), 2000);
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = shareUrl.replace("width=600", "width=3840");
+        await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+        const pngBlob = await new Promise(r => canvas.toBlob(r, "image/png"));
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+        setShareCopied(true);
+      } catch {
+        alert("Copy not supported on this browser. Use Download instead.");
+      }
     }
-  }, []);
+  };
 
-  const filtered = filter.trim()
-    ? memes.filter(m => m.id.toLowerCase().includes(filter.toLowerCase()) || String(m.index).includes(filter))
-    : memes;
+  const handleDownloadImage = () => {
+    const a = document.createElement("a");
+    a.href = shareUrl.replace("width=600", "width=3840");
+    a.download = "et-meme.jpg";
+    a.target = "_blank";
+    a.click();
+  };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#050508", color: "#fff", fontFamily: "monospace" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #060a0d 0%, #08080e 100%)", fontFamily: "'DM Mono', monospace" }}>
       {/* Header */}
-      <div style={{ borderBottom: "1px solid rgba(57,255,20,0.1)", padding: "24px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <div style={{ fontSize: "11px", color: "rgba(57,255,20,0.5)", letterSpacing: "3px", marginBottom: "4px" }}>ET MEME LIBRARY</div>
-          <div style={{ fontSize: "20px", fontWeight: 700, color: "#fff" }}>👽 Meme Archive</div>
-          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "4px" }}>
-            {loading ? "Loading..." : `${memes.length} images • pulled from memedepot.com/d/et`}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <input
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            placeholder="search by index or ID..."
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "6px 12px", color: "#fff", fontFamily: "monospace", fontSize: "11px", width: "200px", outline: "none" }}
-          />
-          <a href="https://memedepot.com/d/et" target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: "10px", color: "rgba(57,255,20,0.5)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "6px 12px", textDecoration: "none" }}>
-            ↗ MEMEDEPOT
-          </a>
-        </div>
-      </div>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "64px 20px 32px" }}>
+        <h1 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: "clamp(24px, 6vw, 38px)", letterSpacing: "2px", color: "#fff", fontWeight: 800, textTransform: "uppercase", marginBottom: 12 }}>
+          MEME TRANSMISSIONS
+        </h1>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", letterSpacing: "1px", marginBottom: 40 }}>
+          dispatches from an alien among you · <a href="https://memedepot.com/d/et" target="_blank" rel="noopener noreferrer" style={{ color: "#00ff64", borderBottom: "1px dashed rgba(0,255,100,0.4)" }}>submit on memedepot ↗</a>
+          <span style={{ marginLeft: 16, color: "rgba(255,255,255,0.2)" }}>{memeImages.length} images</span>
+        </p>
 
-      {/* Grid */}
-      <div style={{ padding: "24px 32px" }}>
-        {loading && (
-          <div style={{ textAlign: "center", padding: "60px", color: "rgba(57,255,20,0.4)", letterSpacing: "2px", fontSize: "11px" }}>
-            SCANNING MEME ARCHIVE...
-          </div>
-        )}
-        {error && (
-          <div style={{ textAlign: "center", padding: "60px", color: "rgba(255,80,80,0.6)", fontSize: "12px" }}>{error}</div>
-        )}
-        {!loading && !error && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>
-            {filtered.map(meme => (
-              <div
-                key={meme.id}
-                onClick={() => setSelected(meme)}
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px", overflow: "hidden", cursor: "pointer", transition: "border-color 0.15s", position: "relative" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(57,255,20,0.3)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
-              >
-                {/* Image */}
-                <div style={{ width: "100%", aspectRatio: "1", overflow: "hidden", background: "rgba(0,0,0,0.3)" }}>
-                  <img
-                    src={meme.thumbnailUrl}
-                    alt={`ET meme #${meme.index}`}
-                    loading="lazy"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    onError={(e: any) => {
-                      e.target.style.display = "none";
-                      e.target.parentNode.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,80,80,0.4);font-size:10px;font-family:monospace;flex-direction:column;gap:4px"><span>👽</span><span>proxy err</span></div>`;
-                    }}
-                  />
-                </div>
-
-                {/* Metadata */}
-                <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(57,255,20,0.7)" }}>#{meme.index}</span>
-                    <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.2)", letterSpacing: "1px" }}>ET MEME</span>
-                  </div>
-                  <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", marginBottom: "8px", wordBreak: "break-all" }}>
-                    {meme.id.slice(0, 18)}...
-                  </div>
-                  <button
-                    onClick={e => copyToClipboard(meme, e)}
-                    style={{
-                      width: "100%",
-                      background: copied === meme.id ? "rgba(57,255,20,0.15)" : copied === meme.id + "_url" ? "rgba(255,200,0,0.1)" : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${copied?.startsWith(meme.id) ? "rgba(57,255,20,0.4)" : "rgba(255,255,255,0.1)"}`,
-                      borderRadius: "3px",
-                      color: copied === meme.id ? "rgba(57,255,20,0.9)" : copied === meme.id + "_url" ? "rgba(255,200,0,0.8)" : "rgba(255,255,255,0.5)",
-                      fontFamily: "monospace",
-                      fontSize: "9px",
-                      letterSpacing: "1px",
-                      padding: "5px",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {copied === meme.id ? "✓ COPIED IMAGE" : copied === meme.id + "_url" ? "✓ COPIED URL" : "⎘ COPY IMAGE"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Lightbox */}
-      {selected && (
-        <div
-          onClick={() => setSelected(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "20px" }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: "#0a0a0f", border: "1px solid rgba(57,255,20,0.2)", borderRadius: "8px", overflow: "hidden", maxWidth: "600px", width: "100%" }}
-          >
-            <img src={selected.thumbnailUrl} alt={`ET meme #${selected.index}`} style={{ width: "100%", display: "block" }}
-              onError={(e: any) => { e.target.src = selected.fullUrl; }}
-            />
-            <div style={{ padding: "16px 20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                <div>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "rgba(57,255,20,0.8)", marginBottom: "4px" }}>ET Meme #{selected.index}</div>
-                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>ID: {selected.id}</div>
-                </div>
-                <button onClick={() => setSelected(null)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "3px", color: "rgba(255,255,255,0.4)", fontFamily: "monospace", fontSize: "11px", padding: "4px 10px", cursor: "pointer" }}>✕</button>
-              </div>
-              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.2)", wordBreak: "break-all", marginBottom: "12px", background: "rgba(0,0,0,0.3)", padding: "8px", borderRadius: "3px" }}>
-                {selected.url}
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  onClick={() => copyToClipboard(selected)}
-                  style={{ flex: 1, background: copied?.startsWith(selected.id) ? "rgba(57,255,20,0.15)" : "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.3)", borderRadius: "4px", color: "rgba(57,255,20,0.8)", fontFamily: "monospace", fontSize: "10px", letterSpacing: "1px", padding: "8px", cursor: "pointer" }}
-                >
-                  {copied?.startsWith(selected.id) ? "✓ COPIED" : "⎘ COPY IMAGE"}
-                </button>
-                <a
-                  href={selected.fullUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", color: "rgba(255,255,255,0.5)", fontFamily: "monospace", fontSize: "10px", letterSpacing: "1px", padding: "8px", cursor: "pointer", textDecoration: "none", textAlign: "center", display: "block" }}
-                >
-                  ↗ OPEN FULL SIZE
-                </a>
-              </div>
+        {/* Grid — all memes, no collapse */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}
+          className="meme-grid-wrap">
+          {memeImages.map((url, i) => (
+            <div key={i} style={{ borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", transition: "all 0.25s ease", aspectRatio: "1", position: "relative", background: "#0a0a14" }}
+              onMouseEnter={e => { e.currentTarget.querySelector("img").style.transform = "scale(1.04)"; }}
+              onMouseLeave={e => { e.currentTarget.querySelector("img").style.transform = "scale(1)"; }}>
+              <img src={url} alt={`ET meme ${i + 1}`} loading="lazy" onClick={() => openSharePopup(url)}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s ease", cursor: "pointer" }} />
+              <button style={{ position: "absolute", bottom: 8, right: 8, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0.6, backdropFilter: "blur(4px)", zIndex: 2 }}
+                onClick={e => { e.stopPropagation(); openSharePopup(url); }} title="Share on X">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Share popup — identical to homepage */}
+      {shareUrl && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 10002, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => { setShareUrl(null); setShareCopied(false); }}>
+          <div style={{ background: "linear-gradient(180deg, #0d1218 0%, #080b10 100%)", border: "1px solid rgba(0,255,100,0.12)", borderRadius: 16, padding: "20px", maxWidth: 400, width: "100%", textAlign: "center", boxShadow: "0 0 60px rgba(0,255,100,0.08), 0 20px 60px rgba(0,0,0,0.6)", position: "relative", maxHeight: "90vh", overflowY: "auto" }}
+            onClick={e => e.stopPropagation()}>
+            <button style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", width: 32, height: 32, borderRadius: "50%", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={() => { setShareUrl(null); setShareCopied(false); }}>✕</button>
+            <img src={shareUrl.replace("width=600", "width=1200")} alt="ET meme"
+              style={{ width: "100%", borderRadius: 12, marginBottom: 16, border: "1px solid rgba(255,255,255,0.06)", display: "block" }} />
+
+            {/* Tweet options */}
+            <div style={{ marginBottom: 12, textAlign: "left" }}>
+              <div style={{ fontSize: 10, color: "rgba(0,255,100,0.5)", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Pick a tweet:</div>
+              {tweetLoading ? (
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>🛸 ET is writing tweets...</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {tweetOptions.map((tweet, i) => {
+                    const text = tweet.text || tweet;
+                    const used = tweet.usedCount || 0;
+                    const isSelected = selectedTweet === text;
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+                        <button style={{ flex: 1, background: isSelected ? "rgba(0,255,100,0.08)" : "rgba(255,255,255,0.03)", border: isSelected ? "1px solid rgba(0,255,100,0.4)" : "1px solid rgba(255,255,255,0.08)", borderTopLeftRadius: 6, borderBottomLeftRadius: 6, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: "none", padding: "8px 12px", color: isSelected ? "#00ff64" : "rgba(255,255,255,0.6)", fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}
+                          onClick={() => setSelectedTweet(text)}>
+                          {text}
+                          {used > 0 && <span style={{ marginLeft: 8, fontSize: "9px", opacity: 0.5, color: "#00ff64" }}>used {used}x</span>}
+                        </button>
+                        <button style={{ background: isSelected ? "rgba(0,255,100,0.12)" : "rgba(255,255,255,0.03)", border: isSelected ? "1px solid rgba(0,255,100,0.4)" : "1px solid rgba(255,255,255,0.08)", borderLeft: "none", borderTopRightRadius: 6, borderBottomRightRadius: 6, padding: "0 10px", cursor: "pointer", display: "flex", alignItems: "center", transition: "all 0.2s" }}
+                          onClick={() => { markTweetUsed(i); window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank"); }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button style={{ flex: 1, padding: "12px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", fontFamily: "'Archivo Black', sans-serif", fontSize: 12, letterSpacing: "1px", cursor: "pointer" }}
+                onClick={handleCopyImage}>{shareCopied ? "✓ COPIED" : "📋 COPY IMAGE"}</button>
+              <button style={{ flex: 1, padding: "12px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", fontFamily: "'Archivo Black', sans-serif", fontSize: 12, letterSpacing: "1px", cursor: "pointer" }}
+                onClick={handleDownloadImage}>📥 DOWNLOAD</button>
+            </div>
+            <button style={{ width: "100%", padding: "14px 24px", background: "#00ff64", color: "#000", fontFamily: "'Archivo Black', sans-serif", fontSize: 13, letterSpacing: "1px", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 900 }}
+              onClick={() => { const idx = tweetOptions.findIndex(t => (t.text || t) === selectedTweet); if (idx >= 0) markTweetUsed(idx); window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(selectedTweet || "$ET 👽")}`, "_blank"); }}>
+              CONTINUE TO X →
+            </button>
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 768px) { .meme-grid-wrap { grid-template-columns: repeat(2, 1fr) !important; } }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=DM+Mono&display=swap');
+      `}</style>
     </div>
   );
 }
