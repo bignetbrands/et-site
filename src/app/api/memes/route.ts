@@ -6,7 +6,21 @@ import { NextResponse } from "next/server";
 
 const MEMEDEPOT_URL = "https://memedepot.com/d/et";
 const CDN_PATTERN =
-  /https:\/\/memedepot\.com\/cdn-cgi\/imagedelivery\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/width=3840/g;
+  /https:\/\/memedepot\.com\/cdn-cgi\/imagedelivery\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/width=\d+/g;
+
+// Known good meme IDs — always available as baseline
+const KNOWN_MEME_IDS = [
+  "b582645c-31fe-4eb4-e707-0807f140b100",
+  "bc5c960e-8e60-498d-6fb9-dd5e7867f400",
+  "965abb89-978f-495a-325c-5909e1340600",
+  "1da10545-a6ac-4870-dd82-5592c96c2800",
+  "a4035e7d-c7da-48cd-80ce-83baf13bb400",
+  "c1ce7b27-2402-4e94-5683-e46c715a1a00",
+  "d6a76aa5-45a6-4191-0bae-52d938135000",
+  "91db8ecc-3e43-4491-38d1-c3e65bcce400",
+];
+const CDN_BASE = "https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw";
+const FALLBACK_URLS = KNOWN_MEME_IDS.map(id => `${CDN_BASE}/${id}/width=1080`);
 
 // Simple in-memory cache
 let cache: { images: string[]; timestamp: number } | null = null;
@@ -54,7 +68,8 @@ export async function GET() {
 
       if (!seen.has(id)) {
         seen.add(id);
-        images.push(url);
+        // Normalize to width=600 — other sizes return 403 from CDN
+        images.push(url.replace(/width=\d+[^,]*/, "width=600"));
       }
     }
 
@@ -67,10 +82,22 @@ export async function GET() {
     // Update cache
     cache = { images: filtered, timestamp: Date.now() };
 
+    // Merge scraped images with known fallbacks (deduplicate by ID)
+    const allIds = new Set<string>();
+    const merged: string[] = [];
+    for (const url of [...filtered, ...FALLBACK_URLS]) {
+      const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
+      const id = m ? m[1] : url;
+      if (!allIds.has(id)) { allIds.add(id); merged.push(url); }
+    }
+
+    cache = { images: merged, timestamp: Date.now() };
+
     return NextResponse.json({
-      images: filtered,
+      images: merged,
       cached: false,
-      count: filtered.length,
+      count: merged.length,
+      scraped: filtered.length,
     });
   } catch (error) {
     console.error("[/api/memes] Error scraping memedepot:", error);
@@ -85,9 +112,12 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch memes", images: [] },
-      { status: 502 }
-    );
+    // No cache — return at least the known fallbacks
+    return NextResponse.json({
+      images: FALLBACK_URLS,
+      cached: false,
+      stale: true,
+      count: FALLBACK_URLS.length,
+    });
   }
 }

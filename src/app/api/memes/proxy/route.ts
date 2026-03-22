@@ -14,13 +14,8 @@ export async function GET(req: NextRequest) {
   const url = `https://memedepot.com/cdn-cgi/imagedelivery/naCPMwxXX46-hrE49eZovw/${imageId}/width=${width}`;
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; ETSearchBot/1.0)",
-        "Referer": "https://memedepot.com/",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
+    // Plain fetch — matches how meme-engine.ts successfully fetches these images
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
 
     if (!res.ok) {
       return new NextResponse(`Upstream error: ${res.status}`, { status: res.status });

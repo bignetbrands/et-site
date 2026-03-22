@@ -16,15 +16,12 @@ function extractId(url: string): string {
 }
 
 function toThumbnail(url: string): string {
-  const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
-  const id = m ? m[1] : "";
-  return id ? `/api/memes/proxy?id=${id}&w=400` : url;
+  // width=600 is the allowed size on memedepot CDN — other sizes 403
+  return url.replace(/width=\d+[^,]*/g, "width=600");
 }
 
 function toFullUrl(url: string): string {
-  const m = url.match(/imagedelivery\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)\//);
-  const id = m ? m[1] : "";
-  return id ? `/api/memes/proxy?id=${id}&w=1080` : url;
+  return url.replace(/width=\d+[^,]*/g, "width=600");
 }
 
 export default function MemesPage() {
@@ -58,7 +55,7 @@ export default function MemesPage() {
   const copyToClipboard = useCallback(async (meme: MemeImage, e?: React.MouseEvent) => {
     e?.stopPropagation();
     try {
-      const res = await fetch(meme.fullUrl);
+      const res = await fetch(meme.thumbnailUrl);
       const blob = await res.blob();
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob })
@@ -129,6 +126,10 @@ export default function MemesPage() {
                     alt={`ET meme #${meme.index}`}
                     loading="lazy"
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    onError={(e: any) => {
+                      e.target.style.display = "none";
+                      e.target.parentNode.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,80,80,0.4);font-size:10px;font-family:monospace;flex-direction:column;gap:4px"><span>👽</span><span>proxy err</span></div>`;
+                    }}
                   />
                 </div>
 
@@ -176,7 +177,9 @@ export default function MemesPage() {
             onClick={e => e.stopPropagation()}
             style={{ background: "#0a0a0f", border: "1px solid rgba(57,255,20,0.2)", borderRadius: "8px", overflow: "hidden", maxWidth: "600px", width: "100%" }}
           >
-            <img src={selected.thumbnailUrl} alt={`ET meme #${selected.index}`} style={{ width: "100%", display: "block" }} />
+            <img src={selected.thumbnailUrl} alt={`ET meme #${selected.index}`} style={{ width: "100%", display: "block" }}
+              onError={(e: any) => { e.target.src = selected.fullUrl; }}
+            />
             <div style={{ padding: "16px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                 <div>
