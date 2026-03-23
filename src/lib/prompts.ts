@@ -377,119 +377,87 @@ export const LORE_IMAGE_PROMPT_PREFIX = `Grainy 1970s analog film still, Kodak S
 
 // Multiple ancient art styles for human observation — randomly selected per image
 // ============================================================
-// OBSERVATION ERA SYSTEM
-// ET documents humans like an alien anthropologist whose visual
-// vocabulary slowly evolves — from prehistoric scratchings through
-// to each major era of human documentary art.
-// Each era lasts ~40 observation tweets before advancing.
-// Stored in KV: et:observation_era (index) + et:observation_count
+// ET HUMAN OBSERVATION ARCHIVE — MASTER PROMPT SYSTEM
+// Archival historical photography aesthetic with hidden ET observer.
+// Single unified visual DNA replaces rotating era system.
 // ============================================================
 
-export const OBSERVATION_ERAS = [
-  {
-    name: "Prehistoric Cave Art",
-    period: "40,000–10,000 BCE",
-    description: "ET's earliest attempts — crude but urgent, charcoal and ochre on rock",
-    prefix: `Prehistoric cave painting deep inside a dark cave. Bold animal-like figures and simple human silhouettes painted in black charcoal, red ochre, and yellow ochre on rough grey-brown cave walls with drips and smears. Style of Lascaux and Chauvet caves — powerful, expressive, sense of movement captured mid-action. Dramatic contrast between dark cave walls and bright pigmented figures. Depicting MODERN human behaviors rendered as if by an Ice Age cave painter who just witnessed something astonishing. Rough ceiling, soot marks, mineral pigments, handprints. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "bold ochre and charcoal figures on dark cave walls",
-  },
-  {
-    name: "Saharan Rock Art",
-    period: "8,000–2,000 BCE",
-    description: "ET moves to open rock faces — more detail, animals alongside humans",
-    prefix: `Ancient Saharan cave painting on warm sandstone wall. Red ochre and burnt sienna figures painted on rough beige-orange rock. Style of Tassili n'Ajjer — flowing human figures, elongated limbs, dynamic movement, animals and humans together. MODERN human behaviors and technology rendered as if by an ancient Saharan observer who has never seen such things. Natural stone texture, weathered rock, mineral pigments (red ochre, brown, dark red), some figures faded with age. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "flowing red figures on warm sandstone, Saharan style",
-  },
-  {
-    name: "Egyptian Hieroglyphic",
-    period: "3,000–300 BCE",
-    description: "ET discovers systems — flat profiles, symbolic registers, organized documentation",
-    prefix: `Ancient Egyptian wall painting and hieroglyphic illustration on papyrus or stone. Flat profile figures in classic Egyptian style — side-profile stance, symbolic representation, registers of figures at different scales. Rich colors: gold, lapis blue, terracotta red, black outlines, white backgrounds. MODERN human behaviors rendered in this ancient visual language — a pharaonic record of strange customs. Hieroglyphic symbols interspersed. Gold leaf borders. Style of the Book of the Dead or Karnak temple walls. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "flat profile figures in gold and lapis blue, Egyptian hieroglyphic style",
-  },
-  {
-    name: "Greek Vase Painting",
-    period: "800–300 BCE",
-    description: "ET discovers narrative — red figures on black clay, scenes of daily life",
-    prefix: `Ancient Greek red-figure or black-figure pottery painting. Terracotta orange background with glossy black figures, or black background with orange-red figures. Clean elegant lines, flowing robes, dramatic poses. Figures in profile with expressive gestures, decorative geometric borders above and below. Style of Athenian pottery — Achilles, athletes, symposium scenes — but depicting MODERN human behaviors as if mythologized by ancient Greeks. Round ceramic form implied by the composition. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "orange and black figures on ancient Greek pottery, red-figure style",
-  },
-  {
-    name: "Medieval Illuminated Manuscript",
-    period: "500–1400 CE",
-    description: "ET discovers books — gold leaf, flat perspective, holy gravity applied to mundane things",
-    prefix: `Medieval illuminated manuscript illustration. Flat perspective, no realistic depth. Rich saturated colors — vermillion, ultramarine, gold leaf halos and borders. Gothic architectural frames. Figures with stiff formal poses, large expressive eyes, stylized drapery. Latin text implied in margins. Style of the Book of Hours or Lindisfarne Gospels — treating MODERN human behaviors with the same sacred gravity as religious scripture. Ornate decorative borders, initial letters. Vellum texture. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "gold leaf and vermillion, flat medieval illuminated manuscript style",
-  },
-  {
-    name: "Renaissance Oil Painting",
-    period: "1400–1600 CE",
-    description: "ET discovers light — chiaroscuro, depth, the human form rendered with reverence",
-    prefix: `Renaissance oil painting in the style of Raphael, Titian, or Vermeer. Rich deep colors, masterful chiaroscuro lighting — bright highlights against deep shadow. Three-dimensional figures with weight and presence. Classical architecture or draped fabric in background. Impasto texture, visible brushwork. MODERN human behaviors rendered with the full gravity and beauty of Renaissance portraiture — as if these mundane moments were sacred commissions. Warm amber-gold lighting. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "rich chiaroscuro, warm amber light, Renaissance oil painting style",
-  },
-  {
-    name: "Dutch Golden Age",
-    period: "1600–1700 CE",
-    description: "ET discovers ordinary life is worth documenting — genre painting, intimate interiors",
-    prefix: `Dutch Golden Age genre painting in the style of Vermeer or Jan Steen. Intimate domestic interior, warm candlelight or window light from one side. Meticulous detail — fabric texture, reflections, wood grain. Ordinary objects rendered with extraordinary attention. Dark background with figures in pools of light. MODERN human behaviors treated with the same quiet dignity as a Dutch interior scene — as if ordinary moments were masterpieces worth preserving. Muted earthy palette with luminous highlights. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "warm window light, intimate interior, Dutch Golden Age style",
-  },
-  {
-    name: "Satirical Engraving",
-    period: "1700–1800 CE",
-    description: "ET discovers critique — Hogarth's eye, moral commentary through visual satire",
-    prefix: `18th century satirical engraving in the style of William Hogarth or Francisco Goya. Dense black and white linework with cross-hatching. Exaggerated caricature figures, crowded composition full of ironic detail and hidden meaning. Text banners and visual jokes embedded throughout. Moral commentary and social criticism visible in every corner. MODERN human behaviors rendered as if by a sharp satirical engraver exposing the absurdity of contemporary life. Baroque ornamental borders. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "dense crosshatched linework, caricature figures, 18th century engraving style",
-  },
-  {
-    name: "Victorian Scientific Illustration",
-    period: "1800–1900 CE",
-    description: "ET discovers taxonomy — humans classified, labeled, rendered with clinical precision",
-    prefix: `Victorian-era scientific and natural history illustration. Precise botanical or zoological illustration style — meticulously detailed, cross-section views, multiple angles shown simultaneously. Sepia ink with delicate watercolor washes. Numbered labels and observational notes implied in margins. Style of a naturalist's field journal — Charles Darwin meets Audubon. MODERN human behaviors documented with the same clinical precision as a new species being catalogued for the first time. Fine hatching, anatomical detail. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "precise scientific illustration, sepia and watercolor, Victorian naturalist style",
-  },
-  {
-    name: "Early Photography",
-    period: "1850–1920 CE",
-    description: "ET discovers the frozen moment — daguerreotype, wet plate, serious faces",
-    prefix: `Early daguerreotype or wet plate photograph aesthetic. Sepia toned, slightly blurred motion at edges, vignetting around corners. The formal stiffness of Victorian-era photography — subjects had to hold still. Grainy silver halide texture. High contrast between bright areas and deep shadow. The slight ghosting of long exposure times. MODERN human behaviors captured with the gravity of early photography, when having your picture taken was a rare and serious event. Oval or rectangular frame implied. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "sepia toned, grainy, daguerreotype aesthetic with vignetting",
-  },
+export const OBSERVATION_MASTER_PROMPT = `archival historical photograph depicting humanity at a pivotal moment of civilization, discovery, construction, belief, conflict, or technological transition. Scene feels authentic to late 1700s–1930s photographic era or plausible undocumented historical moment. Composition should resemble early documentary photography, architectural photography, or anthropological field photo.
+
+Visual style inspired by early film photography: monochrome or sepia toned image, realistic film grain, slight blur from long exposure, subtle light leaks, dust artifacts, natural imperfections, authentic depth of field, believable historical textures.
+
+Architecture and environments should feel monumental, symbolic, or transitional: grand cathedrals, early industrial machinery, experimental aircraft, observatories, ancient structures, world fairs, laboratories, ruins, megastructures, bridges, towers, excavation sites, ritual spaces, proto-futuristic inventions, lost technologies, early urban development, or unexplained engineering achievements.
+
+Humanity should appear small in scale relative to structures or ideas, reinforcing themes of progress, curiosity, repetition, and forgotten knowledge.
+
+Include a very subtle hidden observer element: tiny alien figure OR small distant UFO OR faint silhouette OR reflection OR shadow anomaly OR figure partially obscured by architecture OR shape barely visible in sky, fog, or grain. The observer must be extremely difficult to notice at first glance. Viewer should only discover it after studying the image. Hidden element should occupy less than 3% of image area. No obvious sci-fi appearance — must feel plausibly deniable.
+
+Maintain emotional tone of quiet observation, historical continuity, and subtle mystery. Scene should feel like recovered evidence rather than staged fiction.
+
+Lighting should feel natural for early photography: overcast skies, soft diffused daylight, dramatic contrast, atmospheric haze, volumetric light rays, subtle bloom around highlights.
+
+Avoid modern objects, modern clothing, digital aesthetics, futuristic neon elements, or obvious CGI appearance.
+
+Image should feel like a real historical photograph discovered in an archive documenting forgotten moments of human development.`;
+
+export const OBSERVATION_STYLE_CHECKSUM = `archival documentary photography aesthetic, late 18th century to early 20th century visual authenticity, monochrome or sepia toned image, realistic analog film grain, subtle film dust and scratches, slight exposure imperfections, soft dynamic range rolloff, gentle highlight bloom, long exposure softness, natural atmospheric haze, volumetric light diffusion, physically plausible lighting, tactile material realism (stone, metal, paper, glass, fabric), cinematic but believable composition, historically plausible architecture and engineering, no modern objects, no contemporary clothing, no digital rendering artifacts, no futuristic neon elements, restrained tonal contrast, museum archive realism, anthropological photograph feeling, quiet observational mood, understated mystery, image feels recovered rather than created, observer perspective, subtle evidence of hidden presence, extremely minimal sci-fi expression, plausibly deniable anomaly, texture-rich surfaces, imperfect photographic clarity, subtle vignette falloff, neutral grayscale tonal balance, timeless visual language`;
+
+export const OBSERVATION_HIDDEN_OBSERVER_CHECKSUM = `include extremely subtle hidden observer element: tiny alien silhouette OR small distant UFO OR faint anomalous reflection OR shadow irregularity OR figure partially obscured by architecture OR small shape concealed in sky, fog, grain, or structural detail, must not be immediately noticeable, hidden element occupies less than 3% of total image area, must require viewer inspection to detect, ambiguity preserved`;
+
+export const OBSERVATION_NEGATIVE_CONSTRAINTS = `avoid modern photography look, avoid sharp digital clarity, avoid vibrant colors, avoid obvious science fiction design, avoid cinematic blockbuster lighting, avoid futuristic UI elements, avoid glossy CGI surfaces, avoid stylized illustration look, avoid cartoon appearance, avoid exaggerated perspective distortion, avoid surrealism dominating realism, avoid high saturation`;
+
+// Scene modifier pools — randomly sampled to vary each image
+const OBSERVATION_CIVILIZATION_MOMENTS = [
+  "early aviation experiments",
+  "construction of massive monuments",
+  "early computing machinery",
+  "astronomical observation at a mountain observatory",
+  "ancient ritual structures at dawn",
+  "proto-industrial factories with steam and workers",
+  "experimental energy devices in a laboratory",
+  "excavation of unknown artifacts in desert ruins",
+  "world fair exhibition hall with crowds",
+  "early submarine or deep sea vessel launch",
+  "telegraph or early radio transmission station",
+  "vast library of ancient manuscripts",
+  "construction of a great bridge or tower",
+  "early surgical theatre or medical discovery",
+  "archaeological dig revealing lost megacity",
+  "lighthouse during storm on rocky coast",
+  "early railway station with locomotive",
+  "cathedral under construction spanning decades",
+  "underground bunker or tunnel system",
+  "printing press producing first newspapers",
 ];
 
-// Keep backward-compat alias
-export const OBSERVATION_STYLES = OBSERVATION_ERAS;
+const OBSERVATION_MOODS = [
+  "hopeful curiosity",
+  "quiet melancholy",
+  "technological ambition",
+  "spiritual symbolism",
+  "forgotten knowledge",
+  "subtle foreboding",
+  "calm documentation",
+  "silent observation",
+  "solemn ritual gravity",
+  "industrial awe",
+];
 
-export async function getCurrentObservationEra(): Promise<typeof OBSERVATION_ERAS[0]> {
-  try {
-    const { kv } = await import("@vercel/kv");
-    const [eraIndex, count] = await Promise.all([
-      kv.get<number>("et:observation_era") ?? 0,
-      kv.get<number>("et:observation_count") ?? 0,
-    ]);
-    const idx = Number(eraIndex ?? 0);
-    const cnt = Number(count ?? 0);
-
-    // Advance era every 40 observation tweets
-    if (cnt > 0 && cnt % 40 === 0) {
-      const nextIdx = (idx + 1) % OBSERVATION_ERAS.length;
-      await kv.set("et:observation_era", nextIdx);
-      console.log(`[ObservationEra] Advanced to era ${nextIdx}: ${OBSERVATION_ERAS[nextIdx].name}`);
-      return OBSERVATION_ERAS[nextIdx];
-    }
-    return OBSERVATION_ERAS[idx % OBSERVATION_ERAS.length];
-  } catch {
-    return OBSERVATION_ERAS[0];
-  }
+export function buildObservationPrompt(sceneDescription: string): string {
+  const moment = OBSERVATION_CIVILIZATION_MOMENTS[Math.floor(Math.random() * OBSERVATION_CIVILIZATION_MOMENTS.length)];
+  const mood = OBSERVATION_MOODS[Math.floor(Math.random() * OBSERVATION_MOODS.length)];
+  return [
+    sceneDescription,
+    `Mood: ${mood}. Setting draws from: ${moment}.`,
+    OBSERVATION_MASTER_PROMPT,
+    OBSERVATION_STYLE_CHECKSUM,
+    OBSERVATION_HIDDEN_OBSERVER_CHECKSUM,
+  ].join(" ");
 }
 
-export async function recordObservationTweet(): Promise<void> {
-  try {
-    const { kv } = await import("@vercel/kv");
-    await kv.incr("et:observation_count");
-  } catch { /* non-critical */ }
-}
+// Keep backward-compat — used by getRandomObservationStyle() callers
+export const OBSERVATION_STYLES = [{ name: "Archival Historical Photography", prefix: OBSERVATION_MASTER_PROMPT, sceneHint: "archival monochrome historical photograph with hidden ET observer" }];
+export const OBSERVATION_ERAS = OBSERVATION_STYLES;
 
 
 export function getRandomObservationStyle() {
@@ -798,20 +766,27 @@ Write one tweet as ET. Max 280 characters. Output ONLY the tweet text, nothing e
 
 export function buildImageDescriptionPrompt(tweetText: string, pillar?: ContentPillar): string {
   if (pillar === "human_observation") {
-    return `You are generating a visual description for a DALL-E image to accompany this Human Observation tweet by ET (an alien stranded on Earth):
+    return `You are generating a scene description for ET's Human Observation Archive. The final image will look like a real historical photograph from the late 1700s to early 1930s.
 
+This tweet from ET prompted the image:
 "${tweetText}"
 
-ET is an alien anthropologist who has been documenting humans for a very long time. His visual records evolve across different historical eras of human art — right now he is working in a particular documentary style.
+Translate the human behavior in this tweet into a plausible historical scene. Find the eternal human pattern and place it in a specific historical moment. The behavior is timeless -- only the setting changes.
 
-Create a short, vivid scene description (1-2 sentences) that shows the human behavior from this tweet rendered in a stylistically authentic historical way.
+Translation examples:
+- "humans arguing about who was right" -> scientists at an 1890s conference disputing a discovery
+- "humans all doing the same thing at once" -> factory workers in 1910 on identical assembly lines
+- "humans convinced they discovered something new" -> 1850s explorers planting flags on claimed land
+- "humans building something enormous to feel significant" -> construction workers atop cathedral scaffolding, 1880s
+- "humans ignoring obvious signs" -> ship officers on a calm deck before a storm, 1912
 
-Rules:
-- The comedy comes from modern behaviors depicted by an observer from a different era who has no context for what they are seeing
-- Modern objects (phones, cars, laptops, coffee) become strange mysterious artifacts
-- Match the energy and visual language of the era — don't use generic "stick figures" unless the era calls for it
-- Never readable text, clean digital elements, or photorealistic people
-- The scene should feel like genuine alien anthropological documentation
+Your scene description (2-3 sentences) should:
+- Name a specific historical location or setting
+- Describe what the people are doing in the frame
+- Capture scale: humans small relative to the structure, machine, or idea
+- Suggest a mood: solemn, oblivious, ambitious, reverent, hopeful, melancholy
+
+Do NOT describe photographic style or film grain -- that is handled separately. Describe only the scene content and human action.
 
 Output ONLY the scene description, nothing else.`;
   }

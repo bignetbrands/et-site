@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, EXISTENTIAL_IMAGE_PROMPT_PREFIX, GM_IMAGE_PROMPT_PREFIX, GN_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, buildObservationPrompt, OBSERVATION_NEGATIVE_CONSTRAINTS, EXISTENTIAL_IMAGE_PROMPT_PREFIX, GM_IMAGE_PROMPT_PREFIX, GN_IMAGE_PROMPT_PREFIX } from "./prompts";
 import { ContentPillar } from "@/types";
 import { applyFilmGrain } from "./film-process";
 
@@ -27,12 +27,12 @@ export async function generateImage(
   let prefix: string;
   let styleName = "";
   if (pillar === "human_observation") {
-    // Use the current era from KV for slow historical progression
-    const { getCurrentObservationEra } = await import("./prompts");
-    const style = await getCurrentObservationEra().catch(() => getRandomObservationStyle());
-    prefix = style.prefix;
-    styleName = style.name;
-    console.log(`[DALL-E] Observation era: ${styleName} (${(style as any).period || ""})`);
+    // Human Observation uses the master archival photography prompt
+    // sceneDescription is wrapped with master prompt + checksums in buildObservationPrompt()
+    // We set prefix to empty — the full prompt is built below
+    prefix = "";
+    styleName = "Archival Historical Photography";
+    console.log(`[DALL-E] Observation: Archival Historical Photography master prompt`);
   } else if (pillar === "existential") {
     prefix = EXISTENTIAL_IMAGE_PROMPT_PREFIX;
   } else if (pillar === "gm") {
@@ -43,11 +43,17 @@ export async function generateImage(
     prefix = LORE_IMAGE_PROMPT_PREFIX;
   }
 
-  const fullPrompt = `${prefix} ${sceneDescription}`;
+  const fullPrompt = pillar === "human_observation"
+    ? buildObservationPrompt(sceneDescription)
+    : `${prefix} ${sceneDescription}`;
+
+  const finalPrompt = pillar === "human_observation"
+    ? `${fullPrompt} Negative: ${OBSERVATION_NEGATIVE_CONSTRAINTS}`
+    : fullPrompt;
 
   const response = await getClient().images.generate({
     model: "dall-e-3",
-    prompt: fullPrompt,
+    prompt: finalPrompt,
     n: 1,
     size: "1024x1024",
     quality: "hd",
