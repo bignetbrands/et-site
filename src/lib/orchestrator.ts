@@ -210,8 +210,6 @@ export async function executeTweet(
     const result = await postAndRecord(tweetText, pillar, config.generateImage || useRiddle);
     // Track observation era progression
     if (pillar === "human_observation" && result?.hasImage) {
-      const { recordObservationTweet } = await import("./prompts");
-      await recordObservationTweet().catch(() => {});
     }
     return result;
   } catch (error) {
