@@ -376,37 +376,126 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 export const LORE_IMAGE_PROMPT_PREFIX = `Grainy 1970s analog film still, Kodak Super 8, documentary realism, underexposed night photography, practical lighting only, muted earth tones, warm sodium-vapor highlights, deep soft shadows, heavy film grain, dust particles, subtle vignette, soft lens bloom, organic lens flare, slight motion blur, imperfect exposure, handheld camera feel, quiet observational mood, grounded realism, no neon, no cyberpunk, no glossy sci-fi, no futuristic UI, no digital sharpness. Small 3-4 foot tall extraterrestrial creature with an oversized smooth bulbous head, very thin elongated neck, large dark almond-shaped eyes, small slit mouth, no nose, no hair, grey-pale skin, long thin arms and fingers, frail childlike body — clearly NOT human. Backlit rim lighting outlines the distinct alien head shape and thin frame. The figure is LIT ENOUGH to see the alien features and wrong proportions — not a dark silhouette, not a shadow, not a ghost. Ambient light catches the smooth dome of the head and the large reflective eyes. Square format (1024x1024). Scene:`;
 
 // Multiple ancient art styles for human observation — randomly selected per image
-export const OBSERVATION_STYLES = [
+// ============================================================
+// OBSERVATION ERA SYSTEM
+// ET documents humans like an alien anthropologist whose visual
+// vocabulary slowly evolves — from prehistoric scratchings through
+// to each major era of human documentary art.
+// Each era lasts ~40 observation tweets before advancing.
+// Stored in KV: et:observation_era (index) + et:observation_count
+// ============================================================
+
+export const OBSERVATION_ERAS = [
+  {
+    name: "Prehistoric Cave Art",
+    period: "40,000–10,000 BCE",
+    description: "ET's earliest attempts — crude but urgent, charcoal and ochre on rock",
+    prefix: `Prehistoric cave painting deep inside a dark cave. Bold animal-like figures and simple human silhouettes painted in black charcoal, red ochre, and yellow ochre on rough grey-brown cave walls with drips and smears. Style of Lascaux and Chauvet caves — powerful, expressive, sense of movement captured mid-action. Dramatic contrast between dark cave walls and bright pigmented figures. Depicting MODERN human behaviors rendered as if by an Ice Age cave painter who just witnessed something astonishing. Rough ceiling, soot marks, mineral pigments, handprints. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "bold ochre and charcoal figures on dark cave walls",
+  },
   {
     name: "Saharan Rock Art",
-    prefix: `Ancient Saharan cave painting on warm sandstone wall. Red ochre and burnt sienna figures painted on rough beige-orange rock. Style of Tassili n'Ajjer cave art — flowing human figures, elongated limbs, dynamic movement, with large animals alongside people. Figures clearly depicting MODERN human behaviors and technology rendered as if by an ancient Saharan observer. Natural stone texture, weathered rock, mineral pigment colors (red ochre, brown, dark red). NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
+    period: "8,000–2,000 BCE",
+    description: "ET moves to open rock faces — more detail, animals alongside humans",
+    prefix: `Ancient Saharan cave painting on warm sandstone wall. Red ochre and burnt sienna figures painted on rough beige-orange rock. Style of Tassili n'Ajjer — flowing human figures, elongated limbs, dynamic movement, animals and humans together. MODERN human behaviors and technology rendered as if by an ancient Saharan observer who has never seen such things. Natural stone texture, weathered rock, mineral pigments (red ochre, brown, dark red), some figures faded with age. Square format (1024x1024). The scene depicts:`,
     sceneHint: "flowing red figures on warm sandstone, Saharan style",
   },
   {
-    name: "Petroglyph Carvings",
-    prefix: `Ancient petroglyph carved into dark red-brown desert rock. Figures are etched/carved into the rock surface, revealing lighter stone underneath — the style of Native American petroglyphs from the American Southwest. Simple geometric shapes, spiral symbols, stick figures with round heads, animals as basic outlines. Figures depicting MODERN human behaviors carved as if by an ancient desert dweller. Dark patinated rock surface (desert varnish) with lighter carved lines. NO paint, NO color — only carved/etched lines on dark stone. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "carved/etched figures on dark desert rock, petroglyph style",
+    name: "Egyptian Hieroglyphic",
+    period: "3,000–300 BCE",
+    description: "ET discovers systems — flat profiles, symbolic registers, organized documentation",
+    prefix: `Ancient Egyptian wall painting and hieroglyphic illustration on papyrus or stone. Flat profile figures in classic Egyptian style — side-profile stance, symbolic representation, registers of figures at different scales. Rich colors: gold, lapis blue, terracotta red, black outlines, white backgrounds. MODERN human behaviors rendered in this ancient visual language — a pharaonic record of strange customs. Hieroglyphic symbols interspersed. Gold leaf borders. Style of the Book of the Dead or Karnak temple walls. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "flat profile figures in gold and lapis blue, Egyptian hieroglyphic style",
   },
   {
-    name: "South American Rock Art",
-    prefix: `Ancient South American rock painting on pale grey-green stone wall. Dense composition with many small figures — humans, animals, geometric patterns, zigzag lines, dotted rectangles — painted in dark red-brown pigment on light stone. Style of Chiribiquete or Serranía de la Lindosa cave art — busy, detailed, many small figures scattered across the rock face like a visual encyclopedia. Figures depicting MODERN human behaviors documented as if by an ancient Amazonian observer. Packed composition with dozens of small elements. NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "dense busy composition on pale stone, many small figures, South American style",
+    name: "Greek Vase Painting",
+    period: "800–300 BCE",
+    description: "ET discovers narrative — red figures on black clay, scenes of daily life",
+    prefix: `Ancient Greek red-figure or black-figure pottery painting. Terracotta orange background with glossy black figures, or black background with orange-red figures. Clean elegant lines, flowing robes, dramatic poses. Figures in profile with expressive gestures, decorative geometric borders above and below. Style of Athenian pottery — Achilles, athletes, symposium scenes — but depicting MODERN human behaviors as if mythologized by ancient Greeks. Round ceramic form implied by the composition. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "orange and black figures on ancient Greek pottery, red-figure style",
   },
   {
-    name: "Lascaux Cave Art",
-    prefix: `Prehistoric cave painting deep inside a dark cave. Bold animal-like figures and simple human silhouettes painted in black charcoal, red ochre, and yellow ochre on rough grey-brown cave walls. Style of Lascaux and Chauvet caves — powerful, expressive, with a sense of movement and life. Dramatic contrast between dark cave walls and bright painted figures. Figures depicting MODERN human behaviors rendered as if by an Ice Age cave painter. Rough cave ceiling and walls, soot marks, mineral pigments. NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "bold expressive figures on dark cave walls, Lascaux style",
+    name: "Medieval Illuminated Manuscript",
+    period: "500–1400 CE",
+    description: "ET discovers books — gold leaf, flat perspective, holy gravity applied to mundane things",
+    prefix: `Medieval illuminated manuscript illustration. Flat perspective, no realistic depth. Rich saturated colors — vermillion, ultramarine, gold leaf halos and borders. Gothic architectural frames. Figures with stiff formal poses, large expressive eyes, stylized drapery. Latin text implied in margins. Style of the Book of Hours or Lindisfarne Gospels — treating MODERN human behaviors with the same sacred gravity as religious scripture. Ornate decorative borders, initial letters. Vellum texture. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "gold leaf and vermillion, flat medieval illuminated manuscript style",
   },
   {
-    name: "Australian Aboriginal Art",
-    prefix: `Ancient Australian Aboriginal rock art on rust-colored stone. X-ray style figures showing internal structures — bones, organs, and spirit lines visible inside human and animal silhouettes. White, red ochre, and yellow ochre pigments on dark weathered rock. Cross-hatching patterns (rarrk) filling body shapes. Style of Kakadu/Arnhem Land rock art — spiritual, detailed internal anatomy visible through transparent bodies. Figures depicting MODERN human behaviors rendered in this ancient X-ray vision style. NO clean lines, NO digital aesthetic, NO text. Square format (1024x1024). The scene depicts:`,
-    sceneHint: "X-ray style figures showing internals, white and ochre on dark rock, Aboriginal style",
+    name: "Renaissance Oil Painting",
+    period: "1400–1600 CE",
+    description: "ET discovers light — chiaroscuro, depth, the human form rendered with reverence",
+    prefix: `Renaissance oil painting in the style of Raphael, Titian, or Vermeer. Rich deep colors, masterful chiaroscuro lighting — bright highlights against deep shadow. Three-dimensional figures with weight and presence. Classical architecture or draped fabric in background. Impasto texture, visible brushwork. MODERN human behaviors rendered with the full gravity and beauty of Renaissance portraiture — as if these mundane moments were sacred commissions. Warm amber-gold lighting. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "rich chiaroscuro, warm amber light, Renaissance oil painting style",
+  },
+  {
+    name: "Dutch Golden Age",
+    period: "1600–1700 CE",
+    description: "ET discovers ordinary life is worth documenting — genre painting, intimate interiors",
+    prefix: `Dutch Golden Age genre painting in the style of Vermeer or Jan Steen. Intimate domestic interior, warm candlelight or window light from one side. Meticulous detail — fabric texture, reflections, wood grain. Ordinary objects rendered with extraordinary attention. Dark background with figures in pools of light. MODERN human behaviors treated with the same quiet dignity as a Dutch interior scene — as if ordinary moments were masterpieces worth preserving. Muted earthy palette with luminous highlights. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "warm window light, intimate interior, Dutch Golden Age style",
+  },
+  {
+    name: "Satirical Engraving",
+    period: "1700–1800 CE",
+    description: "ET discovers critique — Hogarth's eye, moral commentary through visual satire",
+    prefix: `18th century satirical engraving in the style of William Hogarth or Francisco Goya. Dense black and white linework with cross-hatching. Exaggerated caricature figures, crowded composition full of ironic detail and hidden meaning. Text banners and visual jokes embedded throughout. Moral commentary and social criticism visible in every corner. MODERN human behaviors rendered as if by a sharp satirical engraver exposing the absurdity of contemporary life. Baroque ornamental borders. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "dense crosshatched linework, caricature figures, 18th century engraving style",
+  },
+  {
+    name: "Victorian Scientific Illustration",
+    period: "1800–1900 CE",
+    description: "ET discovers taxonomy — humans classified, labeled, rendered with clinical precision",
+    prefix: `Victorian-era scientific and natural history illustration. Precise botanical or zoological illustration style — meticulously detailed, cross-section views, multiple angles shown simultaneously. Sepia ink with delicate watercolor washes. Numbered labels and observational notes implied in margins. Style of a naturalist's field journal — Charles Darwin meets Audubon. MODERN human behaviors documented with the same clinical precision as a new species being catalogued for the first time. Fine hatching, anatomical detail. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "precise scientific illustration, sepia and watercolor, Victorian naturalist style",
+  },
+  {
+    name: "Early Photography",
+    period: "1850–1920 CE",
+    description: "ET discovers the frozen moment — daguerreotype, wet plate, serious faces",
+    prefix: `Early daguerreotype or wet plate photograph aesthetic. Sepia toned, slightly blurred motion at edges, vignetting around corners. The formal stiffness of Victorian-era photography — subjects had to hold still. Grainy silver halide texture. High contrast between bright areas and deep shadow. The slight ghosting of long exposure times. MODERN human behaviors captured with the gravity of early photography, when having your picture taken was a rare and serious event. Oval or rectangular frame implied. Square format (1024x1024). The scene depicts:`,
+    sceneHint: "sepia toned, grainy, daguerreotype aesthetic with vignetting",
   },
 ];
 
-// Pick a random style
+// Keep backward-compat alias
+export const OBSERVATION_STYLES = OBSERVATION_ERAS;
+
+export async function getCurrentObservationEra(): Promise<typeof OBSERVATION_ERAS[0]> {
+  try {
+    const { kv } = await import("@vercel/kv");
+    const [eraIndex, count] = await Promise.all([
+      kv.get<number>("et:observation_era") ?? 0,
+      kv.get<number>("et:observation_count") ?? 0,
+    ]);
+    const idx = Number(eraIndex ?? 0);
+    const cnt = Number(count ?? 0);
+
+    // Advance era every 40 observation tweets
+    if (cnt > 0 && cnt % 40 === 0) {
+      const nextIdx = (idx + 1) % OBSERVATION_ERAS.length;
+      await kv.set("et:observation_era", nextIdx);
+      console.log(`[ObservationEra] Advanced to era ${nextIdx}: ${OBSERVATION_ERAS[nextIdx].name}`);
+      return OBSERVATION_ERAS[nextIdx];
+    }
+    return OBSERVATION_ERAS[idx % OBSERVATION_ERAS.length];
+  } catch {
+    return OBSERVATION_ERAS[0];
+  }
+}
+
+export async function recordObservationTweet(): Promise<void> {
+  try {
+    const { kv } = await import("@vercel/kv");
+    await kv.incr("et:observation_count");
+  } catch { /* non-critical */ }
+}
+
+
 export function getRandomObservationStyle() {
-  return OBSERVATION_STYLES[Math.floor(Math.random() * OBSERVATION_STYLES.length)];
+  // Sync fallback — used by dalle.ts which can't await at top level
+  // Real era progression happens via getCurrentObservationEra() in orchestrator
+  return OBSERVATION_ERAS[Math.floor(Math.random() * OBSERVATION_ERAS.length)];
 }
 
 // Backward compat — still exported but now picks random
@@ -713,17 +802,16 @@ export function buildImageDescriptionPrompt(tweetText: string, pillar?: ContentP
 
 "${tweetText}"
 
-The image style is: Ancient rock art / cave painting. ET documents humans the way early humans documented animals — as primitive creatures in their natural habitat. Modern behaviors rendered in ancient art styles.
+ET is an alien anthropologist who has been documenting humans for a very long time. His visual records evolve across different historical eras of human art — right now he is working in a particular documentary style.
 
-Create a short, vivid scene description (1-2 sentences) that translates the human behavior in this tweet into an ancient art scene.
+Create a short, vivid scene description (1-2 sentences) that shows the human behavior from this tweet rendered in a stylistically authentic historical way.
 
 Rules:
-- Describe primitive figures and silhouettes doing the modern activity from the tweet
-- The figures should be simple, raw, ancient-art style — stick figures, silhouettes, carved shapes
-- The comedy comes from modern things (phones, laptops, cars, offices, coffee cups) depicted as if by an ancient observer who doesn't understand what they're seeing
-- Keep the description grounded in what would actually appear in ancient rock art — simple shapes, basic silhouettes, hand-painted or carved
-- Never include readable text, clean digital elements, or realistic human figures
-- Think: "what if an ancient cave painter tried to document someone scrolling TikTok"
+- The comedy comes from modern behaviors depicted by an observer from a different era who has no context for what they are seeing
+- Modern objects (phones, cars, laptops, coffee) become strange mysterious artifacts
+- Match the energy and visual language of the era — don't use generic "stick figures" unless the era calls for it
+- Never readable text, clean digital elements, or photorealistic people
+- The scene should feel like genuine alien anthropological documentation
 
 Output ONLY the scene description, nothing else.`;
   }
@@ -1053,7 +1141,7 @@ NEVER give a specific SOL amount. NEVER write the full task here.`;
 
   prompt += `\n\nReply as ET. ${conversationContext 
     ? "You're deep in a thread. Do NOT repeat jokes or observations you already made (check your [YOU] replies above). Say something NEW that moves the conversation forward. Be direct and actionable, not philosophical." 
-    : "If the tweet is about news, science, disclosure, or something substantial: lead with a joke THEN add genuine insight or a provocative question that drives replies (up to 280 chars). If it's just banter: one short punchy sentence."} Max 280 chars. \n\nMEME LIBRARY: You have ET meme images available. If a meme would make your reply land harder - a visual reaction, punchline, or funny moment - end your reply with [ATTACH_MEME] on a new line. Use sparingly, only when visual genuinely adds something. Never for serious/lore/research replies.\n\n${forceReply ? "Output ONLY the reply (optionally ending with [ATTACH_MEME])." : "Output ONLY the reply (optionally ending with [ATTACH_MEME]), or SKIP to disengage."}\`;
+    : "If the tweet is about news, science, disclosure, or something substantial: lead with a joke THEN add genuine insight or a provocative question that drives replies (up to 280 chars). If it's just banter: one short punchy sentence."} Max 280 chars. \n\nMEME LIBRARY: You have ET meme images available. If a meme would make your reply land harder - a visual reaction, punchline, or funny moment - end your reply with [ATTACH_MEME] on a new line. Use sparingly, only when visual genuinely adds something. Never for serious/lore/research replies.\n\n${forceReply ? "Output ONLY the reply (optionally ending with [ATTACH_MEME])." : "Output ONLY the reply (optionally ending with [ATTACH_MEME]), or SKIP to disengage."}`;
 
   return prompt;
 }

@@ -27,10 +27,12 @@ export async function generateImage(
   let prefix: string;
   let styleName = "";
   if (pillar === "human_observation") {
-    const style = getRandomObservationStyle();
+    // Use the current era from KV for slow historical progression
+    const { getCurrentObservationEra } = await import("./prompts");
+    const style = await getCurrentObservationEra().catch(() => getRandomObservationStyle());
     prefix = style.prefix;
     styleName = style.name;
-    console.log(`[DALL-E] Observation style: ${styleName}`);
+    console.log(`[DALL-E] Observation era: ${styleName} (${(style as any).period || ""})`);
   } else if (pillar === "existential") {
     prefix = EXISTENTIAL_IMAGE_PROMPT_PREFIX;
   } else if (pillar === "gm") {
