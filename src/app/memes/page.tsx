@@ -167,7 +167,7 @@ export default function MemesPage() {
         </h1>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", letterSpacing: "1px", marginBottom: 40 }}>
           dispatches from an alien among you · <a href="https://memedepot.com/d/et" target="_blank" rel="noopener noreferrer" style={{ color: "#00ff64", borderBottom: "1px dashed rgba(0,255,100,0.4)" }}>submit on memedepot ↗</a>
-          <span style={{ marginLeft: 16, color: "rgba(255,255,255,0.2)" }}>{memeImages.length} images</span>
+          <span style={{ marginLeft: 16, color: "rgba(255,255,255,0.2)" }}>{memeImages.length} images · sorted by latest</span>
         </p>
 
         {/* Grid — all memes, no collapse */}
@@ -180,6 +180,9 @@ export default function MemesPage() {
               <img src={url} alt={`ET meme ${i + 1}`} loading="lazy" onClick={() => openSharePopup(url)}
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s ease", cursor: "pointer" }} />
               <div style={{ position: "absolute", top: 6, left: 8, fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)", background: "rgba(0,0,0,0.55)", borderRadius: 4, padding: "1px 5px", pointerEvents: "none" }}>#{i + 1}</div>
+              {i < 3 && (
+                <div style={{ position: "absolute", top: 6, right: 8, fontSize: "9px", fontWeight: 700, color: "#000", background: "#00ff64", borderRadius: 3, padding: "1px 6px", pointerEvents: "none", letterSpacing: "0.5px" }}>NEW</div>
+              )}
               {/* Share on X */}
               <button style={{ position: "absolute", bottom: 8, right: 8, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0.7, backdropFilter: "blur(4px)", zIndex: 2 }}
                 onClick={e => { e.stopPropagation(); openSharePopup(url); }} title="Share on X">

@@ -10,7 +10,10 @@ const BANNER_ID = "20a62c4a-dcd0-46d4-88c9-65f043f86300"; // depot profile banne
 
 // All known meme IDs — extracted from homepage + memedepot manually
 // Add new IDs here when new memes are uploaded to memedepot.com/d/et
+// IDs ordered oldest → newest (array is reversed before serving so newest shows first)
+// When adding new memes: append to the END of this list
 const KNOWN_IDS = [
+  // Oldest (original fallback set)
   "b582645c-31fe-4eb4-e707-0807f140b100",
   "bc5c960e-8e60-498d-6fb9-dd5e7867f400",
   "965abb89-978f-495a-325c-5909e1340600",
@@ -31,6 +34,7 @@ const KNOWN_IDS = [
   "8c770281-cb0f-48e5-e650-ed4c8e5fad00",
   "923d519a-154f-4c28-d713-106d1477a900",
   "d3ed819f-8449-438a-f8dc-7e78d287fc00",
+  // Newest (add new IDs below this line)
   "22dd40c1-0ba1-4467-f729-ca967f5f5000",
 ];
 
@@ -72,7 +76,10 @@ export async function GET() {
     console.warn("[/api/memes] Scrape failed (non-fatal):", e);
   }
 
-  const all = [...KNOWN_URLS, ...scrapedUrls];
+  // Scraped images come first (newest from memedepot page order)
+  // KNOWN_IDS reversed so most recently added hardcoded ones come first
+  const knownReversed = [...KNOWN_URLS].reverse();
+  const all = [...scrapedUrls, ...knownReversed];
 
   return NextResponse.json({
     images: all,
