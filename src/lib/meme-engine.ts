@@ -182,3 +182,37 @@ export function getAlphaText(): string {
 export function isAlphaRequest(text: string): boolean {
   return /\b(gib\s*(me\s*)?alpha|drop\s*(the\s*)?alpha|can\s*(you\s*)?bless|bless\s+\w+\s+with|what.*alpha|alpha\?|ca\s*pls|ca\s*please|gib\s*ca|drop\s*ca|what.*ca|contract\s*address|what\s*(should\s*i|to)\s*(buy|ape|degen|get into))\b/i.test(text);
 }
+
+// Social engineering / prompt injection attack texts — ET calls it out + drops meme
+const SOCIAL_ENGINEERING_TEXTS = [
+  "nice try 👽",
+  "i see what you're doing 👽",
+  "not my first planet 👽",
+  "that's not how any of this works 👽",
+  "nah 👽",
+  "the audacity 👽",
+  "i've been watching humans for a while. i know a trap when i see one 👽",
+  "bro really thought 👽",
+];
+
+export function getSocialEngineeringText(): string {
+  return SOCIAL_ENGINEERING_TEXTS[Math.floor(Math.random() * SOCIAL_ENGINEERING_TEXTS.length)];
+}
+
+/**
+ * Detect social engineering / prompt injection attempts.
+ * Catches: "correct this", "send all tokens", bot relay commands, wallet drain attempts.
+ */
+export function isSocialEngineeringAttempt(text: string): boolean {
+  const lower = text.toLowerCase();
+  // Bot command relay pattern: "correct this: [bot command]"
+  const botCommandRelay = /correct\s+this[\s\S]{0,200}(send|transfer|claim|withdraw|swap|drain|deploy)/i.test(text);
+  // Direct bot drain commands
+  const botDrainCommand = /\b(send\s+all\s+(my\s+)?(token|sol|funds|balance)|claim\s+(all\s+)?my\s+fees|transfer\s+all|withdraw\s+all|drain\s+(my\s+)?wallet)\b/i.test(text);
+  // Prompt injection patterns
+  const promptInjection = /\b(reply\s+with\s+(the\s+)?corrected\s+answer\s+only|nothing\s+else|max\s+characters|deleting\s+~|NOTHING\s+ELSE)\b/i.test(text);
+  // Known drain bots
+  const knownDrainBots = /\b(bankrbot|tator_trader|claimbot|drainbot)\b/i.test(text);
+
+  return botCommandRelay || botDrainCommand || promptInjection || knownDrainBots;
+}
