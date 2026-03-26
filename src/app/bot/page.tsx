@@ -17,6 +17,17 @@ const PILLARS = [
   { id: "gn", name: "GN", icon: "🌙", desc: "Night dream painting — every 3 days at 11PM EST" },
 ];
 
+const TABS = [
+  { id: "status", label: "◈ STATUS" },
+  { id: "post", label: "✍️ POST" },
+  { id: "engage", label: "📡 ENGAGE" },
+  { id: "tools", label: "🛠 TOOLS" },
+  { id: "rewards", label: "🏆 REWARDS" },
+  { id: "settings", label: "⚙️ SETTINGS" },
+] as const;
+
+type TabId = typeof TABS[number]["id"];
+
 export default function BotDashboard() {
   const [secret, setSecret] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -52,6 +63,7 @@ export default function BotDashboard() {
   const [lockResult, setLockResult] = useState<any>(null);
   const [etLocks, setEtLocks] = useState<any[]>([]);
   const [showRiddleAnswer, setShowRiddleAnswer] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<TabId>("status");
 
   const addLog = useCallback((msg: string, type: "info" | "success" | "error" | "warn" = "info") => {
     const time = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -264,6 +276,7 @@ export default function BotDashboard() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
@@ -271,42 +284,11 @@ export default function BotDashboard() {
             <span style={styles.badge}>v1.0</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button
-              onClick={async () => {
-                setLoading("homepageToggle");
-                try {
-                  const res = await fetch("/api/admin/homepage", {
-                    method: "POST",
-                    headers: authHeaders,
-                  });
-                  const data = await res.json();
-                  if (data.mode) {
-                    setHomepageMode(data.mode);
-                    addLog(`✓ Homepage → ${data.mode === "new" ? "Main" : "Research"}`, "success");
-                  }
-                } catch (e) { addLog(`Toggle failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={loading === "homepageToggle"}
-              style={{
-                background: homepageMode === "research" ? "rgba(255,200,0,0.1)" : "rgba(0,255,100,0.1)",
-                border: `1px solid ${homepageMode === "research" ? "#5a5a1a" : "#1a3a1a"}`,
-                color: homepageMode === "research" ? "#ffcc00" : "#39ff14",
-                padding: "4px 10px",
-                fontFamily: "monospace",
-                fontSize: "9px",
-                cursor: "pointer",
-                borderRadius: "2px",
-                letterSpacing: "1px",
-              }}
-            >
-              {loading === "homepageToggle" ? "..." : `HOME: ${homepageMode === "research" ? "RESEARCH" : "MAIN"}`}
-            </button>
             <a href="/" style={styles.homeLink}>← back to site</a>
           </div>
         </div>
 
-        {/* Status Bar */}
+        {/* Status Bar — always visible */}
         <div style={styles.statusBar}>
           <div style={styles.statusItem}>
             <span style={styles.statusDot(killSwitch ? "#ff4444" : "#39ff14")} />
@@ -324,1695 +306,910 @@ export default function BotDashboard() {
           </button>
         </div>
 
-        {/* ET Wallet Treasury */}
-        {walletInfo && (
-          <div style={{ ...styles.panel, marginBottom: "16px", borderColor: walletInfo.configured && (walletInfo.balance ?? 0) < 0.2 ? "rgba(255,200,0,0.3)" : "rgba(0,255,100,0.15)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-              <div style={styles.panelTitle}>👽 ET TREASURY</div>
-              <button onClick={loadWalletInfo} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
-            </div>
-            {walletInfo.configured ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                  <span style={{ color: "rgba(255,255,255,0.5)" }}>ADDRESS</span>
-                  <span style={{ color: "#00ff64", fontFamily: "monospace", fontSize: "10px" }}>
-                    {walletInfo.address?.slice(0,6)}…{walletInfo.address?.slice(-6)}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                  <span style={{ color: "rgba(255,255,255,0.5)" }}>BALANCE</span>
-                  <span style={{ color: (walletInfo.balance ?? 0) < 0.2 ? "#ffcc00" : "#00ff64", fontWeight: 700 }}>
-                    {walletInfo.balance?.toFixed(4)} SOL
-                    {(walletInfo.balance ?? 0) < 0.2 && " ⚠️ LOW"}
-                  </span>
-                </div>
-                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", marginTop: "2px" }}>
-                  Rewards: 0.05–0.1 SOL per winner · auto-sent on wallet address detection
-                </div>
-              </div>
-            ) : (
-              <div style={{ fontSize: "11px", color: "rgba(255,200,0,0.7)" }}>
-                ⚠️ {walletInfo.message || "ET_WALLET_PRIVATE_KEY not configured"}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Manual Lock Panel */}
-        <div style={{ ...styles.panel, marginBottom: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <div style={styles.panelTitle}>🔒 ET LOCKS</div>
-            <button onClick={loadEtLocks} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
-          </div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "8px", lineHeight: "1.6" }}>
-            In-house 69-day timelock. Zero protocol fees. Escrow keypair holds tokens until unlock.
-          </div>
-          {walletInfo?.balance && (
-            <div style={{ fontSize: "10px", color: "rgba(57,255,20,0.6)", marginBottom: "12px", background: "rgba(57,255,20,0.04)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "3px", padding: "6px 10px" }}>
-              ET wallet available: <strong>{Number(walletInfo.balance).toLocaleString()} $ET</strong>
-              <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: "8px", fontSize: "9px" }}>enter this number in the token amount field below</span>
-            </div>
-          )}
-          {etLocks.length > 0 && (
-            <div style={{ marginBottom: "16px" }}>
-              {etLocks.map((lock: any) => {
-                const unlockDate = new Date(Number(lock.unlockTimestamp) * 1000);
-                const isUnlocked = Date.now() / 1000 > Number(lock.unlockTimestamp);
-                const color = lock.status === "released" ? "rgba(100,100,100,0.5)" : isUnlocked ? "#ffcc00" : "rgba(57,255,20,0.6)";
-                return (
-                  <div key={lock.id} style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${color}33`, borderRadius: "3px", padding: "8px 10px", marginBottom: "6px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", marginBottom: "4px" }}>
-                      <span style={{ color }}>{lock.status === "released" ? "✅ RELEASED" : isUnlocked ? "⚡ READY TO RELEASE" : "🔒 LOCKED"}</span>
-                      <span style={{ color: "rgba(255,255,255,0.3)" }}>{unlockDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                    </div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginBottom: "2px" }}>Winner: {lock.winner?.slice(0,8)}...</div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "2px" }}>{Number(lock.tokenAmount).toLocaleString()} $ET</div>
-                    {lock.escrowWallet && (
-                      <div style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)" }}>
-                        Escrow: <a href={`https://solscan.io/account/${lock.escrowWallet}`} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(100,200,255,0.7)", textDecoration: "none" }}>{lock.escrowWallet?.slice(0,12)}... ↗</a>
-                      </div>
-                    )}
-                    {lock.status === "locked" && isUnlocked && (
-                      <button
-                        onClick={async () => {
-                          setLoading("release_" + lock.id);
-                          const res = await fetch("/api/admin/release-lock", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ lockId: lock.id }) });
-                          const data = await res.json();
-                          if (data.success) { addLog(`✅ Released ${lock.tokenAmount} $ET — ${data.txSig}`, "success"); loadEtLocks(); }
-                          else addLog(`Release failed: ${data.error}`, "error");
-                          setLoading("");
-                        }}
-                        disabled={!!loading}
-                        style={{ marginTop: "6px", ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.1)", borderColor: "rgba(255,200,0,0.3)", color: "#ffcc00" }}
-                      >
-                        {loading === "release_" + lock.id ? "RELEASING..." : "⚡ RELEASE NOW"}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
-            <input
-              value={lockForm.wallet}
-              onChange={(e: any) => setLockForm(p => ({ ...p, wallet: e.target.value }))}
-              placeholder="Solana wallet address"
-              style={{ ...styles.input, fontSize: "11px", padding: "6px 8px" }}
-            />
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input
-                value={lockForm.sol}
-                onChange={(e: any) => setLockForm(p => ({ ...p, sol: e.target.value }))}
-                placeholder="SOL amount to swap (e.g. 0.05)"
-                type="number"
-                step="0.001"
-                min="0.001"
-                max="1"
-                style={{ ...styles.input, fontSize: "11px", padding: "6px 8px", flex: 1 }}
-              />
-              {/* Optional: paste token amount directly to skip the swap step */}
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <input
-                  value={lockForm.tokenAmount}
-                  onChange={(e: any) => setLockForm(p => ({ ...p, tokenAmount: e.target.value }))}
-                  placeholder="Skip swap: paste raw $ET token balance from Solscan (a large integer, NOT the CA)"
-                  style={{ ...styles.input, fontSize: "10px", padding: "4px 8px", flex: 1 }}
-                />
-              </div>
-              <button
-                onClick={async () => {
-                  const { wallet, sol, tokenAmount } = lockForm;
-                  if (!wallet) { addLog("Enter wallet address", "warn"); return; }
-                  const usingTokenAmount = !!tokenAmount.trim();
-                  const amount = parseFloat(sol);
-                  if (!usingTokenAmount && (!sol || isNaN(amount) || amount <= 0)) { addLog("Enter SOL amount or raw token amount", "warn"); return; }
-                  const label = usingTokenAmount ? `lock ${tokenAmount} raw $ET` : `swap ${amount} SOL → $ET and lock`;
-                  if (!confirm(`${label} 69 days for ${wallet.substring(0,8)}...?`)) return;
-                  setLockResult(null);
-                  setLoading("manualLock");
-                  addLog(`${usingTokenAmount ? "Locking" : "Swapping"} ${usingTokenAmount ? tokenAmount + " tokens" : amount + " SOL → $ET"} for 69d...`, "info");
-                  const res = await fetch("/api/admin/lock", {
-                    method: "POST",
-                    headers: { ...authHeaders, "Content-Type": "application/json" },
-                    body: JSON.stringify({ walletAddress: wallet, solAmount: usingTokenAmount ? 0 : amount, tokenAmount: usingTokenAmount ? String(Math.round(parseFloat(tokenAmount) * 1_000_000)) : undefined }),
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    setLockResult(data);
-                    addLog(`✅ Locked ${usingTokenAmount ? tokenAmount + " tokens" : amount + " SOL swap"} of $ET for 69 days — lockId: ${data.lockId}`, "success");
-                    setLockForm({ wallet: "", sol: "", tokenAmount: "" });
-                  } else {
-                    addLog(`❌ Lock failed: ${data.error}`, "error");
-                  }
-                  setLoading("");
-                }}
-                disabled={!!loading}
-                style={{ ...styles.btnPrimary, padding: "6px 16px", fontSize: "10px" }}
-              >
-                {loading === "manualLock" ? "LOCKING..." : "🔒 SWAP & LOCK"}
-              </button>
-            </div>
-          </div>
-          {lockResult && (
-            <div style={{ marginTop: "10px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "3px", padding: "10px", fontSize: "10px" }}>
-              <div style={{ color: "#00ff64", fontWeight: 700, marginBottom: "6px" }}>✅ LOCK CREATED</div>
-              <div style={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>Tokens: {lockResult.tokenAmount}</div>
-              <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" as const }}>
-                <a href={`https://solscan.io/tx/${lockResult.swapTxSig}`} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: "9px", color: "rgba(100,200,255,0.7)", textDecoration: "none", border: "1px solid rgba(100,200,255,0.2)", padding: "2px 8px", borderRadius: "2px" }}>
-                  SWAP TX ↗
-                </a>
-                <a href={lockResult.streamLink} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: "9px", color: "rgba(100,200,255,0.7)", textDecoration: "none", border: "1px solid rgba(100,200,255,0.2)", padding: "2px 8px", borderRadius: "2px" }}>
-                  STREAMFLOW ↗
-                </a>
-              </div>
-            </div>
-          )}
+        {/* Tab Nav Bar */}
+        <div style={styles.tabNav}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                ...styles.tabBtn,
+                ...(activeTab === tab.id ? styles.tabBtnActive : {}),
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Rewards Queue */}
-        <div style={{ ...styles.panel, marginBottom: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <div style={styles.panelTitle}>🏆 REWARDS QUEUE</div>
-            <button onClick={loadRewardsQueue} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
-          </div>
+        {/* ── STATUS TAB ── */}
+        {activeTab === "status" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "16px" }}>
 
-          {/* Manual add */}
-          <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(0,255,100,0.1)", borderRadius: "4px", padding: "10px", marginBottom: "12px" }}>
-            <div style={{ fontSize: "9px", color: "rgba(0,255,100,0.5)", letterSpacing: "0.1em", marginBottom: "8px" }}>＋ MANUALLY ADD WINNER</div>
-            <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
-              <input id="manualWinner" placeholder="@username" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
-              <input id="manualWallet" placeholder="Solana wallet address" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
-              <input id="manualTask" placeholder="Task context (what did they do?)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
-              <input id="manualTweetUrl" placeholder="Tweet URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
-              <input id="manualSolscan" placeholder="Solscan tx URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
-              <button
-                onClick={async () => {
-                  const winner = (document.getElementById("manualWinner") as HTMLInputElement)?.value.trim();
-                  const wallet = (document.getElementById("manualWallet") as HTMLInputElement)?.value.trim();
-                  const task = (document.getElementById("manualTask") as HTMLInputElement)?.value.trim();
-                  const tweetUrl = (document.getElementById("manualTweetUrl") as HTMLInputElement)?.value.trim();
-                  if (!winner || !wallet) { addLog("Enter winner and wallet address", "warn"); return; }
-                  const tweetIdMatch = tweetUrl?.match(/status\/(\d+)/);
-                  setRewardsLoading("manualAdd");
-                  const res = await fetch("/api/admin/rewards", {
-                    method: "POST",
-                    headers: { ...authHeaders, "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "", solscanUrl: (document.getElementById("manualSolscan") as HTMLInputElement)?.value.trim() || "" }),
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    addLog(`Added @${winner} to rewards queue`, "success");
-                    ["manualWinner","manualWallet","manualTask","manualTweetUrl","manualSolscan"].forEach(id => {
-                      const el = document.getElementById(id) as HTMLInputElement;
-                      if (el) el.value = "";
-                    });
-                    loadRewardsQueue();
-                  } else { addLog(`Error: ${data.error}`, "error"); }
-                  setRewardsLoading("");
-                }}
-                disabled={rewardsLoading === "manualAdd"}
-                style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 10px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
-              >
-                {rewardsLoading === "manualAdd" ? "..." : "＋ ADD TO QUEUE"}
-              </button>
-            </div>
-          </div>
-
-          {rewardsQueue.filter((r: any) => r.status === "pending").length === 0 ? (
-            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no pending rewards</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {rewardsQueue.filter((r: any) => r.status === "pending").map((item: any) => (
-                <div key={item.id} style={{ background: "rgba(0,255,100,0.04)", border: "1px solid rgba(0,255,100,0.12)", borderRadius: "4px", padding: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                    <span style={{ color: "#00ff64", fontSize: "12px", fontWeight: 700 }}>@{item.winner}</span>
-                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px" }}>{new Date(item.submittedAt).toLocaleString()}</span>
-                  </div>
-                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>
-                    <span style={{ color: "rgba(255,255,255,0.3)" }}>TASK: </span>{item.taskContext.substring(0, 120)}...
-                  </div>
-                  <div style={{ fontSize: "10px", fontFamily: "monospace", color: "rgba(0,255,100,0.6)", marginBottom: "8px" }}>
-                    {item.walletAddress.slice(0,8)}…{item.walletAddress.slice(-8)}
-                  </div>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
-                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                      VIEW TWEET ↗
-                    </a>
-                    <button
-                      onClick={async () => {
-                        setRewardsLoading(item.id + "_reject");
-                        const res = await fetch("/api/admin/rewards", {
-                          method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: item.id, action: "reject" }),
-                        });
-                        if (res.ok) { addLog(`Rejected reward for @${item.winner}`, "warn"); loadRewardsQueue(); }
-                        setRewardsLoading("");
-                      }}
-                      disabled={rewardsLoading === item.id + "_reject"}
-                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,50,50,0.1)", borderColor: "rgba(255,50,50,0.3)", color: "#ff6666" }}
-                    >
-                      {rewardsLoading === item.id + "_reject" ? "..." : "✕ REJECT"}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        setRewardsLoading(item.id + "_confirm");
-                        const res = await fetch("/api/admin/rewards", {
-                          method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: item.id, action: "confirm", conversationId: item.conversationId, winner: item.winner, walletAddress: item.walletAddress, walletTweetId: item.walletTweetId, taskContext: item.taskContext }),
-                        });
-                        const data = await res.json();
-                        if (res.ok && data.success) {
-                          addLog(`✅ ${data.solAmount} SOL split: ${data.solAmount/2} SOL sent to @${item.winner}, ${data.solAmount/2} SOL swapped to $ET locked 69d (stream: ${data.streamId || "n/a"})`, "success");
-                          loadRewardsQueue(); loadWalletInfo();
-                        } else {
-                          addLog(`❌ Payment failed: ${data.error}`, "error");
-                        }
-                        setRewardsLoading("");
-                      }}
-                      disabled={rewardsLoading === item.id + "_confirm"}
-                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.12)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
-                    >
-                      {rewardsLoading === item.id + "_confirm" ? "sending..." : "✓ CONFIRM & PAY"}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!confirm(`Mark @${item.winner} as paid WITHOUT sending SOL? Only use if SOL was already sent manually.`)) return;
-                        setRewardsLoading(item.id + "_markpaid");
-                        const res = await fetch("/api/admin/rewards", {
-                          method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: item.id, action: "mark_paid" }),
-                        });
-                        if ((await res.json()).success) { addLog(`Marked @${item.winner} as paid`, "warn"); loadRewardsQueue(); }
-                        setRewardsLoading("");
-                      }}
-                      disabled={rewardsLoading === item.id + "_markpaid"}
-                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.12)", borderColor: "rgba(255,200,0,0.4)", color: "#ffcc00" }}
-                    >
-                      {rewardsLoading === item.id + "_markpaid" ? "..." : "MARK PAID"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Winners — SOL already sent */}
-          {rewardsQueue.filter((r: any) => r.status === "confirmed").length > 0 && (
-            <div style={{ marginTop: "16px", borderTop: "1px solid rgba(0,255,100,0.08)", paddingTop: "12px" }}>
-              <div style={{ fontSize: "9px", color: "rgba(0,255,100,0.4)", letterSpacing: "0.1em", marginBottom: "8px" }}>
-                WINNERS — SOL SENT
-              </div>
-              <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
-                {rewardsQueue.filter((r: any) => r.status === "confirmed").map((item: any) => (
-                  <div key={item.id} style={{ background: "rgba(0,255,100,0.02)", border: "1px solid rgba(0,255,100,0.08)", borderRadius: "4px", padding: "10px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                      <span style={{ color: "#00ff64", fontSize: "12px", fontWeight: 700 }}>@{item.winner}</span>
-                      <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>{new Date(item.submittedAt).toLocaleDateString()}</span>
-                    </div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
-                      {(item.taskContext || "").substring(0, 100)}
-                    </div>
-                    {/* Solscan + Lock TX URLs — hides when both are saved */}
-                    {(!item.solscanUrl || !item.lockTxUrl) && (
-                      <div style={{ marginBottom: "8px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "3px", padding: "8px" }}>
-                        <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", marginBottom: "6px" }}>TRANSACTION URLS</div>
-                        {!item.solscanUrl && (
-                          <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
-                            <input
-                              id={`solscan_${item.id}`}
-                              defaultValue={item.solscanUrl || ""}
-                              placeholder="SOL payment — Solscan URL"
-                              style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
-                            />
-                            <button
-                              onClick={async () => {
-                                const val = (document.getElementById(`solscan_${item.id}`) as HTMLInputElement)?.value.trim();
-                                setRewardsLoading(item.id + "_save");
-                                const res = await fetch("/api/admin/rewards", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, action: "update_item", solscanUrl: val }) });
-                                const data = await res.json();
-                                if (data.success) { addLog(`Saved SOL tx for @${item.winner}`, "success"); loadRewardsQueue(); }
-                                else addLog(`Save failed: ${data.error}`, "error");
-                                setRewardsLoading("");
-                              }}
-                              disabled={rewardsLoading === item.id + "_save"}
-                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
-                            >
-                              {rewardsLoading === item.id + "_save" ? "..." : "SAVE"}
-                            </button>
-                          </div>
-                        )}
-                        {!item.lockTxUrl && (
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <input
-                              id={`locktx_${item.id}`}
-                              defaultValue={item.lockTxUrl || ""}
-                              placeholder="Lock tx — Solscan URL (from ET Locks panel)"
-                              style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
-                            />
-                            <button
-                              onClick={async () => {
-                                const val = (document.getElementById(`locktx_${item.id}`) as HTMLInputElement)?.value.trim();
-                                setRewardsLoading(item.id + "_savelock");
-                                const res = await fetch("/api/admin/rewards", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, action: "update_item", lockTxUrl: val }) });
-                                const data = await res.json();
-                                if (data.success) { addLog(`Saved lock tx for @${item.winner}`, "success"); loadRewardsQueue(); }
-                                else addLog(`Save failed: ${data.error}`, "error");
-                                setRewardsLoading("");
-                              }}
-                              disabled={rewardsLoading === item.id + "_savelock"}
-                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(100,150,255,0.08)", borderColor: "rgba(100,150,255,0.2)", color: "rgba(100,150,255,0.8)" }}
-                            >
-                              {rewardsLoading === item.id + "_savelock" ? "..." : "SAVE"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
-                      {item.walletTweetId && (
-                        <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
-                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                          VIEW TWEET
-                        </a>
-                      )}
-                      {item.solscanUrl && (
-                        <a href={item.solscanUrl} target="_blank" rel="noopener noreferrer"
-                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(100,200,255,0.7)", border: "1px solid rgba(100,200,255,0.15)" }}>
-                          SOL TX ↗
-                        </a>
-                      )}
-                      {item.lockTxUrl && (
-                        <a href={item.lockTxUrl} target="_blank" rel="noopener noreferrer"
-                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(150,180,255,0.7)", border: "1px solid rgba(150,180,255,0.15)" }}>
-                          🔒 LOCK TX ↗
-                        </a>
-                      )}
-                      {!victoryPreview[item.id] ? (
-                        <button
-                          onClick={async () => {
-                            setRewardsLoading(item.id + "_preview");
-                            const res = await fetch("/api/admin/rewards", {
-                              method: "POST",
-                              headers: { ...authHeaders, "Content-Type": "application/json" },
-                              body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", lockTxUrl: item.lockTxUrl || "", streamId: item.streamId || "" }),
-                            });
-                            const data = await res.json();
-                            if (data.success) setVictoryPreview((p: Record<string,string>) => ({ ...p, [item.id]: data.preview, [item.id + "_2"]: data.preview2 || "" }));
-                            else addLog(`Preview failed: ${data.error}`, "error");
-                            setRewardsLoading("");
-                          }}
-                          disabled={rewardsLoading === item.id + "_preview"}
-                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.08)", borderColor: "rgba(255,200,0,0.25)", color: "#ffcc00" }}
-                        >
-                          {rewardsLoading === item.id + "_preview" ? "generating..." : "PREVIEW VICTORY TWEET"}
-                        </button>
-                      ) : (
-                        <div style={{ width: "100%", marginTop: "4px" }}>
-                          <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
-                            <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.4)", marginBottom: "4px" }}>[1/2]</div>
-                            {victoryPreview[item.id]}
-                          </div>
-                          {victoryPreview[item.id + "_2"] && (
-                            <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,200,0,0.1)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.55)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
-                              <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.25)", marginBottom: "4px" }}>[2/2]</div>
-                              {victoryPreview[item.id + "_2"]}
-                            </div>
-                          )}
-
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <button
-                              onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
-                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(150,150,150,0.7)", borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
-                            >
-                              ↺ REGENERATE
-                            </button>
-                            <button
-                              onClick={async () => {
-                                setRewardsLoading(item.id + "_victory");
-                                const res = await fetch("/api/admin/rewards", {
-                                  method: "POST",
-                                  headers: { ...authHeaders, "Content-Type": "application/json" },
-                                  body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", lockTxUrl: item.lockTxUrl || "", streamId: item.streamId || "" }),
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  addLog(`Victory tweet posted for @${item.winner}`, "success");
-                                  setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; });
-                                } else addLog(`Victory tweet failed: ${data.error}`, "error");
-                                setRewardsLoading("");
-                              }}
-                              disabled={rewardsLoading === item.id + "_victory"}
-                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.12)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
-                            >
-                              {rewardsLoading === item.id + "_victory" ? "posting..." : "✓ POST TWEET"}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Dashboard */}
-        {dashboard && (
-          <div style={{ ...styles.panel, marginBottom: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <div style={styles.panelTitle}>◈ SYSTEM DASHBOARD</div>
-              <button
-                onClick={loadDashboard}
-                disabled={dashLoading}
-                style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}
-              >
-                {dashLoading ? "..." : "↻ REFRESH"}
-              </button>
-            </div>
-
-            {/* Blockers */}
-            <div style={{ marginBottom: "14px" }}>
-              {dashboard.blockers.map((b: string, i: number) => (
-                <div key={i} style={{
-                  padding: "6px 10px",
-                  marginBottom: "4px",
-                  background: b.includes("✅") ? "rgba(0,255,100,0.05)" : b.includes("⏳") ? "rgba(255,200,0,0.05)" : "rgba(255,0,0,0.05)",
-                  border: `1px solid ${b.includes("✅") ? "#1a3a1a" : b.includes("⏳") ? "#3a3a1a" : "#3a1a1a"}`,
-                  borderRadius: "2px",
-                  fontSize: "11px",
-                  color: b.includes("✅") ? "#39ff14" : b.includes("⏳") ? "#ffcc00" : "#ff4444",
-                  fontFamily: "monospace",
-                }}>
-                  {b}
-                </div>
-              ))}
-            </div>
-
-            {/* Gauges */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "14px" }}>
-              {[
-                {
-                  label: "ACTIONS",
-                  value: dashboard.actions.today,
-                  max: dashboard.actions.limit,
-                  color: dashboard.actions.remaining < 5 ? "#ff4444" : "#39ff14",
-                },
-                {
-                  label: "REPLIES",
-                  value: dashboard.replies.today,
-                  max: dashboard.replies.limit,
-                  color: dashboard.replies.remaining < 5 ? "#ff4444" : "#39ff14",
-                },
-                {
-                  label: "TWEETS",
-                  value: dashboard.tweets.today,
-                  max: 6,
-                  color: "#39ff14",
-                },
-              ].map((g, i) => (
-                <div key={i} style={{
-                  background: "#0a0f0a",
-                  border: "1px solid #1a2a1a",
-                  borderRadius: "2px",
-                  padding: "10px",
-                  textAlign: "center" as const,
-                }}>
-                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>{g.label}</div>
-                  <div style={{ fontSize: "22px", fontWeight: 700, color: g.color, fontFamily: "monospace" }}>
-                    {g.value}<span style={{ fontSize: "11px", color: "#3a5a3a" }}>/{g.max}</span>
-                  </div>
-                  <div style={{
-                    height: "3px",
-                    background: "#1a2a1a",
-                    borderRadius: "2px",
-                    marginTop: "6px",
-                    overflow: "hidden",
-                  }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${Math.min(100, (g.value / g.max) * 100)}%`,
-                      background: g.color,
-                      borderRadius: "2px",
-                      transition: "width 0.3s",
-                    }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Timing */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "14px" }}>
-              <div style={{
-                background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST ACTION</span>
-                <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
-                  {dashboard.throttle.lastActionMinAgo !== null ? `${dashboard.throttle.lastActionMinAgo}m ago` : "never"}
+            {/* Homepage Toggle */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ HOMEPAGE MODE</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span style={{ fontSize: "11px", color: "#4a6a4a" }}>
+                  Current: <span style={{ color: homepageMode === "research" ? "#ffcc00" : "#39ff14" }}>
+                    {homepageMode === "research" ? "RESEARCH" : "MAIN"}
+                  </span>
                 </span>
-              </div>
-              <div style={{
-                background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST TWEET</span>
-                <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
-                  {dashboard.tweets.lastTweetMinAgo !== null ? `${dashboard.tweets.lastTweetMinAgo}m ago` : "never"}
-                </span>
-              </div>
-              <div style={{
-                background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>POLL RATE</span>
-                <span style={{ fontSize: "12px", color: dashboard.adaptivePolling?.emptyStreak > 3 ? "#ffcc00" : "#39ff14", fontFamily: "monospace" }}>
-                  {dashboard.adaptivePolling?.effectiveInterval || "15m"}
-                </span>
-              </div>
-            </div>
-
-            {/* Pillar Counts */}
-            <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>PILLARS TODAY</div>
-              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
-                {Object.entries(dashboard.tweets.pillarCounts || {}).map(([pillar, count]: [string, any]) => (
-                  <div key={pillar} style={{
-                    background: count > 0 ? "rgba(0,255,100,0.08)" : "#0a0f0a",
-                    border: `1px solid ${count > 0 ? "#1a3a1a" : "#151f15"}`,
-                    borderRadius: "2px",
-                    padding: "4px 8px",
-                    fontSize: "9px",
+                <button
+                  onClick={async () => {
+                    setLoading("homepageToggle");
+                    try {
+                      const res = await fetch("/api/admin/homepage", {
+                        method: "POST",
+                        headers: authHeaders,
+                      });
+                      const data = await res.json();
+                      if (data.mode) {
+                        setHomepageMode(data.mode);
+                        addLog(`✓ Homepage → ${data.mode === "new" ? "Main" : "Research"}`, "success");
+                      }
+                    } catch (e) { addLog(`Toggle failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={loading === "homepageToggle"}
+                  style={{
+                    background: homepageMode === "research" ? "rgba(255,200,0,0.1)" : "rgba(0,255,100,0.1)",
+                    border: `1px solid ${homepageMode === "research" ? "#5a5a1a" : "#1a3a1a"}`,
+                    color: homepageMode === "research" ? "#ffcc00" : "#39ff14",
+                    padding: "6px 14px",
                     fontFamily: "monospace",
-                    color: count > 0 ? "#39ff14" : "#3a5a3a",
-                  }}>
-                    {pillar.replace("_", " ").replace("disclosure conspiracy", "disclosure")}: {String(count)}
-                  </div>
-                ))}
+                    fontSize: "10px",
+                    cursor: "pointer",
+                    borderRadius: "2px",
+                    letterSpacing: "1px",
+                  }}
+                >
+                  {loading === "homepageToggle" ? "..." : `SWITCH TO ${homepageMode === "research" ? "MAIN" : "RESEARCH"}`}
+                </button>
               </div>
             </div>
 
-            {/* User Interactions */}
-            {dashboard.userInteractions && dashboard.userInteractions.length > 0 && (
-              <div>
-                <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>USER INTERACTIONS TODAY</div>
-                <div style={{ display: "flex", flexDirection: "column" as const, gap: "3px" }}>
-                  {dashboard.userInteractions.map((u: any) => (
-                    <div key={u.username} style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "4px 8px", background: "#0a0f0a", borderRadius: "2px",
-                      fontSize: "10px", fontFamily: "monospace",
+            {/* System Dashboard */}
+            {dashboard && (
+              <div style={styles.panel}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <div style={styles.panelTitle}>◈ SYSTEM DASHBOARD</div>
+                  <button
+                    onClick={loadDashboard}
+                    disabled={dashLoading}
+                    style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}
+                  >
+                    {dashLoading ? "..." : "↻ REFRESH"}
+                  </button>
+                </div>
+
+                {/* Blockers */}
+                <div style={{ marginBottom: "14px" }}>
+                  {dashboard.blockers.map((b: string, i: number) => (
+                    <div key={i} style={{
+                      padding: "6px 10px",
+                      marginBottom: "4px",
+                      background: b.includes("✅") ? "rgba(0,255,100,0.05)" : b.includes("⏳") ? "rgba(255,200,0,0.05)" : "rgba(255,0,0,0.05)",
+                      border: `1px solid ${b.includes("✅") ? "#1a3a1a" : b.includes("⏳") ? "#3a3a1a" : "#3a1a1a"}`,
+                      borderRadius: "2px",
+                      fontSize: "11px",
+                      color: b.includes("✅") ? "#39ff14" : b.includes("⏳") ? "#ffcc00" : "#ff4444",
+                      fontFamily: "monospace",
                     }}>
-                      <span style={{ color: u.isVip ? "#ffd700" : "#39ff14" }}>
-                        {u.isVip ? "⭐ " : ""}@{u.username}
-                      </span>
-                      <span style={{ color: u.count >= u.limit ? "#ff4444" : "#3a5a3a" }}>
-                        {u.count}/{u.limit} {u.count >= u.limit ? "⛔" : ""}
-                      </span>
+                      {b}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
 
-            <div style={{ fontSize: "8px", color: "#2a3a2a", textAlign: "right" as const, marginTop: "8px" }}>
-              updated {new Date(dashboard.timestamp).toLocaleTimeString()} · auto-refreshes every 60s
-            </div>
-          </div>
-        )}
-
-        {/* Scheduled Tweets */}
-        {scheduled.length > 0 && (
-          <div style={{ ...styles.panel, marginBottom: "16px" }}>
-            <div style={styles.panelTitle}>◈ SCHEDULED POSTS ({scheduled.length})</div>
-            <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px", marginTop: "10px" }}>
-              {scheduled.map((t: any) => {
-                const when = new Date(t.scheduledAt);
-                const now = Date.now();
-                const minsLeft = Math.round((t.scheduledAt - now) / 60000);
-                const timeLabel = minsLeft > 60
-                  ? `${Math.round(minsLeft / 60)}h ${minsLeft % 60}m`
-                  : minsLeft > 0 ? `${minsLeft}m` : "due now";
-                return (
-                  <div key={t.id} style={{
-                    background: "#0a0f0a",
-                    border: "1px solid #1a3a1a",
-                    borderRadius: "2px",
-                    padding: "10px 12px",
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <span style={{
-                          fontSize: "9px", padding: "2px 6px",
-                          background: "rgba(0,255,100,0.1)", border: "1px solid #1a3a1a",
-                          borderRadius: "2px", color: "#39ff14", fontFamily: "monospace",
-                        }}>
-                          {t.pillar}
-                        </span>
-                        {t.hasImage && <span style={{ fontSize: "10px" }}>🖼️</span>}
-                        <span style={{ fontSize: "9px", color: "#4a6a4a" }}>
-                          {when.toLocaleString()} ({timeLabel})
-                        </span>
+                {/* Gauges */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+                  {[
+                    {
+                      label: "ACTIONS",
+                      value: dashboard.actions.today,
+                      max: dashboard.actions.limit,
+                      color: dashboard.actions.remaining < 5 ? "#ff4444" : "#39ff14",
+                    },
+                    {
+                      label: "REPLIES",
+                      value: dashboard.replies.today,
+                      max: dashboard.replies.limit,
+                      color: dashboard.replies.remaining < 5 ? "#ff4444" : "#39ff14",
+                    },
+                    {
+                      label: "TWEETS",
+                      value: dashboard.tweets.today,
+                      max: 6,
+                      color: "#39ff14",
+                    },
+                  ].map((g, i) => (
+                    <div key={i} style={{
+                      background: "#0a0f0a",
+                      border: "1px solid #1a2a1a",
+                      borderRadius: "2px",
+                      padding: "10px",
+                      textAlign: "center" as const,
+                    }}>
+                      <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>{g.label}</div>
+                      <div style={{ fontSize: "22px", fontWeight: 700, color: g.color, fontFamily: "monospace" }}>
+                        {g.value}<span style={{ fontSize: "11px", color: "#3a5a3a" }}>/{g.max}</span>
                       </div>
-                      <div style={{ display: "flex", gap: "6px" }}>
-                        <button
-                          onClick={async () => {
-                            if (!confirm(`Publish this ${t.pillar} tweet NOW?`)) return;
-                            setLoading(`pubSched-${t.id}`);
-                            try {
-                              const res = await fetch("/api/admin/scheduled", {
-                                method: "POST",
-                                headers: authHeaders,
-                                body: JSON.stringify({ action: "publish", id: t.id }),
-                              });
-                              const data = await res.json();
-                              if (data.error) addLog(`Publish failed: ${data.error}`, "error");
-                              else {
-                                addLog(`✓ Published: "${data.tweet.text}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success");
-                                loadScheduled();
-                              }
-                            } catch (e) { addLog(`Publish failed: ${e}`, "error"); }
-                            setLoading("");
-                          }}
-                          disabled={!!loading}
-                          style={{
-                            background: "transparent",
-                            border: "1px solid #1a3a1a",
-                            color: "#39ff14",
-                            padding: "2px 8px",
-                            fontFamily: "monospace",
-                            fontSize: "10px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {loading === `pubSched-${t.id}` ? "..." : "🚀 POST NOW"}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (!confirm(`Cancel scheduled ${t.pillar} tweet?`)) return;
-                            setLoading(`cancelSched-${t.id}`);
-                            try {
-                              const res = await fetch("/api/admin/scheduled", {
-                                method: "POST",
-                                headers: authHeaders,
-                                body: JSON.stringify({ action: "cancel", id: t.id }),
-                              });
-                              const data = await res.json();
-                              if (data.error) addLog(`Cancel failed: ${data.error}`, "error");
-                              else {
-                                addLog(`✓ Cancelled: "${data.cancelled.text}..."`, "warn");
-                                loadScheduled();
-                              }
-                            } catch (e) { addLog(`Cancel failed: ${e}`, "error"); }
-                            setLoading("");
-                          }}
-                          disabled={!!loading}
-                          style={{
-                            background: "transparent",
-                            border: "1px solid #5a2a2a",
-                            color: "#ff4444",
-                            padding: "2px 8px",
-                            fontFamily: "monospace",
-                            fontSize: "10px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {loading === `cancelSched-${t.id}` ? "..." : "✕ CANCEL"}
-                        </button>
+                      <div style={{
+                        height: "3px",
+                        background: "#1a2a1a",
+                        borderRadius: "2px",
+                        marginTop: "6px",
+                        overflow: "hidden",
+                      }}>
+                        <div style={{
+                          height: "100%",
+                          width: `${Math.min(100, (g.value / g.max) * 100)}%`,
+                          background: g.color,
+                          borderRadius: "2px",
+                          transition: "width 0.3s",
+                        }} />
                       </div>
                     </div>
-                    <div style={{
-                      fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
-                      lineHeight: "1.5", wordBreak: "break-word" as const,
-                    }}>
-                      {t.text.length > 200 ? t.text.substring(0, 200) + "..." : t.text}
+                  ))}
+                </div>
+
+                {/* Timing */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+                  <div style={{
+                    background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                  }}>
+                    <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST ACTION</span>
+                    <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
+                      {dashboard.throttle.lastActionMinAgo !== null ? `${dashboard.throttle.lastActionMinAgo}m ago` : "never"}
+                    </span>
+                  </div>
+                  <div style={{
+                    background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                  }}>
+                    <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>LAST TWEET</span>
+                    <span style={{ fontSize: "12px", color: "#39ff14", fontFamily: "monospace" }}>
+                      {dashboard.tweets.lastTweetMinAgo !== null ? `${dashboard.tweets.lastTweetMinAgo}m ago` : "never"}
+                    </span>
+                  </div>
+                  <div style={{
+                    background: "#0a0f0a", border: "1px solid #1a2a1a", borderRadius: "2px", padding: "8px 10px",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                  }}>
+                    <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>POLL RATE</span>
+                    <span style={{ fontSize: "12px", color: dashboard.adaptivePolling?.emptyStreak > 3 ? "#ffcc00" : "#39ff14", fontFamily: "monospace" }}>
+                      {dashboard.adaptivePolling?.effectiveInterval || "15m"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Pillar Counts */}
+                <div style={{ marginBottom: "14px" }}>
+                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>PILLARS TODAY</div>
+                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
+                    {Object.entries(dashboard.tweets.pillarCounts || {}).map(([pillar, count]: [string, any]) => (
+                      <div key={pillar} style={{
+                        background: count > 0 ? "rgba(0,255,100,0.08)" : "#0a0f0a",
+                        border: `1px solid ${count > 0 ? "#1a3a1a" : "#151f15"}`,
+                        borderRadius: "2px",
+                        padding: "4px 8px",
+                        fontSize: "9px",
+                        fontFamily: "monospace",
+                        color: count > 0 ? "#39ff14" : "#3a5a3a",
+                      }}>
+                        {pillar.replace("_", " ").replace("disclosure conspiracy", "disclosure")}: {String(count)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* User Interactions */}
+                {dashboard.userInteractions && dashboard.userInteractions.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>USER INTERACTIONS TODAY</div>
+                    <div style={{ display: "flex", flexDirection: "column" as const, gap: "3px" }}>
+                      {dashboard.userInteractions.map((u: any) => (
+                        <div key={u.username} style={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          padding: "4px 8px", background: "#0a0f0a", borderRadius: "2px",
+                          fontSize: "10px", fontFamily: "monospace",
+                        }}>
+                          <span style={{ color: u.isVip ? "#ffd700" : "#39ff14" }}>
+                            {u.isVip ? "⭐ " : ""}@{u.username}
+                          </span>
+                          <span style={{ color: u.count >= u.limit ? "#ff4444" : "#3a5a3a" }}>
+                            {u.count}/{u.limit} {u.count >= u.limit ? "⛔" : ""}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+                )}
+
+                <div style={{ fontSize: "8px", color: "#2a3a2a", textAlign: "right" as const, marginTop: "8px" }}>
+                  updated {new Date(dashboard.timestamp).toLocaleTimeString()} · auto-refreshes every 60s
+                </div>
+              </div>
+            )}
+
+            {/* Activity Log */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ ACTIVITY LOG</div>
+              <div style={styles.logContainer}>
+                {log.length === 0 ? (
+                  <div style={styles.logEmpty}>No activity yet. Awaiting commands...</div>
+                ) : (
+                  log.map((entry, i) => (
+                    <div key={i} style={styles.logEntry}>
+                      <span style={styles.logTime}>{entry.time}</span>
+                      <span style={styles.logMsg(entry.type)}>{entry.msg}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Main Grid */}
-        <div style={styles.grid}>
-          {/* Left: Controls */}
-          <div style={styles.panel}>
-            <div style={styles.panelTitle}>◈ TWEET CONTROL</div>
+        {/* ── POST TAB ── */}
+        {activeTab === "post" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "16px" }}>
 
-            {/* Pillar Selector */}
-            <div style={styles.label}>Content Pillar</div>
-            <div style={styles.pillarGrid}>
-              {PILLARS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPillar(p.id)}
-                  style={{
-                    ...styles.pillarBtn,
-                    ...(selectedPillar === p.id ? styles.pillarBtnActive : {}),
-                  }}
-                >
-                  <span style={styles.pillarIcon}>{p.icon}</span>
-                  <span style={styles.pillarName}>{p.name}</span>
-                </button>
-              ))}
-            </div>
+            {/* Tweet Control */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ TWEET CONTROL</div>
 
-            <div style={styles.pillarDesc}>
-              {PILLARS.find((p) => p.id === selectedPillar)?.desc}
-            </div>
-
-            {/* Action Buttons */}
-            <div style={styles.actions}>
-              <button onClick={dryRun} disabled={!!loading} style={styles.btnPrimary}>
-                {loading === "dry" ? "GENERATING..." : "👁️ DRY RUN (PREVIEW)"}
-              </button>
-              <button onClick={forcePost} disabled={!!loading} style={styles.btnPost}>
-                {loading === "post" ? "POSTING..." : "🚀 FORCE POST TO X"}
-              </button>
-            </div>
-
-            {/* Preview */}
-            {preview && (
-              <div style={styles.previewBox}>
-                <div style={styles.previewHeader}>
-                  <span>PREVIEW</span>
-                  <span style={{ color: preview.charCount > 280 ? "#ff4444" : "#39ff14" }}>
-                    {preview.charCount}/280
-                  </span>
-                </div>
-                <div style={styles.previewText}>{preview.text}</div>
-                {preview.imageUrl && (
-                  <img src={preview.imageUrl} alt="Preview" style={styles.previewImage} />
-                )}
-                {preview.selfAwareness && (
-                  <details style={{ marginTop: "10px", fontSize: "11px" }}>
-                    <summary style={{ color: "#39ff14", cursor: "pointer", fontFamily: "monospace", letterSpacing: "1px", userSelect: "none" }}>
-                      ◆ ET&apos;S MIND (self-awareness context injected)
-                    </summary>
-                    <pre style={{
-                      marginTop: "8px",
-                      padding: "10px",
-                      background: "rgba(0,0,0,0.4)",
-                      border: "1px solid #1a3a1a",
-                      borderRadius: "4px",
-                      color: "#7a9f7a",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      fontSize: "10px",
-                      lineHeight: "1.5",
-                      maxHeight: "300px",
-                      overflow: "auto",
-                    }}>{preview.selfAwareness}</pre>
-                  </details>
-                )}
-                <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+              {/* Pillar Selector */}
+              <div style={styles.label}>Content Pillar</div>
+              <div style={styles.pillarGrid}>
+                {PILLARS.map((p) => (
                   <button
-                    onClick={async () => {
-                      if (!confirm("Tweet this exact preview to X now?")) return;
-                      setLoading("postPreview");
-                      addLog("Posting preview to X...", "info");
-                      try {
-                        const res = await fetch("/api/manual/tweet", {
-                          method: "POST",
-                          headers: authHeaders,
-                          body: JSON.stringify({
-                            pillar: preview.pillar,
-                            text: preview.text,
-                            imageUrl: preview.imageUrl || undefined,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (data.error) { addLog(`Post failed: ${data.error}`, "error"); }
-                        else { addLog(`✓ Tweeted: "${data.tweet.text.slice(0, 60)}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success"); setPreview(null); }
-                      } catch (e) { addLog(`Post failed: ${e}`, "error"); }
-                      setLoading("");
+                    key={p.id}
+                    onClick={() => setSelectedPillar(p.id)}
+                    style={{
+                      ...styles.pillarBtn,
+                      ...(selectedPillar === p.id ? styles.pillarBtnActive : {}),
                     }}
-                    disabled={!!loading}
-                    style={{ ...styles.btnPost, flex: 1 }}
                   >
-                    {loading === "postPreview" ? "POSTING..." : "🚀 TWEET NOW"}
+                    <span style={styles.pillarIcon}>{p.icon}</span>
+                    <span style={styles.pillarName}>{p.name}</span>
                   </button>
-                  <input
-                    type="number"
-                    id="scheduleHours"
-                    placeholder="+hrs"
-                    min="0.25"
-                    step="0.25"
-                    style={{ ...styles.input, width: "60px", textAlign: "center", fontSize: "11px" }}
-                  />
-                  <button
-                    onClick={async () => {
-                      const inp = document.getElementById("scheduleHours") as HTMLInputElement;
-                      const hrs = parseFloat(inp?.value);
-                      if (!hrs || hrs <= 0) { addLog("Enter hours to schedule (e.g. 2)", "warn"); return; }
-                      setLoading("schedule");
-                      addLog(`Scheduling tweet for +${hrs}h...`, "info");
-                      try {
-                        const res = await fetch("/api/manual/tweet", {
-                          method: "POST",
-                          headers: authHeaders,
-                          body: JSON.stringify({
-                            pillar: preview.pillar,
-                            text: preview.text,
-                            imageUrl: preview.imageUrl || undefined,
-                            scheduleHours: hrs,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (data.error) { addLog(`Schedule failed: ${data.error}`, "error"); }
-                        else { addLog(`✓ Scheduled for ${new Date(data.scheduledFor).toLocaleTimeString()}: "${data.tweet.slice(0, 50)}..."`, "success"); setPreview(null); loadScheduled(); }
-                      } catch (e) { addLog(`Schedule failed: ${e}`, "error"); }
-                      setLoading("");
-                    }}
-                    disabled={!!loading}
-                    style={styles.btnPrimary}
-                  >
-                    {loading === "schedule" ? "..." : "⏰ SCHEDULE"}
-                  </button>
-                </div>
+                ))}
               </div>
-            )}
-          </div>
 
+              <div style={styles.pillarDesc}>
+                {PILLARS.find((p) => p.id === selectedPillar)?.desc}
+              </div>
 
-          {/* Riddle Manager */}
-          <div style={{ ...styles.panel, gridColumn: "1 / -1", marginBottom: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <div style={styles.panelTitle}>🧩 RIDDLE MANAGER</div>
-              <button onClick={loadRiddles} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+              {/* Action Buttons */}
+              <div style={styles.actions}>
+                <button onClick={dryRun} disabled={!!loading} style={styles.btnPrimary}>
+                  {loading === "dry" ? "GENERATING..." : "👁️ DRY RUN (PREVIEW)"}
+                </button>
+                <button onClick={forcePost} disabled={!!loading} style={styles.btnPost}>
+                  {loading === "post" ? "POSTING..." : "🚀 FORCE POST TO X"}
+                </button>
+              </div>
+
+              {/* Preview */}
+              {preview && (
+                <div style={styles.previewBox}>
+                  <div style={styles.previewHeader}>
+                    <span>PREVIEW</span>
+                    <span style={{ color: preview.charCount > 280 ? "#ff4444" : "#39ff14" }}>
+                      {preview.charCount}/280
+                    </span>
+                  </div>
+                  <div style={styles.previewText}>{preview.text}</div>
+                  {preview.imageUrl && (
+                    <img src={preview.imageUrl} alt="Preview" style={styles.previewImage} />
+                  )}
+                  {preview.selfAwareness && (
+                    <details style={{ marginTop: "10px", fontSize: "11px" }}>
+                      <summary style={{ color: "#39ff14", cursor: "pointer", fontFamily: "monospace", letterSpacing: "1px", userSelect: "none" }}>
+                        ◆ ET&apos;S MIND (self-awareness context injected)
+                      </summary>
+                      <pre style={{
+                        marginTop: "8px",
+                        padding: "10px",
+                        background: "rgba(0,0,0,0.4)",
+                        border: "1px solid #1a3a1a",
+                        borderRadius: "4px",
+                        color: "#7a9f7a",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        fontSize: "10px",
+                        lineHeight: "1.5",
+                        maxHeight: "300px",
+                        overflow: "auto",
+                      }}>{preview.selfAwareness}</pre>
+                    </details>
+                  )}
+                  <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Tweet this exact preview to X now?")) return;
+                        setLoading("postPreview");
+                        addLog("Posting preview to X...", "info");
+                        try {
+                          const res = await fetch("/api/manual/tweet", {
+                            method: "POST",
+                            headers: authHeaders,
+                            body: JSON.stringify({
+                              pillar: preview.pillar,
+                              text: preview.text,
+                              imageUrl: preview.imageUrl || undefined,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.error) { addLog(`Post failed: ${data.error}`, "error"); }
+                          else { addLog(`✓ Tweeted: "${data.tweet.text.slice(0, 60)}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success"); setPreview(null); }
+                        } catch (e) { addLog(`Post failed: ${e}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnPost, flex: 1 }}
+                    >
+                      {loading === "postPreview" ? "POSTING..." : "🚀 TWEET NOW"}
+                    </button>
+                    <input
+                      type="number"
+                      id="scheduleHours"
+                      placeholder="+hrs"
+                      min="0.25"
+                      step="0.25"
+                      style={{ ...styles.input, width: "60px", textAlign: "center", fontSize: "11px" }}
+                    />
+                    <button
+                      onClick={async () => {
+                        const inp = document.getElementById("scheduleHours") as HTMLInputElement;
+                        const hrs = parseFloat(inp?.value);
+                        if (!hrs || hrs <= 0) { addLog("Enter hours to schedule (e.g. 2)", "warn"); return; }
+                        setLoading("schedule");
+                        addLog(`Scheduling tweet for +${hrs}h...`, "info");
+                        try {
+                          const res = await fetch("/api/manual/tweet", {
+                            method: "POST",
+                            headers: authHeaders,
+                            body: JSON.stringify({
+                              pillar: preview.pillar,
+                              text: preview.text,
+                              imageUrl: preview.imageUrl || undefined,
+                              scheduleHours: hrs,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.error) { addLog(`Schedule failed: ${data.error}`, "error"); }
+                          else { addLog(`✓ Scheduled for ${new Date(data.scheduledFor).toLocaleTimeString()}: "${data.tweet.slice(0, 50)}..."`, "success"); setPreview(null); loadScheduled(); }
+                        } catch (e) { addLog(`Schedule failed: ${e}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={styles.btnPrimary}
+                    >
+                      {loading === "schedule" ? "..." : "⏰ SCHEDULE"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Manual add form */}
-            <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "4px", padding: "10px", marginBottom: "12px" }}>
-              <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.5)", letterSpacing: "0.1em", marginBottom: "8px" }}>＋ ADD RIDDLE MANUALLY</div>
-              <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
-                <input
-                  value={newRiddle.tweetUrl}
-                  onChange={(e: any) => setNewRiddle(p => ({ ...p, tweetUrl: e.target.value }))}
-                  placeholder="Tweet URL (the riddle tweet)"
-                  style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
-                />
-                <textarea
-                  value={newRiddle.question}
-                  onChange={(e: any) => setNewRiddle(p => ({ ...p, question: e.target.value }))}
-                  placeholder="The riddle / question (what ET asked)"
-                  rows={2}
-                  style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", resize: "vertical" as const, fontFamily: "monospace" }}
-                />
-                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  <input
-                    value={newRiddle.answer}
-                    onChange={(e: any) => setNewRiddle(p => ({ ...p, answer: e.target.value }))}
-                    placeholder="Correct answer (only visible to admin)"
-                    style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", flex: 1 }}
-                  />
-                  <button
-                    onClick={async () => {
-                      if (!newRiddle.question.trim()) { addLog("Enter the riddle question first", "warn"); return; }
-                      setLoading("riddleAnswerGen");
-                      const res = await fetch("/api/admin/riddle-answer", {
-                        method: "POST",
-                        headers: { ...authHeaders, "Content-Type": "application/json" },
-                        body: JSON.stringify({ question: newRiddle.question, imageUrl: newRiddle.imageUrl || "" }),
-                      });
-                      const data = await res.json();
-                      if (data.success) {
-                        setNewRiddle(p => ({ ...p, answer: data.answer }));
-                        addLog("ET determined the answer — review before saving", "info");
-                      } else { addLog(`Error: ${data.error}`, "error"); }
-                      setLoading("");
-                    }}
-                    disabled={!!loading}
-                    style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", whiteSpace: "nowrap" as const, background: "rgba(57,255,20,0.06)", borderColor: "rgba(57,255,20,0.15)", color: "rgba(57,255,20,0.6)" }}
-                  >
-                    {loading === "riddleAnswerGen" ? "thinking..." : "👽 ASK ET"}
-                  </button>
+            {/* Prompt ET */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>✍️ PROMPT ET</div>
+              <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+                Tell ET what to tweet. He'll write it in character. Preview and approve before it goes live.
+              </div>
+              <textarea
+                value={promptText}
+                onChange={(e: any) => { setPromptText(e.target.value); setPromptPreview(null); }}
+                placeholder={`e.g. "tweet a task for humans to solve a riddle only someone who follows ET closely can answer — no AI can solve it"`}
+                rows={3}
+                style={{ ...styles.input, width: "100%", resize: "vertical" as const, padding: "10px", fontSize: "11px", lineHeight: "1.6", fontFamily: "monospace", boxSizing: "border-box" as const }}
+              />
+              {promptPreview && (
+                <div style={{ marginTop: "8px" }}>
+                  <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
+                    <input
+                      value={riddleAnswer}
+                      onChange={(e: any) => setRiddleAnswer(e.target.value)}
+                      placeholder="Correct answer (optional — only fill if this is a riddle/challenge)"
+                      style={{ ...styles.input, flex: 1, fontSize: "11px", padding: "8px" }}
+                    />
+                    <button
+                      onClick={async () => {
+                        setLoading("riddleAnswerGen");
+                        const imageUrl = lastPostedImageUrl || (promptPreview.match(/\[GENERATE_IMAGE:[^\]]+\]/) ? "" : "");
+                        const res = await fetch("/api/admin/riddle-answer", {
+                          method: "POST",
+                          headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ question: promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim(), imageUrl }),
+                        });
+                        const data = await res.json();
+                        if (data.success) setRiddleAnswer(data.answer);
+                        else addLog(`Answer gen failed: ${data.error}`, "error");
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", background: "rgba(57,255,20,0.06)", borderColor: "rgba(57,255,20,0.2)", color: "rgba(57,255,20,0.7)", whiteSpace: "nowrap" as const }}
+                    >
+                      {loading === "riddleAnswerGen" ? "thinking..." : "👽 GET ANSWER"}
+                    </button>
+                  </div>
+                  {lastPostedImageUrl && (
+                    <div style={{ marginBottom: "6px" }}>
+                      <input
+                        value={lastPostedImageUrl}
+                        onChange={(e: any) => setLastPostedImageUrl(e.target.value)}
+                        placeholder="Image URL (auto-filled after posting with AI image)"
+                        style={{ ...styles.input, width: "100%", fontSize: "9px", padding: "5px 8px", color: "rgba(100,200,255,0.6)", boxSizing: "border-box" as const }}
+                      />
+                      <div style={{ fontSize: "9px", color: "rgba(100,200,255,0.3)", marginTop: "2px" }}>Claude will examine this image to determine the answer</div>
+                    </div>
+                  )}
+                  <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.35)" }}>
+                    If filled, ET will remember the answer and act as judge when humans reply. Leave blank for regular tweets.
+                  </div>
                 </div>
-                <input
-                  value={newRiddle.imageUrl}
-                  onChange={(e: any) => setNewRiddle(p => ({ ...p, imageUrl: e.target.value }))}
-                  placeholder="Image URL (optional — paste if riddle has a DALL-E image, ET will examine it)"
-                  style={{ ...styles.input, width: "100%", fontSize: "10px", padding: "4px 8px", color: "rgba(100,200,255,0.7)", boxSizing: "border-box" as const }}
-                />
+              )}
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" as const }}>
                 <button
                   onClick={async () => {
-                    if (!newRiddle.tweetUrl || !newRiddle.question || !newRiddle.answer) {
-                      addLog("Fill in all three fields", "warn"); return;
-                    }
-                    setLoading("riddleAdd");
-                    const res = await fetch("/api/admin/riddles", {
+                    if (!promptText.trim()) { addLog("Enter a prompt first", "warn"); return; }
+                    setLoading("promptDry");
+                    setPromptPreview(null);
+                    const res = await fetch("/api/admin/prompt-tweet", {
                       method: "POST",
                       headers: { ...authHeaders, "Content-Type": "application/json" },
-                      body: JSON.stringify({ action: "manual_add", tweetUrl: newRiddle.tweetUrl, question: newRiddle.question, answer: newRiddle.answer }),
+                      body: JSON.stringify({ prompt: promptText, post: false }),
                     });
                     const data = await res.json();
                     if (data.success) {
-                      addLog(`✅ Riddle added (tweet ${data.tweetId})`, "success");
-                      setNewRiddle({ tweetUrl: "", question: "", answer: "", imageUrl: "" });
-                      loadRiddles();
+                      setPromptPreview(data.tweet);
+                      addLog(`Preview ready (${data.tweet.length} chars)`, "info");
                     } else { addLog(`Error: ${data.error}`, "error"); }
                     setLoading("");
                   }}
                   disabled={!!loading}
-                  style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 10px", background: "rgba(57,255,20,0.08)", borderColor: "rgba(57,255,20,0.2)", color: "#39ff14" }}
+                  style={styles.btnPrimary}
                 >
-                  {loading === "riddleAdd" ? "..." : "＋ ADD RIDDLE"}
+                  {loading === "promptDry" ? "GENERATING..." : "👁️ PREVIEW"}
                 </button>
+                {promptPreview && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        setLoading("promptDry");
+                        setPromptPreview(null);
+                        const res = await fetch("/api/admin/prompt-tweet", {
+                          method: "POST",
+                          headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ prompt: promptText, post: false }),
+                        });
+                        const data = await res.json();
+                        if (data.success) { setPromptPreview(data.tweet); addLog("Regenerated", "info"); }
+                        else { addLog(`Error: ${data.error}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnSmall, padding: "6px 14px" }}
+                    >
+                      ↺ REGENERATE
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Post this tweet to ET's timeline?")) return;
+                        setLoading("promptPost");
+                        const res = await fetch("/api/admin/prompt-tweet", {
+                          method: "POST",
+                          headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ prompt: promptText, post: true, riddleAnswer }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          addLog(`✅ Posted: "${data.tweet.substring(0, 60)}..." (${data.tweetId})${data.hasRiddle ? " — riddle answer stored 🧩" : ""}`, "success");
+                          if (data.imageUrl) setLastPostedImageUrl(data.imageUrl);
+                          setPromptText("");
+                          setPromptPreview(null);
+                          setRiddleAnswer("");
+                        } else { addLog(`Post failed: ${data.error}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={styles.btnPost}
+                    >
+                      {loading === "promptPost" ? "POSTING..." : "🚀 APPROVE & POST"}
+                    </button>
+                  </>
+                )}
               </div>
+              {promptPreview && (
+                <div style={{ marginTop: "12px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim().length}/280
+                    {promptPreview.includes("[ATTACH_MEME]") && <span style={{ marginLeft: "8px", color: "rgba(255,200,0,0.7)", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🖼️ MEME</span>}
+                    {/\[GENERATE_IMAGE:/i.test(promptPreview) && <span style={{ marginLeft: "8px", color: "rgba(100,200,255,0.8)", background: "rgba(100,200,255,0.08)", border: "1px solid rgba(100,200,255,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🎨 AI IMAGE</span>}
+                  </div>
+                  <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", lineHeight: "1.6", whiteSpace: "pre-wrap" as const }}>{promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim()}</div>
+                </div>
+              )}
             </div>
 
-            {riddles.length === 0 ? (
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no active riddles</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column" as const, gap: "12px" }}>
-                {riddles.map((r: any) => (
-                  <div key={r.tweetId} style={{ background: r.solved ? "rgba(0,0,0,0.2)" : "rgba(57,255,20,0.03)", border: `1px solid ${r.solved ? "rgba(255,255,255,0.08)" : "rgba(57,255,20,0.12)"}`, borderRadius: "4px", padding: "12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "9px", color: r.solved ? "rgba(255,200,0,0.5)" : "rgba(57,255,20,0.5)", letterSpacing: "0.1em" }}>
-                        {r.solved ? `✅ SOLVED — winner: @${r.solvedBy}` : "🔴 OPEN"}
-                      </span>
-                      <a href={`https://x.com/etalienx/status/${r.tweetId}`} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)", textDecoration: "none" }}>VIEW TWEET ↗</a>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", marginBottom: "4px", lineHeight: "1.5" }}>
-                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>RIDDLE: </span>{r.question?.substring(0, 150)}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "rgba(57,255,20,0.6)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>ANSWER: </span>
-                      {showRiddleAnswer[r.tweetId]
-                        ? <span style={{ color: "rgba(57,255,20,0.85)" }}>{r.answer}</span>
-                        : <span style={{ color: "rgba(255,255,255,0.15)", fontSize: "11px", letterSpacing: "0.15em" }}>••••••••••</span>
-                      }
-                      <button
-                        onClick={() => setShowRiddleAnswer(p => ({ ...p, [r.tweetId]: !p[r.tweetId] }))}
-                        style={{ background: "transparent", border: "1px solid rgba(57,255,20,0.2)", color: "rgba(57,255,20,0.5)", fontSize: "9px", padding: "2px 8px", cursor: "pointer", fontFamily: "monospace", borderRadius: "2px" }}
-                      >
-                        {showRiddleAnswer[r.tweetId] ? "HIDE" : "REVEAL"}
-                      </button>
-                    </div>
-                    {!r.solved && (
-                      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
-
-                        {/* Check if winner */}
-                        <div style={{ marginBottom: "12px" }}>
-                          <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>🔍 CHECK REPLY — paste a reply URL to see if it is correct:</div>
+            {/* Scheduled Tweets */}
+            {scheduled.length > 0 && (
+              <div style={styles.panel}>
+                <div style={styles.panelTitle}>◈ SCHEDULED POSTS ({scheduled.length})</div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px", marginTop: "10px" }}>
+                  {scheduled.map((t: any) => {
+                    const when = new Date(t.scheduledAt);
+                    const now = Date.now();
+                    const minsLeft = Math.round((t.scheduledAt - now) / 60000);
+                    const timeLabel = minsLeft > 60
+                      ? `${Math.round(minsLeft / 60)}h ${minsLeft % 60}m`
+                      : minsLeft > 0 ? `${minsLeft}m` : "due now";
+                    return (
+                      <div key={t.id} style={{
+                        background: "#0a0f0a",
+                        border: "1px solid #1a3a1a",
+                        borderRadius: "2px",
+                        padding: "10px 12px",
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <span style={{
+                              fontSize: "9px", padding: "2px 6px",
+                              background: "rgba(0,255,100,0.1)", border: "1px solid #1a3a1a",
+                              borderRadius: "2px", color: "#39ff14", fontFamily: "monospace",
+                            }}>
+                              {t.pillar}
+                            </span>
+                            {t.hasImage && <span style={{ fontSize: "10px" }}>🖼️</span>}
+                            <span style={{ fontSize: "9px", color: "#4a6a4a" }}>
+                              {when.toLocaleString()} ({timeLabel})
+                            </span>
+                          </div>
                           <div style={{ display: "flex", gap: "6px" }}>
-                            <input
-                              value={checkReplyUrl[r.tweetId] || ""}
-                              onChange={(e: any) => {
-                                setCheckReplyUrl(p => ({ ...p, [r.tweetId]: e.target.value }));
-                                setCheckVerdict(p => { const n = {...p}; delete n[r.tweetId]; return n; });
-                              }}
-                              placeholder="https://x.com/.../status/..."
-                              style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", flex: 1 }}
-                            />
                             <button
                               onClick={async () => {
-                                const url = checkReplyUrl[r.tweetId];
-                                if (!url) { addLog("Paste a reply URL first", "warn"); return; }
-                                setLoading("check_" + r.tweetId);
-                                const res = await fetch("/api/admin/riddle-check", {
-                                  method: "POST",
-                                  headers: { ...authHeaders, "Content-Type": "application/json" },
-                                  body: JSON.stringify({ tweetId: r.tweetId, replyUrl: url }),
-                                });
-                                const data = await res.json();
-                                if (data.success) setCheckVerdict(p => ({ ...p, [r.tweetId]: data }));
-                                else addLog(`Check failed: ${data.error}`, "error");
+                                if (!confirm(`Publish this ${t.pillar} tweet NOW?`)) return;
+                                setLoading(`pubSched-${t.id}`);
+                                try {
+                                  const res = await fetch("/api/admin/scheduled", {
+                                    method: "POST",
+                                    headers: authHeaders,
+                                    body: JSON.stringify({ action: "publish", id: t.id }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.error) addLog(`Publish failed: ${data.error}`, "error");
+                                  else {
+                                    addLog(`✓ Published: "${data.tweet.text}..." (ID: ${data.tweet.id})${data.tweet.hasImage ? " 🖼️" : ""}`, "success");
+                                    loadScheduled();
+                                  }
+                                } catch (e) { addLog(`Publish failed: ${e}`, "error"); }
                                 setLoading("");
                               }}
                               disabled={!!loading}
-                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", whiteSpace: "nowrap" as const }}
+                              style={{
+                                background: "transparent",
+                                border: "1px solid #1a3a1a",
+                                color: "#39ff14",
+                                padding: "2px 8px",
+                                fontFamily: "monospace",
+                                fontSize: "10px",
+                                cursor: "pointer",
+                              }}
                             >
-                              {loading === "check_" + r.tweetId ? "checking..." : "CHECK"}
+                              {loading === `pubSched-${t.id}` ? "..." : "🚀 POST NOW"}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Cancel scheduled ${t.pillar} tweet?`)) return;
+                                setLoading(`cancelSched-${t.id}`);
+                                try {
+                                  const res = await fetch("/api/admin/scheduled", {
+                                    method: "POST",
+                                    headers: authHeaders,
+                                    body: JSON.stringify({ action: "cancel", id: t.id }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.error) addLog(`Cancel failed: ${data.error}`, "error");
+                                  else {
+                                    addLog(`✓ Cancelled: "${data.cancelled.text}..."`, "warn");
+                                    loadScheduled();
+                                  }
+                                } catch (e) { addLog(`Cancel failed: ${e}`, "error"); }
+                                setLoading("");
+                              }}
+                              disabled={!!loading}
+                              style={{
+                                background: "transparent",
+                                border: "1px solid #5a2a2a",
+                                color: "#ff4444",
+                                padding: "2px 8px",
+                                fontFamily: "monospace",
+                                fontSize: "10px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {loading === `cancelSched-${t.id}` ? "..." : "✕ CANCEL"}
                             </button>
                           </div>
-                          {checkVerdict[r.tweetId] && (() => {
-                            const v = checkVerdict[r.tweetId];
-                            const correct = v.verdict?.correct;
-                            const confidence = v.verdict?.confidence;
-                            const color = correct ? "#00ff64" : confidence === "low" ? "#ff4444" : "#ffcc00";
-                            const icon = correct ? "✅" : "❌";
-                            return (
-                              <div style={{ marginTop: "8px", background: "rgba(0,0,0,0.3)", border: `1px solid ${color}33`, borderRadius: "3px", padding: "8px 10px" }}>
-                                <div style={{ fontSize: "10px", color, fontWeight: 700, marginBottom: "4px" }}>
-                                  {icon} @{v.replyAuthor} — {correct ? "CORRECT" : "WRONG"} ({confidence} confidence)
-                                </div>
-                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "4px", fontStyle: "italic" }}>
-                                  "{v.replyText?.substring(0, 120)}"
-                                </div>
-                                <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)" }}>{v.verdict?.reasoning}</div>
-                                {!correct && v.trollReplyId && (
-                                  <div style={{ fontSize: "9px", color: "rgba(255,150,0,0.6)", marginTop: "4px" }}>
-                                    👽 ET already replied with a troll
-                                  </div>
-                                )}
-                                {correct && (
-                                  <button
-                                    onClick={() => {
-                                      setRiddleWinner(p => ({ ...p, [r.tweetId]: { winner: v.replyAuthor, wallet: "", tweetUrl: checkReplyUrl[r.tweetId] } }));
-                                      addLog(`@${v.replyAuthor} pre-filled as winner — add wallet and confirm below`, "info");
-                                    }}
-                                    style={{ marginTop: "6px", ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.1)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
-                                  >
-                                    → USE AS WINNER
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
                         </div>
-
-                        <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>PICK WINNER — paste the winning reply details:</div>
-                        <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
-                          <input
-                            value={riddleWinner[r.tweetId]?.winner || ""}
-                            onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], winner: e.target.value } }))}
-                            placeholder="@winner username"
-                            style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
-                          />
-                          <input
-                            value={riddleWinner[r.tweetId]?.tweetUrl || ""}
-                            onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], tweetUrl: e.target.value } }))}
-                            placeholder="URL to their winning reply tweet"
-                            style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
-                          />
-                          <input
-                            value={riddleWinner[r.tweetId]?.wallet || ""}
-                            onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], wallet: e.target.value } }))}
-                            placeholder="Solana wallet (optional — adds to rewards queue)"
-                            style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
-                          />
-                          <button
-                            onClick={async () => {
-                              const w = riddleWinner[r.tweetId] || {};
-                              if (!w.winner) { addLog("Enter winner username", "warn"); return; }
-                              if (!w.tweetUrl) { addLog("Enter the winning reply URL", "warn"); return; }
-                              setLoading("riddle_" + r.tweetId);
-                              const res = await fetch("/api/admin/riddles", {
-                                method: "POST",
-                                headers: { ...authHeaders, "Content-Type": "application/json" },
-                                body: JSON.stringify({ action: "pick_winner", tweetId: r.tweetId, winner: w.winner, walletAddress: w.wallet || "", winnerTweetUrl: w.tweetUrl }),
-                              });
-                              const data = await res.json();
-                              if (data.success) {
-                                addLog(`✅ @${w.winner} picked as riddle winner${w.wallet ? " — added to rewards queue" : ""}`, "success");
-                                setRiddleWinner((prev: any) => { const n = {...prev}; delete n[r.tweetId]; return n; });
-                                loadRiddles();
-                                if (w.wallet) loadRewardsQueue();
-                              } else { addLog(`Error: ${data.error}`, "error"); }
-                              setLoading("");
-                            }}
-                            disabled={!!loading}
-                            style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 12px", background: "rgba(57,255,20,0.08)", borderColor: "rgba(57,255,20,0.25)", color: "#39ff14" }}
-                          >
-                            {loading === "riddle_" + r.tweetId ? "..." : "✓ PICK AS WINNER"}
-                          </button>
+                        <div style={{
+                          fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
+                          lineHeight: "1.5", wordBreak: "break-word" as const,
+                        }}>
+                          {t.text.length > 200 ? t.text.substring(0, 200) + "..." : t.text}
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Prompt ET — custom tweet */}
-          <div style={{ ...styles.panel, gridColumn: "1 / -1" }}>
-            <div style={styles.panelTitle}>✍️ PROMPT ET</div>
-            <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-              Tell ET what to tweet. He'll write it in character. Preview and approve before it goes live.
-            </div>
-            <textarea
-              value={promptText}
-              onChange={(e: any) => { setPromptText(e.target.value); setPromptPreview(null); }}
-              placeholder={`e.g. "tweet a task for humans to solve a riddle only someone who follows ET closely can answer — no AI can solve it"`}
-              rows={3}
-              style={{ ...styles.input, width: "100%", resize: "vertical" as const, padding: "10px", fontSize: "11px", lineHeight: "1.6", fontFamily: "monospace", boxSizing: "border-box" as const }}
-            />
-            {promptPreview && (
-              <div style={{ marginTop: "8px" }}>
-                <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
-                  <input
-                    value={riddleAnswer}
-                    onChange={(e: any) => setRiddleAnswer(e.target.value)}
-                    placeholder="Correct answer (optional — only fill if this is a riddle/challenge)"
-                    style={{ ...styles.input, flex: 1, fontSize: "11px", padding: "8px" }}
-                  />
-                  <button
-                    onClick={async () => {
-                      setLoading("riddleAnswerGen");
-                      const imageUrl = lastPostedImageUrl || (promptPreview.match(/\[GENERATE_IMAGE:[^\]]+\]/) ? "" : "");
-                      const res = await fetch("/api/admin/riddle-answer", {
-                        method: "POST",
-                        headers: { ...authHeaders, "Content-Type": "application/json" },
-                        body: JSON.stringify({ question: promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim(), imageUrl }),
-                      });
-                      const data = await res.json();
-                      if (data.success) setRiddleAnswer(data.answer);
-                      else addLog(`Answer gen failed: ${data.error}`, "error");
-                      setLoading("");
-                    }}
-                    disabled={!!loading}
-                    style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", background: "rgba(57,255,20,0.06)", borderColor: "rgba(57,255,20,0.2)", color: "rgba(57,255,20,0.7)", whiteSpace: "nowrap" as const }}
-                  >
-                    {loading === "riddleAnswerGen" ? "thinking..." : "👽 GET ANSWER"}
-                  </button>
-                </div>
-                {lastPostedImageUrl && (
-                  <div style={{ marginBottom: "6px" }}>
-                    <input
-                      value={lastPostedImageUrl}
-                      onChange={(e: any) => setLastPostedImageUrl(e.target.value)}
-                      placeholder="Image URL (auto-filled after posting with AI image)"
-                      style={{ ...styles.input, width: "100%", fontSize: "9px", padding: "5px 8px", color: "rgba(100,200,255,0.6)", boxSizing: "border-box" as const }}
-                    />
-                    <div style={{ fontSize: "9px", color: "rgba(100,200,255,0.3)", marginTop: "2px" }}>Claude will examine this image to determine the answer</div>
-                  </div>
-                )}
-                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.35)" }}>
-                  If filled, ET will remember the answer and act as judge when humans reply. Leave blank for regular tweets.
+                    );
+                  })}
                 </div>
               </div>
             )}
-            <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" as const }}>
-              <button
-                onClick={async () => {
-                  if (!promptText.trim()) { addLog("Enter a prompt first", "warn"); return; }
-                  setLoading("promptDry");
-                  setPromptPreview(null);
-                  const res = await fetch("/api/admin/prompt-tweet", {
-                    method: "POST",
-                    headers: { ...authHeaders, "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt: promptText, post: false }),
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    setPromptPreview(data.tweet);
-                    addLog(`Preview ready (${data.tweet.length} chars)`, "info");
-                  } else { addLog(`Error: ${data.error}`, "error"); }
-                  setLoading("");
-                }}
-                disabled={!!loading}
-                style={styles.btnPrimary}
-              >
-                {loading === "promptDry" ? "GENERATING..." : "👁️ PREVIEW"}
-              </button>
-              {promptPreview && (
-                <>
-                  <button
-                    onClick={async () => {
-                      setLoading("promptDry");
-                      setPromptPreview(null);
-                      const res = await fetch("/api/admin/prompt-tweet", {
-                        method: "POST",
-                        headers: { ...authHeaders, "Content-Type": "application/json" },
-                        body: JSON.stringify({ prompt: promptText, post: false }),
-                      });
-                      const data = await res.json();
-                      if (data.success) { setPromptPreview(data.tweet); addLog("Regenerated", "info"); }
-                      else { addLog(`Error: ${data.error}`, "error"); }
-                      setLoading("");
-                    }}
-                    disabled={!!loading}
-                    style={{ ...styles.btnSmall, padding: "6px 14px" }}
-                  >
-                    ↺ REGENERATE
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (!confirm("Post this tweet to ET's timeline?")) return;
-                      setLoading("promptPost");
-                      const res = await fetch("/api/admin/prompt-tweet", {
-                        method: "POST",
-                        headers: { ...authHeaders, "Content-Type": "application/json" },
-                        body: JSON.stringify({ prompt: promptText, post: true, riddleAnswer }),
-                      });
-                      const data = await res.json();
-                      if (data.success) {
-                        addLog(`✅ Posted: "${data.tweet.substring(0, 60)}..." (${data.tweetId})${data.hasRiddle ? " — riddle answer stored 🧩" : ""}`, "success");
-                        if (data.imageUrl) setLastPostedImageUrl(data.imageUrl);
-                        setPromptText("");
-                        setPromptPreview(null);
-                        setRiddleAnswer("");
-                      } else { addLog(`Post failed: ${data.error}`, "error"); }
-                      setLoading("");
-                    }}
-                    disabled={!!loading}
-                    style={styles.btnPost}
-                  >
-                    {loading === "promptPost" ? "POSTING..." : "🚀 APPROVE & POST"}
-                  </button>
-                </>
-              )}
-            </div>
-            {promptPreview && (
-              <div style={{ marginTop: "12px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "12px 14px" }}>
-                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim().length}/280
-                  {promptPreview.includes("[ATTACH_MEME]") && <span style={{ marginLeft: "8px", color: "rgba(255,200,0,0.7)", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🖼️ MEME</span>}
-                  {/\[GENERATE_IMAGE:/i.test(promptPreview) && <span style={{ marginLeft: "8px", color: "rgba(100,200,255,0.8)", background: "rgba(100,200,255,0.08)", border: "1px solid rgba(100,200,255,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🎨 AI IMAGE</span>}
-                </div>
-                <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", lineHeight: "1.6", whiteSpace: "pre-wrap" as const }}>{promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim()}</div>
-              </div>
-            )}
           </div>
+        )}
 
+        {/* ── ENGAGE TAB ── */}
+        {activeTab === "engage" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "16px" }}>
 
-          {/* Right: Activity Log */}
-          <div style={styles.panel}>
-            <div style={styles.panelTitle}>◈ ACTIVITY LOG</div>
-            <div style={styles.logContainer}>
-              {log.length === 0 ? (
-                <div style={styles.logEmpty}>No activity yet. Awaiting commands...</div>
-              ) : (
-                log.map((entry, i) => (
-                  <div key={i} style={styles.logEntry}>
-                    <span style={styles.logTime}>{entry.time}</span>
-                    <span style={styles.logMsg(entry.type)}>{entry.msg}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Pillar Reference */}
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ TARGET QUEUE</div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input
-              type="text"
-              id="adminTargetInput"
-              placeholder="@username"
-              style={{ ...styles.input, flex: 1, textAlign: "left" }}
-              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminForceBtn")?.click(); }}
-            />
-            <button
-              id="adminForceBtn"
-              onClick={async () => {
-                const inp = document.getElementById("adminTargetInput") as HTMLInputElement;
-                const handle = inp?.value.trim();
-                if (!handle) { addLog("Enter a handle first", "warn"); return; }
-                setLoading("force");
-                addLog(`Force-adding @${handle} to queue...`, "info");
-                try {
-                  const res = await fetch("/api/targets/admin", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "force", handle, secret }),
-                  });
-                  const data = await res.json();
-                  if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else { addLog(`✓ @${data.target.handle} forced to front of queue`, "success"); inp.value = ""; }
-                } catch (e) { addLog(`Force failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPrimary}
-            >
-              {loading === "force" ? "..." : "⚡ FORCE"}
-            </button>
-            <button
-              onClick={async () => {
-                const inp = document.getElementById("adminTargetInput") as HTMLInputElement;
-                const handle = inp?.value.trim() || undefined;
-                setLoading("interact");
-                addLog(handle ? `Interacting with @${handle}...` : "Interacting with next target in queue...", "info");
-                try {
-                  const res = await fetch("/api/targets/admin", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "interact", handle, secret }),
-                  });
-                  const data = await res.json();
-                  if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else if (data.success) addLog(`✓ Replied to @${data.handle}: "${(data.replyText || "").slice(0, 60)}..."`, "success");
-                  else addLog(`Failed: ${data.error}`, "error");
-                } catch (e) { addLog(`Interact failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPost}
-            >
-              {loading === "interact" ? "..." : "🎯 INTERACT"}
-            </button>
-          </div>
-          <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
-            FORCE: adds to front of queue · INTERACT: replies to their latest tweet now (leave blank for next in queue)
-          </div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input
-              type="text"
-              id="adminTweetUrl"
-              placeholder="https://x.com/user/status/123..."
-              style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
-              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminDryReplyBtn")?.click(); }}
-            />
-            <button
-              id="adminDryReplyBtn"
-              onClick={async () => {
-                const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
-                const tweetUrl = inp?.value.trim();
-                if (!tweetUrl) { addLog("Paste a tweet URL first", "warn"); return; }
-                setLoading("dryReply");
-                setReplyPreview(null);
-                addLog(`Generating reply preview: ${tweetUrl.substring(0, 60)}...`, "info");
-                try {
-                  const res = await fetch("/api/targets/admin", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "dryReply", tweetUrl, secret }),
-                  });
-                  const data = await res.json();
-                  if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else if (data.replyText) {
-                    setReplyPreview({
-                      tweetUrl,
-                      replyText: data.replyText,
-                      originalText: data.originalText || "",
-                      originalAuthor: data.originalAuthor || "",
-                      tweetId: data.tweetId || "",
-                    });
-                    addLog(`✓ Preview ready — @${data.originalAuthor}: "${(data.originalText || "").slice(0, 50)}..."`, "success");
-                  }
-                } catch (e) { addLog(`Dry run failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPrimary}
-            >
-              {loading === "dryReply" ? "..." : "👁️ DRY RUN"}
-            </button>
-            <button
-              id="adminReplyBtn"
-              onClick={async () => {
-                const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
-                const tweetUrl = inp?.value.trim();
-                if (!tweetUrl) { addLog("Paste a tweet URL first", "warn"); return; }
-                setLoading("reply");
-                addLog(`Replying to tweet: ${tweetUrl.substring(0, 60)}...`, "info");
-                try {
-                  const res = await fetch("/api/targets/admin", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "reply", tweetUrl, secret }),
-                  });
-                  const data = await res.json();
-                  if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else if (data.success) { const m = data.method === "quote" ? "Quote tweeted" : data.method === "standalone" ? "Standalone" : "Replied"; addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; setReplyPreview(null); }
-                  else addLog(`Failed: ${data.error}`, "error");
-                } catch (e) { addLog(`Reply failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPost}
-            >
-              {loading === "reply" ? "..." : "💬 REPLY NOW"}
-            </button>
-          </div>
-
-          {/* Reply Preview */}
-          {replyPreview && (
-            <div style={{
-              background: "#0a0f0a",
-              border: "1px solid #1a3a1a",
-              borderRadius: "2px",
-              padding: "10px 12px",
-              marginBottom: "12px",
-            }}>
-              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>REPLY PREVIEW</div>
-              <div style={{ fontSize: "10px", color: "#5a7a5a", marginBottom: "8px", fontStyle: "italic" }}>
-                @{replyPreview.originalAuthor}: &quot;{replyPreview.originalText.length > 100 ? replyPreview.originalText.substring(0, 100) + "..." : replyPreview.originalText}&quot;
-              </div>
-              <div style={{
-                fontSize: "12px", color: "#39ff14", fontFamily: "monospace",
-                lineHeight: "1.6", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
-                padding: "8px", background: "#050a05", borderRadius: "2px", marginBottom: "8px",
-              }}>
-                {replyPreview.replyText}
-              </div>
-              <div style={{ fontSize: "9px", color: replyPreview.replyText.length > 280 ? "#ff4444" : "#3a5a3a", marginBottom: "8px" }}>
-                {replyPreview.replyText.length}/280
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
+            {/* Reply Control */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ REPLY CONTROL</div>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
                 <button
                   onClick={async () => {
+                    setLoading("replies");
+                    addLog("Checking mentions & generating replies...", "info");
+                    try {
+                      const res = await fetch("/api/manual/replies", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ secret }),
+                      });
+                      const data = await res.json();
+                      if (data.error) { addLog(`Reply error: ${data.error}`, "error"); setLoading(""); return; }
+                      addLog(`Replies: ${data.replied} posted, ${data.skipped} skipped`, data.replied > 0 ? "success" : "info");
+                      if (data.results) {
+                        for (const r of data.results) {
+                          if (r.skipped) {
+                            addLog(`  ⊘ @${r.authorUsername}: ${r.skipReason}`, "warn");
+                          } else {
+                            addLog(`  ✓ @${r.authorUsername}: "${r.replyText.slice(0, 60)}..."`, "success");
+                          }
+                        }
+                      }
+                    } catch (e) {
+                      addLog(`Reply check failed: ${e}`, "error");
+                    }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={styles.btnPrimary}
+                >
+                  {loading === "replies" ? "PROCESSING..." : "📡 CHECK & REPLY TO MENTIONS"}
+                </button>
+                <button
+                  onClick={async () => {
+                    setLoading("catchup");
+                    addLog("CATCH-UP: Re-scanning recent mentions (ignoring cursor)...", "info");
+                    try {
+                      const res = await fetch("/api/manual/replies", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ secret, catchUp: true }),
+                      });
+                      const data = await res.json();
+                      if (data.error) { addLog(`Catch-up error: ${data.error}`, "error"); setLoading(""); return; }
+                      addLog(`Catch-up: ${data.replied} posted, ${data.skipped} skipped`, data.replied > 0 ? "success" : "info");
+                      if (data.results) {
+                        for (const r of data.results) {
+                          if (r.skipped) {
+                            addLog(`  ⊘ @${r.authorUsername}: ${r.skipReason}`, "warn");
+                          } else {
+                            addLog(`  ✓ @${r.authorUsername}: "${r.replyText.slice(0, 60)}..."`, "success");
+                          }
+                        }
+                      }
+                    } catch (e) {
+                      addLog(`Catch-up failed: ${e}`, "error");
+                    }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={{ ...styles.btnPrimary, background: "#2a3a2a" }}
+                >
+                  {loading === "catchup" ? "CATCHING UP..." : "🔄 CATCH UP MISSED"}
+                </button>
+                <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>
+                  AUTO: every 15 min · MAX: 10/run · 75/day
+                </span>
+              </div>
+              <div style={{ fontSize: "10px", color: "#4a6a4a", lineHeight: "1.6" }}>
+                Fetches new @etalienx mentions → generates in-character replies via Claude → posts them.
+                Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
+                <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
+              </div>
+            </div>
+
+            {/* Target Queue */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ TARGET QUEUE</div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <input
+                  type="text"
+                  id="adminTargetInput"
+                  placeholder="@username"
+                  style={{ ...styles.input, flex: 1, textAlign: "left" }}
+                  onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminForceBtn")?.click(); }}
+                />
+                <button
+                  id="adminForceBtn"
+                  onClick={async () => {
+                    const inp = document.getElementById("adminTargetInput") as HTMLInputElement;
+                    const handle = inp?.value.trim();
+                    if (!handle) { addLog("Enter a handle first", "warn"); return; }
+                    setLoading("force");
+                    addLog(`Force-adding @${handle} to queue...`, "info");
+                    try {
+                      const res = await fetch("/api/targets/admin", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "force", handle, secret }),
+                      });
+                      const data = await res.json();
+                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      else { addLog(`✓ @${data.target.handle} forced to front of queue`, "success"); inp.value = ""; }
+                    } catch (e) { addLog(`Force failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={styles.btnPrimary}
+                >
+                  {loading === "force" ? "..." : "⚡ FORCE"}
+                </button>
+                <button
+                  onClick={async () => {
+                    const inp = document.getElementById("adminTargetInput") as HTMLInputElement;
+                    const handle = inp?.value.trim() || undefined;
+                    setLoading("interact");
+                    addLog(handle ? `Interacting with @${handle}...` : "Interacting with next target in queue...", "info");
+                    try {
+                      const res = await fetch("/api/targets/admin", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "interact", handle, secret }),
+                      });
+                      const data = await res.json();
+                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      else if (data.success) addLog(`✓ Replied to @${data.handle}: "${(data.replyText || "").slice(0, 60)}..."`, "success");
+                      else addLog(`Failed: ${data.error}`, "error");
+                    } catch (e) { addLog(`Interact failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={styles.btnPost}
+                >
+                  {loading === "interact" ? "..." : "🎯 INTERACT"}
+                </button>
+              </div>
+              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
+                FORCE: adds to front of queue · INTERACT: replies to their latest tweet now (leave blank for next in queue)
+              </div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <input
+                  type="text"
+                  id="adminTweetUrl"
+                  placeholder="https://x.com/user/status/123..."
+                  style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
+                  onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("adminDryReplyBtn")?.click(); }}
+                />
+                <button
+                  id="adminDryReplyBtn"
+                  onClick={async () => {
+                    const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
+                    const tweetUrl = inp?.value.trim();
+                    if (!tweetUrl) { addLog("Paste a tweet URL first", "warn"); return; }
                     setLoading("dryReply");
                     setReplyPreview(null);
-                    addLog("Regenerating...", "info");
+                    addLog(`Generating reply preview: ${tweetUrl.substring(0, 60)}...`, "info");
                     try {
                       const res = await fetch("/api/targets/admin", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "dryReply", tweetUrl: replyPreview.tweetUrl, secret }),
+                        body: JSON.stringify({ action: "dryReply", tweetUrl, secret }),
                       });
                       const data = await res.json();
-                      if (data.replyText) {
-                        setReplyPreview({ ...replyPreview, replyText: data.replyText });
-                        addLog("✓ Regenerated", "success");
+                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      else if (data.replyText) {
+                        setReplyPreview({
+                          tweetUrl,
+                          replyText: data.replyText,
+                          originalText: data.originalText || "",
+                          originalAuthor: data.originalAuthor || "",
+                          tweetId: data.tweetId || "",
+                        });
+                        addLog(`✓ Preview ready — @${data.originalAuthor}: "${(data.originalText || "").slice(0, 50)}..."`, "success");
                       }
-                    } catch (e) { addLog(`Regen failed: ${e}`, "error"); }
+                    } catch (e) { addLog(`Dry run failed: ${e}`, "error"); }
                     setLoading("");
                   }}
                   disabled={!!loading}
-                  style={{ ...styles.btnSmall, flex: 1 }}
+                  style={styles.btnPrimary}
                 >
-                  ↻ REGENERATE
+                  {loading === "dryReply" ? "..." : "👁️ DRY RUN"}
                 </button>
                 <button
+                  id="adminReplyBtn"
                   onClick={async () => {
-                    if (!confirm("Post this reply to X?")) return;
-                    setLoading("postPreviewReply");
-                    addLog("Posting preview reply...", "info");
+                    const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
+                    const tweetUrl = inp?.value.trim();
+                    if (!tweetUrl) { addLog("Paste a tweet URL first", "warn"); return; }
+                    setLoading("reply");
+                    addLog(`Replying to tweet: ${tweetUrl.substring(0, 60)}...`, "info");
                     try {
                       const res = await fetch("/api/targets/admin", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "postPreview", tweetUrl: replyPreview.tweetUrl, replyText: replyPreview.replyText, secret }),
+                        body: JSON.stringify({ action: "reply", tweetUrl, secret }),
                       });
                       const data = await res.json();
-                      if (data.error) addLog(`Post failed: ${data.error}`, "error");
-                      else {
-                        const m = data.method === "quote" ? "Quote tweeted" : data.method === "standalone" ? "Standalone" : "Replied";
-                        addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success");
-                        setReplyPreview(null);
-                        const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
-                        if (inp) inp.value = "";
-                      }
-                    } catch (e) { addLog(`Post failed: ${e}`, "error"); }
+                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      else if (data.success) { const m = data.method === "quote" ? "Quote tweeted" : data.method === "standalone" ? "Standalone" : "Replied"; addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success"); inp.value = ""; setReplyPreview(null); }
+                      else addLog(`Failed: ${data.error}`, "error");
+                    } catch (e) { addLog(`Reply failed: ${e}`, "error"); }
                     setLoading("");
                   }}
                   disabled={!!loading}
-                  style={{ ...styles.btnPost, flex: 1 }}
+                  style={styles.btnPost}
                 >
-                  {loading === "postPreviewReply" ? "POSTING..." : "🚀 POST THIS REPLY"}
+                  {loading === "reply" ? "..." : "💬 REPLY NOW"}
                 </button>
               </div>
-            </div>
-          )}
 
-          <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
-            DRY RUN: preview ET's reply before posting · REPLY NOW: generate + post immediately
-          </div>
-          <button
-            onClick={async () => {
-              setLoading("loadTargets");
-              try {
-                const res = await fetch("/api/targets");
-                const data = await res.json();
-                if (data.targets?.length > 0) {
-                  addLog(`Target queue (${data.targets.length}):`, "info");
-                  for (const t of data.targets) {
-                    addLog(`  ${t.forced ? "⚡" : "•"} @${t.handle} — ${t.votes} votes${t.forced ? " (FORCED)" : ""}`, t.forced ? "warn" : "info");
-                  }
-                } else addLog("Target queue is empty", "info");
-              } catch (e) { addLog(`Load failed: ${e}`, "error"); }
-              setLoading("");
-            }}
-            disabled={!!loading}
-            style={{ ...styles.btnSmall, ...styles.btnWarn, marginBottom: "0" }}
-          >
-            {loading === "loadTargets" ? "..." : "📋 VIEW QUEUE"}
-          </button>
-        </div>
-
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ REPLY CONTROL</div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
-            <button
-              onClick={async () => {
-                setLoading("replies");
-                addLog("Checking mentions & generating replies...", "info");
-                try {
-                  const res = await fetch("/api/manual/replies", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ secret }),
-                  });
-                  const data = await res.json();
-                  if (data.error) { addLog(`Reply error: ${data.error}`, "error"); setLoading(""); return; }
-                  addLog(`Replies: ${data.replied} posted, ${data.skipped} skipped`, data.replied > 0 ? "success" : "info");
-                  if (data.results) {
-                    for (const r of data.results) {
-                      if (r.skipped) {
-                        addLog(`  ⊘ @${r.authorUsername}: ${r.skipReason}`, "warn");
-                      } else {
-                        addLog(`  ✓ @${r.authorUsername}: "${r.replyText.slice(0, 60)}..."`, "success");
-                      }
-                    }
-                  }
-                } catch (e) {
-                  addLog(`Reply check failed: ${e}`, "error");
-                }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPrimary}
-            >
-              {loading === "replies" ? "PROCESSING..." : "📡 CHECK & REPLY TO MENTIONS"}
-            </button>
-            <button
-              onClick={async () => {
-                setLoading("catchup");
-                addLog("CATCH-UP: Re-scanning recent mentions (ignoring cursor)...", "info");
-                try {
-                  const res = await fetch("/api/manual/replies", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ secret, catchUp: true }),
-                  });
-                  const data = await res.json();
-                  if (data.error) { addLog(`Catch-up error: ${data.error}`, "error"); setLoading(""); return; }
-                  addLog(`Catch-up: ${data.replied} posted, ${data.skipped} skipped`, data.replied > 0 ? "success" : "info");
-                  if (data.results) {
-                    for (const r of data.results) {
-                      if (r.skipped) {
-                        addLog(`  ⊘ @${r.authorUsername}: ${r.skipReason}`, "warn");
-                      } else {
-                        addLog(`  ✓ @${r.authorUsername}: "${r.replyText.slice(0, 60)}..."`, "success");
-                      }
-                    }
-                  }
-                } catch (e) {
-                  addLog(`Catch-up failed: ${e}`, "error");
-                }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={{ ...styles.btnPrimary, background: "#2a3a2a" }}
-            >
-              {loading === "catchup" ? "CATCHING UP..." : "🔄 CATCH UP MISSED"}
-            </button>
-            <span style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px" }}>
-              AUTO: every 15 min · MAX: 10/run · 75/day
-            </span>
-          </div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", lineHeight: "1.6" }}>
-            Fetches new @etalienx mentions → generates in-character replies via Claude → posts them.
-            Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
-            <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
-          </div>
-        </div>
-
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ MEME ENGINE</div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            Paste a tweet URL → ET photobombs, memes, roasts, or pays a visit. Preview first, then post as image reply.
-          </div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-            <input
-              type="text"
-              id="memeTweetUrl"
-              placeholder="https://x.com/user/status/123..."
-              style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            {(["photobomb", "meme", "roast", "visit"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={async () => {
-                  const url = (document.getElementById("memeTweetUrl") as HTMLInputElement)?.value.trim();
-                  if (!url) { addLog("Paste a tweet URL first", "warn"); return; }
-                  setLoading(`meme_${m}`);
-                  setMemeResult(null);
-                  addLog(`Meme engine (${m}): processing...`, "info");
-                  try {
-                    const res = await fetch("/api/admin/meme-test", {
-                      method: "POST",
-                      headers: authHeaders,
-                      body: JSON.stringify({ tweetUrl: url, mode: m, action: "preview" }),
-                    });
-                    const data = await res.json();
-                    if (data.error) {
-                      addLog(`Error: ${data.error}`, "error");
-                    } else {
-                      setMemeResult(JSON.stringify({
-                        dataUrl: data.result,
-                        imageBase64: data.imageBase64,
-                        tweetId: data.tweetId,
-                        tweetUrl: url,
-                        author: data.author,
-                        tweetText: data.tweetText,
-                        hasImages: data.hasImages,
-                        imageFrom: data.imageFrom,
-                        fellBack: data.fellBack,
-                        mode: m,
-                        elapsed: data.elapsed,
-                      }));
-                      addLog(`✓ ${m} preview ready (${data.elapsed}) — ${data.fellBack ? "⚠️ source blocked by safety filter, generated scene instead" : data.hasImages ? `edited image from @${data.imageFrom || data.author}` : "generated scene"} for @${data.author}`, "success");
-                    }
-                  } catch (e) { addLog(`Meme failed: ${e}`, "error"); }
-                  setLoading("");
-                }}
-                disabled={!!loading}
-                style={m === "photobomb" ? styles.btnPrimary : m === "roast" ? { ...styles.btnSmall, ...styles.btnWarn } : m === "visit" ? { ...styles.btnSmall, background: "rgba(128,0,255,0.15)", border: "1px solid #4a1a6a", color: "#b080ff" } : styles.btnPost}
-              >
-                {loading === `meme_${m}` ? "..." : m === "photobomb" ? "👽 PHOTOBOMB" : m === "meme" ? "🎭 MEME" : m === "visit" ? "👻 VISIT" : "🔥 ROAST"}
-              </button>
-            ))}
-          </div>
-
-          {memeResult && (() => {
-            try {
-              const d = JSON.parse(memeResult);
-              return (
-                <div style={{ marginTop: "4px" }}>
-                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>
-                    PREVIEW{d.fellBack ? " ⚠️ SAFETY FALLBACK" : ""} — @{d.author}: &quot;{(d.tweetText || "").substring(0, 80)}{d.tweetText?.length > 80 ? "..." : ""}&quot; ({d.imageFrom || (d.hasImages ? "image edited" : "scene generated")})
+              {/* Reply Preview */}
+              {replyPreview && (
+                <div style={{
+                  background: "#0a0f0a",
+                  border: "1px solid #1a3a1a",
+                  borderRadius: "2px",
+                  padding: "10px 12px",
+                  marginBottom: "12px",
+                }}>
+                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>REPLY PREVIEW</div>
+                  <div style={{ fontSize: "10px", color: "#5a7a5a", marginBottom: "8px", fontStyle: "italic" }}>
+                    @{replyPreview.originalAuthor}: &quot;{replyPreview.originalText.length > 100 ? replyPreview.originalText.substring(0, 100) + "..." : replyPreview.originalText}&quot;
                   </div>
                   <div style={{
-                    background: "#0a0f0a", border: "1px solid #1a3a1a", borderRadius: "2px",
-                    padding: "8px", textAlign: "center" as const,
+                    fontSize: "12px", color: "#39ff14", fontFamily: "monospace",
+                    lineHeight: "1.6", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
+                    padding: "8px", background: "#050a05", borderRadius: "2px", marginBottom: "8px",
                   }}>
-                    <img src={d.dataUrl} alt="Meme preview" style={{ maxWidth: "100%", maxHeight: "400px", borderRadius: "2px" }} />
+                    {replyPreview.replyText}
                   </div>
-                  <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <div style={{ fontSize: "9px", color: replyPreview.replyText.length > 280 ? "#ff4444" : "#3a5a3a", marginBottom: "8px" }}>
+                    {replyPreview.replyText.length}/280
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
                     <button
-                      onClick={() => {
-                        const url = (document.getElementById("memeTweetUrl") as HTMLInputElement)?.value.trim();
-                        if (url) {
-                          setLoading(`meme_${d.mode}`);
-                          setMemeResult(null);
-                          addLog(`Regenerating ${d.mode}...`, "info");
-                          fetch("/api/admin/meme-test", {
+                      onClick={async () => {
+                        setLoading("dryReply");
+                        setReplyPreview(null);
+                        addLog("Regenerating...", "info");
+                        try {
+                          const res = await fetch("/api/targets/admin", {
                             method: "POST",
-                            headers: authHeaders,
-                            body: JSON.stringify({ tweetUrl: url, mode: d.mode, action: "preview" }),
-                          }).then(r => r.json()).then(data => {
-                            if (data.error) addLog(`Error: ${data.error}`, "error");
-                            else {
-                              setMemeResult(JSON.stringify({ ...d, dataUrl: data.result, imageBase64: data.imageBase64, elapsed: data.elapsed }));
-                              addLog(`✓ Regenerated (${data.elapsed})`, "success");
-                            }
-                            setLoading("");
-                          }).catch(e => { addLog(`Regen failed: ${e}`, "error"); setLoading(""); });
-                        }
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "dryReply", tweetUrl: replyPreview.tweetUrl, secret }),
+                          });
+                          const data = await res.json();
+                          if (data.replyText) {
+                            setReplyPreview({ ...replyPreview, replyText: data.replyText });
+                            addLog("✓ Regenerated", "success");
+                          }
+                        } catch (e) { addLog(`Regen failed: ${e}`, "error"); }
+                        setLoading("");
                       }}
                       disabled={!!loading}
                       style={{ ...styles.btnSmall, flex: 1 }}
@@ -2021,21 +1218,23 @@ export default function BotDashboard() {
                     </button>
                     <button
                       onClick={async () => {
-                        if (!confirm("Post this meme as a reply?")) return;
-                        setLoading("memePost");
-                        addLog("Posting meme reply...", "info");
+                        if (!confirm("Post this reply to X?")) return;
+                        setLoading("postPreviewReply");
+                        addLog("Posting preview reply...", "info");
                         try {
-                          const res = await fetch("/api/admin/meme-test", {
+                          const res = await fetch("/api/targets/admin", {
                             method: "POST",
-                            headers: authHeaders,
-                            body: JSON.stringify({ tweetUrl: d.tweetUrl, action: "post", imageBase64: d.imageBase64 }),
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "postPreview", tweetUrl: replyPreview.tweetUrl, replyText: replyPreview.replyText, secret }),
                           });
                           const data = await res.json();
                           if (data.error) addLog(`Post failed: ${data.error}`, "error");
                           else {
-                            addLog(`✓ Meme ${data.method === "reply" ? "replied" : "posted standalone"} (${data.replyId})`, "success");
-                            setMemeResult(null);
-                            (document.getElementById("memeTweetUrl") as HTMLInputElement).value = "";
+                            const m = data.method === "quote" ? "Quote tweeted" : data.method === "standalone" ? "Standalone" : "Replied";
+                            addLog(`✓ ${m}: "${(data.replyText || "").slice(0, 80)}..."`, "success");
+                            setReplyPreview(null);
+                            const inp = document.getElementById("adminTweetUrl") as HTMLInputElement;
+                            if (inp) inp.value = "";
                           }
                         } catch (e) { addLog(`Post failed: ${e}`, "error"); }
                         setLoading("");
@@ -2043,114 +1242,205 @@ export default function BotDashboard() {
                       disabled={!!loading}
                       style={{ ...styles.btnPost, flex: 1 }}
                     >
-                      {loading === "memePost" ? "POSTING..." : "🚀 POST MEME"}
-                    </button>
-                    <button
-                      onClick={() => setMemeResult(null)}
-                      style={{ ...styles.btnSmall }}
-                    >
-                      ✕
+                      {loading === "postPreviewReply" ? "POSTING..." : "🚀 POST THIS REPLY"}
                     </button>
                   </div>
                 </div>
-              );
-            } catch { return null; }
-          })()}
-        </div>
+              )}
 
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ ARTICLE THREAD</div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            Paste an article URL → ET reads it and writes a tweet thread with his alien perspective. Preview first, then post.
-          </div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input
-              type="text"
-              value={threadUrl}
-              onChange={(e: any) => setThreadUrl(e.target.value)}
-              placeholder="https://..."
-              style={{ ...styles.input, flex: 1, textAlign: "left" }}
-              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("threadGenBtn")?.click(); }}
-            />
-            <button
-              id="threadGenBtn"
-              onClick={async () => {
-                if (!threadUrl.trim()) { addLog("Paste an article URL", "warn"); return; }
-                setLoading("threadGen");
-                setThreadPreview(null);
-                addLog(`Reading article: ${threadUrl.substring(0, 60)}...`, "info");
-                try {
-                  const res = await fetch("/api/admin/thread", {
-                    method: "POST",
-                    headers: authHeaders,
-                    body: JSON.stringify({ url: threadUrl, dryRun: true }),
-                  });
-                  const data = await res.json();
-                  if (data.error) { addLog(`Error: ${data.error}`, "error"); }
-                  else {
-                    setThreadPreview(data.tweets);
-                    addLog(`✓ Generated ${data.tweetCount}-tweet thread`, "success");
-                  }
-                } catch (e) { addLog(`Thread generation failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPrimary}
-            >
-              {loading === "threadGen" ? "READING..." : "📰 GENERATE"}
-            </button>
-          </div>
-
-          {threadPreview && (
-            <div style={{ marginTop: "8px" }}>
-              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>
-                PREVIEW ({threadPreview.length} tweets)
+              <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "1px", marginBottom: "10px" }}>
+                DRY RUN: preview ET's reply before posting · REPLY NOW: generate + post immediately
               </div>
-              <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px", marginBottom: "12px" }}>
-                {threadPreview.map((tweet, i) => {
-                  const total = threadPreview.length;
-                  const count = `[${i + 1}/${total}]`;
-                  const isLast = i === total - 1;
-                  let formatted = tweet;
-                  if (i === 0 && threadUrl) {
-                    formatted = `${tweet}\n\n${threadUrl}\n\n${count} 👇`;
-                  } else if (isLast) {
-                    formatted = `${tweet}\n\n${count}`;
-                  } else {
-                    formatted = `${tweet}\n\n${count} 👇`;
-                  }
+              <button
+                onClick={async () => {
+                  setLoading("loadTargets");
+                  try {
+                    const res = await fetch("/api/targets");
+                    const data = await res.json();
+                    if (data.targets?.length > 0) {
+                      addLog(`Target queue (${data.targets.length}):`, "info");
+                      for (const t of data.targets) {
+                        addLog(`  ${t.forced ? "⚡" : "•"} @${t.handle} — ${t.votes} votes${t.forced ? " (FORCED)" : ""}`, t.forced ? "warn" : "info");
+                      }
+                    } else addLog("Target queue is empty", "info");
+                  } catch (e) { addLog(`Load failed: ${e}`, "error"); }
+                  setLoading("");
+                }}
+                disabled={!!loading}
+                style={{ ...styles.btnSmall, ...styles.btnWarn, marginBottom: "0" }}
+              >
+                {loading === "loadTargets" ? "..." : "📋 VIEW QUEUE"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── TOOLS TAB ── */}
+        {activeTab === "tools" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "16px" }}>
+
+            {/* Meme Engine */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ MEME ENGINE</div>
+              <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+                Paste a tweet URL → ET photobombs, memes, roasts, or pays a visit. Preview first, then post as image reply.
+              </div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                <input
+                  type="text"
+                  id="memeTweetUrl"
+                  placeholder="https://x.com/user/status/123..."
+                  style={{ ...styles.input, flex: 1, textAlign: "left", fontSize: "10px" }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                {(["photobomb", "meme", "roast", "visit"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={async () => {
+                      const url = (document.getElementById("memeTweetUrl") as HTMLInputElement)?.value.trim();
+                      if (!url) { addLog("Paste a tweet URL first", "warn"); return; }
+                      setLoading(`meme_${m}`);
+                      setMemeResult(null);
+                      addLog(`Meme engine (${m}): processing...`, "info");
+                      try {
+                        const res = await fetch("/api/admin/meme-test", {
+                          method: "POST",
+                          headers: authHeaders,
+                          body: JSON.stringify({ tweetUrl: url, mode: m, action: "preview" }),
+                        });
+                        const data = await res.json();
+                        if (data.error) {
+                          addLog(`Error: ${data.error}`, "error");
+                        } else {
+                          setMemeResult(JSON.stringify({
+                            dataUrl: data.result,
+                            imageBase64: data.imageBase64,
+                            tweetId: data.tweetId,
+                            tweetUrl: url,
+                            author: data.author,
+                            tweetText: data.tweetText,
+                            hasImages: data.hasImages,
+                            imageFrom: data.imageFrom,
+                            fellBack: data.fellBack,
+                            mode: m,
+                            elapsed: data.elapsed,
+                          }));
+                          addLog(`✓ ${m} preview ready (${data.elapsed}) — ${data.fellBack ? "⚠️ source blocked by safety filter, generated scene instead" : data.hasImages ? `edited image from @${data.imageFrom || data.author}` : "generated scene"} for @${data.author}`, "success");
+                        }
+                      } catch (e) { addLog(`Meme failed: ${e}`, "error"); }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={m === "photobomb" ? styles.btnPrimary : m === "roast" ? { ...styles.btnSmall, ...styles.btnWarn } : m === "visit" ? { ...styles.btnSmall, background: "rgba(128,0,255,0.15)", border: "1px solid #4a1a6a", color: "#b080ff" } : styles.btnPost}
+                  >
+                    {loading === `meme_${m}` ? "..." : m === "photobomb" ? "👽 PHOTOBOMB" : m === "meme" ? "🎭 MEME" : m === "visit" ? "👻 VISIT" : "🔥 ROAST"}
+                  </button>
+                ))}
+              </div>
+
+              {memeResult && (() => {
+                try {
+                  const d = JSON.parse(memeResult);
                   return (
-                    <div key={i} style={{
-                      background: "#0a0f0a",
-                      border: "1px solid #1a3a1a",
-                      borderRadius: "2px",
-                      padding: "8px 10px",
-                      display: "flex",
-                      gap: "8px",
-                    }}>
-                      <span style={{ color: "#3a5a3a", fontSize: "10px", fontFamily: "monospace", minWidth: "16px" }}>
-                        {i + 1}.
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
-                          lineHeight: "1.5", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
-                        }}>
-                          {formatted}
-                        </div>
-                        <div style={{ fontSize: "9px", color: formatted.length > 280 ? "#ff4444" : "#3a5a3a", marginTop: "4px" }}>
-                          {formatted.length}/280
-                        </div>
+                    <div style={{ marginTop: "4px" }}>
+                      <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>
+                        PREVIEW{d.fellBack ? " ⚠️ SAFETY FALLBACK" : ""} — @{d.author}: &quot;{(d.tweetText || "").substring(0, 80)}{d.tweetText?.length > 80 ? "..." : ""}&quot; ({d.imageFrom || (d.hasImages ? "image edited" : "scene generated")})
+                      </div>
+                      <div style={{
+                        background: "#0a0f0a", border: "1px solid #1a3a1a", borderRadius: "2px",
+                        padding: "8px", textAlign: "center" as const,
+                      }}>
+                        <img src={d.dataUrl} alt="Meme preview" style={{ maxWidth: "100%", maxHeight: "400px", borderRadius: "2px" }} />
+                      </div>
+                      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                        <button
+                          onClick={() => {
+                            const url = (document.getElementById("memeTweetUrl") as HTMLInputElement)?.value.trim();
+                            if (url) {
+                              setLoading(`meme_${d.mode}`);
+                              setMemeResult(null);
+                              addLog(`Regenerating ${d.mode}...`, "info");
+                              fetch("/api/admin/meme-test", {
+                                method: "POST",
+                                headers: authHeaders,
+                                body: JSON.stringify({ tweetUrl: url, mode: d.mode, action: "preview" }),
+                              }).then(r => r.json()).then(data => {
+                                if (data.error) addLog(`Error: ${data.error}`, "error");
+                                else {
+                                  setMemeResult(JSON.stringify({ ...d, dataUrl: data.result, imageBase64: data.imageBase64, elapsed: data.elapsed }));
+                                  addLog(`✓ Regenerated (${data.elapsed})`, "success");
+                                }
+                                setLoading("");
+                              }).catch(e => { addLog(`Regen failed: ${e}`, "error"); setLoading(""); });
+                            }
+                          }}
+                          disabled={!!loading}
+                          style={{ ...styles.btnSmall, flex: 1 }}
+                        >
+                          ↻ REGENERATE
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Post this meme as a reply?")) return;
+                            setLoading("memePost");
+                            addLog("Posting meme reply...", "info");
+                            try {
+                              const res = await fetch("/api/admin/meme-test", {
+                                method: "POST",
+                                headers: authHeaders,
+                                body: JSON.stringify({ tweetUrl: d.tweetUrl, action: "post", imageBase64: d.imageBase64 }),
+                              });
+                              const data = await res.json();
+                              if (data.error) addLog(`Post failed: ${data.error}`, "error");
+                              else {
+                                addLog(`✓ Meme ${data.method === "reply" ? "replied" : "posted standalone"} (${data.replyId})`, "success");
+                                setMemeResult(null);
+                                (document.getElementById("memeTweetUrl") as HTMLInputElement).value = "";
+                              }
+                            } catch (e) { addLog(`Post failed: ${e}`, "error"); }
+                            setLoading("");
+                          }}
+                          disabled={!!loading}
+                          style={{ ...styles.btnPost, flex: 1 }}
+                        >
+                          {loading === "memePost" ? "POSTING..." : "🚀 POST MEME"}
+                        </button>
+                        <button
+                          onClick={() => setMemeResult(null)}
+                          style={{ ...styles.btnSmall }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
                   );
-                })}
+                } catch { return null; }
+              })()}
+            </div>
+
+            {/* Article Thread */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ ARTICLE THREAD</div>
+              <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+                Paste an article URL → ET reads it and writes a tweet thread with his alien perspective. Preview first, then post.
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <input
+                  type="text"
+                  value={threadUrl}
+                  onChange={(e: any) => setThreadUrl(e.target.value)}
+                  placeholder="https://..."
+                  style={{ ...styles.input, flex: 1, textAlign: "left" }}
+                  onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("threadGenBtn")?.click(); }}
+                />
                 <button
+                  id="threadGenBtn"
                   onClick={async () => {
+                    if (!threadUrl.trim()) { addLog("Paste an article URL", "warn"); return; }
                     setLoading("threadGen");
-                    addLog("Regenerating thread...", "info");
+                    setThreadPreview(null);
+                    addLog(`Reading article: ${threadUrl.substring(0, 60)}...`, "info");
                     try {
                       const res = await fetch("/api/admin/thread", {
                         method: "POST",
@@ -2158,173 +1448,957 @@ export default function BotDashboard() {
                         body: JSON.stringify({ url: threadUrl, dryRun: true }),
                       });
                       const data = await res.json();
-                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      if (data.error) { addLog(`Error: ${data.error}`, "error"); }
                       else {
                         setThreadPreview(data.tweets);
-                        addLog(`✓ Regenerated ${data.tweetCount}-tweet thread`, "success");
+                        addLog(`✓ Generated ${data.tweetCount}-tweet thread`, "success");
                       }
-                    } catch (e) { addLog(`Regen failed: ${e}`, "error"); }
+                    } catch (e) { addLog(`Thread generation failed: ${e}`, "error"); }
                     setLoading("");
                   }}
                   disabled={!!loading}
-                  style={{ ...styles.btnSmall, flex: 1 }}
+                  style={styles.btnPrimary}
                 >
-                  {loading === "threadGen" ? "..." : "↻ REGENERATE"}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!confirm(`Post this ${threadPreview.length}-tweet thread to X?`)) return;
-                    setLoading("threadPost");
-                    addLog("Posting thread to X...", "info");
-                    try {
-                      const res = await fetch("/api/admin/thread", {
-                        method: "POST",
-                        headers: authHeaders,
-                        body: JSON.stringify({ url: threadUrl, dryRun: false, tweets: threadPreview }),
-                      });
-                      const data = await res.json();
-                      if (data.error) addLog(`Post failed: ${data.error}`, "error");
-                      else {
-                        addLog(`✓ Thread posted! ${data.tweetCount} tweets (first: ${data.thread[0]?.id})`, "success");
-                        setThreadPreview(null);
-                        setThreadUrl("");
-                      }
-                    } catch (e) { addLog(`Thread post failed: ${e}`, "error"); }
-                    setLoading("");
-                  }}
-                  disabled={!!loading}
-                  style={{ ...styles.btnPost, flex: 1 }}
-                >
-                  {loading === "threadPost" ? "POSTING..." : `🚀 POST THREAD (${threadPreview.length} tweets)`}
+                  {loading === "threadGen" ? "READING..." : "📰 GENERATE"}
                 </button>
               </div>
-            </div>
-          )}
-        </div>
 
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ PRIORITY USERS</div>
-          <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
-            Priority users get 30 interactions/day (vs 10 default). Add users ET should engage with more.
-          </div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <input
-              type="text"
-              id="vipInput"
-              placeholder="@username"
-              style={{ ...styles.input, flex: 1, textAlign: "left" }}
-              onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("vipAddBtn")?.click(); }}
-            />
-            <button
-              id="vipAddBtn"
-              onClick={async () => {
-                const inp = document.getElementById("vipInput") as HTMLInputElement;
-                const handle = inp?.value.trim().replace(/^@/, "");
-                if (!handle) { addLog("Enter a handle first", "warn"); return; }
-                setLoading("vipAdd");
-                addLog(`Adding @${handle} to priority list...`, "info");
-                try {
-                  const res = await fetch("/api/admin/vip", {
-                    method: "POST",
-                    headers: authHeaders,
-                    body: JSON.stringify({ action: "add", username: handle }),
-                  });
-                  const data = await res.json();
-                  if (data.error) addLog(`Error: ${data.error}`, "error");
-                  else {
-                    addLog(`✓ @${handle} added to priority list (30/day limit)`, "success");
-                    inp.value = "";
-                    setVipUsers(data.vipUsers || []);
-                  }
-                } catch (e) { addLog(`Add failed: ${e}`, "error"); }
-                setLoading("");
-              }}
-              disabled={!!loading}
-              style={styles.btnPrimary}
-            >
-              {loading === "vipAdd" ? "..." : "＋ ADD"}
-            </button>
-          </div>
-          {vipUsers.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
-              {vipUsers.map((u) => (
-                <div key={u} style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 12px",
-                  background: "#0a1a0a",
-                  border: "1px solid #1a3a1a",
-                  borderRadius: "2px",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ color: "#ffd700", fontSize: "11px" }}>⭐</span>
-                    <span style={{ color: "#39ff14", fontWeight: 700, fontSize: "12px" }}>@{u}</span>
-                    <span style={{ color: "#3a5a3a", fontSize: "9px" }}>30/day</span>
+              {threadPreview && (
+                <div style={{ marginTop: "8px" }}>
+                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "8px" }}>
+                    PREVIEW ({threadPreview.length} tweets)
                   </div>
-                  <button
-                    onClick={async () => {
-                      setLoading(`vipRm-${u}`);
-                      try {
-                        const res = await fetch("/api/admin/vip", {
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px", marginBottom: "12px" }}>
+                    {threadPreview.map((tweet, i) => {
+                      const total = threadPreview.length;
+                      const count = `[${i + 1}/${total}]`;
+                      const isLast = i === total - 1;
+                      let formatted = tweet;
+                      if (i === 0 && threadUrl) {
+                        formatted = `${tweet}\n\n${threadUrl}\n\n${count} 👇`;
+                      } else if (isLast) {
+                        formatted = `${tweet}\n\n${count}`;
+                      } else {
+                        formatted = `${tweet}\n\n${count} 👇`;
+                      }
+                      return (
+                        <div key={i} style={{
+                          background: "#0a0f0a",
+                          border: "1px solid #1a3a1a",
+                          borderRadius: "2px",
+                          padding: "8px 10px",
+                          display: "flex",
+                          gap: "8px",
+                        }}>
+                          <span style={{ color: "#3a5a3a", fontSize: "10px", fontFamily: "monospace", minWidth: "16px" }}>
+                            {i + 1}.
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{
+                              fontSize: "11px", color: "#8aaa8a", fontFamily: "monospace",
+                              lineHeight: "1.5", whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const,
+                            }}>
+                              {formatted}
+                            </div>
+                            <div style={{ fontSize: "9px", color: formatted.length > 280 ? "#ff4444" : "#3a5a3a", marginTop: "4px" }}>
+                              {formatted.length}/280
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={async () => {
+                        setLoading("threadGen");
+                        addLog("Regenerating thread...", "info");
+                        try {
+                          const res = await fetch("/api/admin/thread", {
+                            method: "POST",
+                            headers: authHeaders,
+                            body: JSON.stringify({ url: threadUrl, dryRun: true }),
+                          });
+                          const data = await res.json();
+                          if (data.error) addLog(`Error: ${data.error}`, "error");
+                          else {
+                            setThreadPreview(data.tweets);
+                            addLog(`✓ Regenerated ${data.tweetCount}-tweet thread`, "success");
+                          }
+                        } catch (e) { addLog(`Regen failed: ${e}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnSmall, flex: 1 }}
+                    >
+                      {loading === "threadGen" ? "..." : "↻ REGENERATE"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Post this ${threadPreview.length}-tweet thread to X?`)) return;
+                        setLoading("threadPost");
+                        addLog("Posting thread to X...", "info");
+                        try {
+                          const res = await fetch("/api/admin/thread", {
+                            method: "POST",
+                            headers: authHeaders,
+                            body: JSON.stringify({ url: threadUrl, dryRun: false, tweets: threadPreview }),
+                          });
+                          const data = await res.json();
+                          if (data.error) addLog(`Post failed: ${data.error}`, "error");
+                          else {
+                            addLog(`✓ Thread posted! ${data.tweetCount} tweets (first: ${data.thread[0]?.id})`, "success");
+                            setThreadPreview(null);
+                            setThreadUrl("");
+                          }
+                        } catch (e) { addLog(`Thread post failed: ${e}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnPost, flex: 1 }}
+                    >
+                      {loading === "threadPost" ? "POSTING..." : `🚀 POST THREAD (${threadPreview.length} tweets)`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Riddle Manager */}
+            <div style={styles.panel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <div style={styles.panelTitle}>🧩 RIDDLE MANAGER</div>
+                <button onClick={loadRiddles} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+              </div>
+
+              {/* Manual add form */}
+              <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "4px", padding: "10px", marginBottom: "12px" }}>
+                <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.5)", letterSpacing: "0.1em", marginBottom: "8px" }}>＋ ADD RIDDLE MANUALLY</div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                  <input
+                    value={newRiddle.tweetUrl}
+                    onChange={(e: any) => setNewRiddle(p => ({ ...p, tweetUrl: e.target.value }))}
+                    placeholder="Tweet URL (the riddle tweet)"
+                    style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                  />
+                  <textarea
+                    value={newRiddle.question}
+                    onChange={(e: any) => setNewRiddle(p => ({ ...p, question: e.target.value }))}
+                    placeholder="The riddle / question (what ET asked)"
+                    rows={2}
+                    style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", resize: "vertical" as const, fontFamily: "monospace" }}
+                  />
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <input
+                      value={newRiddle.answer}
+                      onChange={(e: any) => setNewRiddle(p => ({ ...p, answer: e.target.value }))}
+                      placeholder="Correct answer (only visible to admin)"
+                      style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", flex: 1 }}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!newRiddle.question.trim()) { addLog("Enter the riddle question first", "warn"); return; }
+                        setLoading("riddleAnswerGen");
+                        const res = await fetch("/api/admin/riddle-answer", {
                           method: "POST",
-                          headers: authHeaders,
-                          body: JSON.stringify({ action: "remove", username: u }),
+                          headers: { ...authHeaders, "Content-Type": "application/json" },
+                          body: JSON.stringify({ question: newRiddle.question, imageUrl: newRiddle.imageUrl || "" }),
                         });
                         const data = await res.json();
-                        if (data.error) addLog(`Error: ${data.error}`, "error");
-                        else {
-                          addLog(`✓ @${u} removed from priority list`, "warn");
-                          setVipUsers(data.vipUsers || []);
-                        }
-                      } catch (e) { addLog(`Remove failed: ${e}`, "error"); }
+                        if (data.success) {
+                          setNewRiddle(p => ({ ...p, answer: data.answer }));
+                          addLog("ET determined the answer — review before saving", "info");
+                        } else { addLog(`Error: ${data.error}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", whiteSpace: "nowrap" as const, background: "rgba(57,255,20,0.06)", borderColor: "rgba(57,255,20,0.15)", color: "rgba(57,255,20,0.6)" }}
+                    >
+                      {loading === "riddleAnswerGen" ? "thinking..." : "👽 ASK ET"}
+                    </button>
+                  </div>
+                  <input
+                    value={newRiddle.imageUrl}
+                    onChange={(e: any) => setNewRiddle(p => ({ ...p, imageUrl: e.target.value }))}
+                    placeholder="Image URL (optional — paste if riddle has a DALL-E image, ET will examine it)"
+                    style={{ ...styles.input, width: "100%", fontSize: "10px", padding: "4px 8px", color: "rgba(100,200,255,0.7)", boxSizing: "border-box" as const }}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!newRiddle.tweetUrl || !newRiddle.question || !newRiddle.answer) {
+                        addLog("Fill in all three fields", "warn"); return;
+                      }
+                      setLoading("riddleAdd");
+                      const res = await fetch("/api/admin/riddles", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "manual_add", tweetUrl: newRiddle.tweetUrl, question: newRiddle.question, answer: newRiddle.answer }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        addLog(`✅ Riddle added (tweet ${data.tweetId})`, "success");
+                        setNewRiddle({ tweetUrl: "", question: "", answer: "", imageUrl: "" });
+                        loadRiddles();
+                      } else { addLog(`Error: ${data.error}`, "error"); }
                       setLoading("");
                     }}
                     disabled={!!loading}
-                    style={{
-                      background: "transparent",
-                      border: "1px solid #5a2a2a",
-                      color: "#ff4444",
-                      padding: "2px 8px",
-                      fontFamily: "monospace",
-                      fontSize: "10px",
-                      cursor: "pointer",
-                    }}
+                    style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 10px", background: "rgba(57,255,20,0.08)", borderColor: "rgba(57,255,20,0.2)", color: "#39ff14" }}
                   >
-                    {loading === `vipRm-${u}` ? "..." : "✕ REMOVE"}
+                    {loading === "riddleAdd" ? "..." : "＋ ADD RIDDLE"}
                   </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: "#3a5a3a", fontSize: "10px", fontStyle: "italic", padding: "8px 0" }}>
-              No priority users. Default limit is 10 interactions/day per user.
-            </div>
-          )}
-        </div>
+              </div>
 
-        <div style={styles.panel}>
-          <div style={styles.panelTitle}>◈ DAILY TARGET REFERENCE</div>
-          <div style={styles.targetGrid}>
-            {PILLARS.map((p) => {
-              const targets: Record<string, string> = {
-                human_observation: "2–3/day",
-                research_drop: "1/day",
-                crypto_community: "1–2/day",
-                personal_lore: "0–1/day",
-                existential: "1/day",
-                disclosure_conspiracy: "1–2/day",
-              };
-              return (
-                <div key={p.id} style={styles.targetCard}>
-                  <span>{p.icon}</span>
-                  <span style={styles.targetName}>{p.name}</span>
-                  <span style={styles.targetCount}>{targets[p.id]}</span>
+              {riddles.length === 0 ? (
+                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no active riddles</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "12px" }}>
+                  {riddles.map((r: any) => (
+                    <div key={r.tweetId} style={{ background: r.solved ? "rgba(0,0,0,0.2)" : "rgba(57,255,20,0.03)", border: `1px solid ${r.solved ? "rgba(255,255,255,0.08)" : "rgba(57,255,20,0.12)"}`, borderRadius: "4px", padding: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "9px", color: r.solved ? "rgba(255,200,0,0.5)" : "rgba(57,255,20,0.5)", letterSpacing: "0.1em" }}>
+                          {r.solved ? `✅ SOLVED — winner: @${r.solvedBy}` : "🔴 OPEN"}
+                        </span>
+                        <a href={`https://x.com/etalienx/status/${r.tweetId}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)", textDecoration: "none" }}>VIEW TWEET ↗</a>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", marginBottom: "4px", lineHeight: "1.5" }}>
+                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>RIDDLE: </span>{r.question?.substring(0, 150)}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "rgba(57,255,20,0.6)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "9px" }}>ANSWER: </span>
+                        {showRiddleAnswer[r.tweetId]
+                          ? <span style={{ color: "rgba(57,255,20,0.85)" }}>{r.answer}</span>
+                          : <span style={{ color: "rgba(255,255,255,0.15)", fontSize: "11px", letterSpacing: "0.15em" }}>••••••••••</span>
+                        }
+                        <button
+                          onClick={() => setShowRiddleAnswer(p => ({ ...p, [r.tweetId]: !p[r.tweetId] }))}
+                          style={{ background: "transparent", border: "1px solid rgba(57,255,20,0.2)", color: "rgba(57,255,20,0.5)", fontSize: "9px", padding: "2px 8px", cursor: "pointer", fontFamily: "monospace", borderRadius: "2px" }}
+                        >
+                          {showRiddleAnswer[r.tweetId] ? "HIDE" : "REVEAL"}
+                        </button>
+                      </div>
+                      {!r.solved && (
+                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
+
+                          {/* Check if winner */}
+                          <div style={{ marginBottom: "12px" }}>
+                            <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>🔍 CHECK REPLY — paste a reply URL to see if it is correct:</div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <input
+                                value={checkReplyUrl[r.tweetId] || ""}
+                                onChange={(e: any) => {
+                                  setCheckReplyUrl(p => ({ ...p, [r.tweetId]: e.target.value }));
+                                  setCheckVerdict(p => { const n = {...p}; delete n[r.tweetId]; return n; });
+                                }}
+                                placeholder="https://x.com/.../status/..."
+                                style={{ ...styles.input, fontSize: "11px", padding: "4px 8px", flex: 1 }}
+                              />
+                              <button
+                                onClick={async () => {
+                                  const url = checkReplyUrl[r.tweetId];
+                                  if (!url) { addLog("Paste a reply URL first", "warn"); return; }
+                                  setLoading("check_" + r.tweetId);
+                                  const res = await fetch("/api/admin/riddle-check", {
+                                    method: "POST",
+                                    headers: { ...authHeaders, "Content-Type": "application/json" },
+                                    body: JSON.stringify({ tweetId: r.tweetId, replyUrl: url }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) setCheckVerdict(p => ({ ...p, [r.tweetId]: data }));
+                                  else addLog(`Check failed: ${data.error}`, "error");
+                                  setLoading("");
+                                }}
+                                disabled={!!loading}
+                                style={{ ...styles.btnSmall, fontSize: "9px", padding: "4px 10px", whiteSpace: "nowrap" as const }}
+                              >
+                                {loading === "check_" + r.tweetId ? "checking..." : "CHECK"}
+                              </button>
+                            </div>
+                            {checkVerdict[r.tweetId] && (() => {
+                              const v = checkVerdict[r.tweetId];
+                              const correct = v.verdict?.correct;
+                              const confidence = v.verdict?.confidence;
+                              const color = correct ? "#00ff64" : confidence === "low" ? "#ff4444" : "#ffcc00";
+                              const icon = correct ? "✅" : "❌";
+                              return (
+                                <div style={{ marginTop: "8px", background: "rgba(0,0,0,0.3)", border: `1px solid ${color}33`, borderRadius: "3px", padding: "8px 10px" }}>
+                                  <div style={{ fontSize: "10px", color, fontWeight: 700, marginBottom: "4px" }}>
+                                    {icon} @{v.replyAuthor} — {correct ? "CORRECT" : "WRONG"} ({confidence} confidence)
+                                  </div>
+                                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "4px", fontStyle: "italic" }}>
+                                    "{v.replyText?.substring(0, 120)}"
+                                  </div>
+                                  <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)" }}>{v.verdict?.reasoning}</div>
+                                  {!correct && v.trollReplyId && (
+                                    <div style={{ fontSize: "9px", color: "rgba(255,150,0,0.6)", marginTop: "4px" }}>
+                                      👽 ET already replied with a troll
+                                    </div>
+                                  )}
+                                  {correct && (
+                                    <button
+                                      onClick={() => {
+                                        setRiddleWinner(p => ({ ...p, [r.tweetId]: { winner: v.replyAuthor, wallet: "", tweetUrl: checkReplyUrl[r.tweetId] } }));
+                                        addLog(`@${v.replyAuthor} pre-filled as winner — add wallet and confirm below`, "info");
+                                      }}
+                                      style={{ marginTop: "6px", ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.1)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
+                                    >
+                                      → USE AS WINNER
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>PICK WINNER — paste the winning reply details:</div>
+                          <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                            <input
+                              value={riddleWinner[r.tweetId]?.winner || ""}
+                              onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], winner: e.target.value } }))}
+                              placeholder="@winner username"
+                              style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                            />
+                            <input
+                              value={riddleWinner[r.tweetId]?.tweetUrl || ""}
+                              onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], tweetUrl: e.target.value } }))}
+                              placeholder="URL to their winning reply tweet"
+                              style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                            />
+                            <input
+                              value={riddleWinner[r.tweetId]?.wallet || ""}
+                              onChange={(e: any) => setRiddleWinner((prev: any) => ({ ...prev, [r.tweetId]: { ...prev[r.tweetId], wallet: e.target.value } }))}
+                              placeholder="Solana wallet (optional — adds to rewards queue)"
+                              style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }}
+                            />
+                            <button
+                              onClick={async () => {
+                                const w = riddleWinner[r.tweetId] || {};
+                                if (!w.winner) { addLog("Enter winner username", "warn"); return; }
+                                if (!w.tweetUrl) { addLog("Enter the winning reply URL", "warn"); return; }
+                                setLoading("riddle_" + r.tweetId);
+                                const res = await fetch("/api/admin/riddles", {
+                                  method: "POST",
+                                  headers: { ...authHeaders, "Content-Type": "application/json" },
+                                  body: JSON.stringify({ action: "pick_winner", tweetId: r.tweetId, winner: w.winner, walletAddress: w.wallet || "", winnerTweetUrl: w.tweetUrl }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  addLog(`✅ @${w.winner} picked as riddle winner${w.wallet ? " — added to rewards queue" : ""}`, "success");
+                                  setRiddleWinner((prev: any) => { const n = {...prev}; delete n[r.tweetId]; return n; });
+                                  loadRiddles();
+                                  if (w.wallet) loadRewardsQueue();
+                                } else { addLog(`Error: ${data.error}`, "error"); }
+                                setLoading("");
+                              }}
+                              disabled={!!loading}
+                              style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 12px", background: "rgba(57,255,20,0.08)", borderColor: "rgba(57,255,20,0.25)", color: "#39ff14" }}
+                            >
+                              {loading === "riddle_" + r.tweetId ? "..." : "✓ PICK AS WINNER"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── REWARDS TAB ── */}
+        {activeTab === "rewards" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "16px" }}>
+
+            {/* ET Wallet Treasury */}
+            {walletInfo && (
+              <div style={{ ...styles.panel, borderColor: walletInfo.configured && (walletInfo.balance ?? 0) < 0.2 ? "rgba(255,200,0,0.3)" : "rgba(0,255,100,0.15)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <div style={styles.panelTitle}>👽 ET TREASURY</div>
+                  <button onClick={loadWalletInfo} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+                </div>
+                {walletInfo.configured ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                      <span style={{ color: "rgba(255,255,255,0.5)" }}>ADDRESS</span>
+                      <span style={{ color: "#00ff64", fontFamily: "monospace", fontSize: "10px" }}>
+                        {walletInfo.address?.slice(0,6)}…{walletInfo.address?.slice(-6)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                      <span style={{ color: "rgba(255,255,255,0.5)" }}>BALANCE</span>
+                      <span style={{ color: (walletInfo.balance ?? 0) < 0.2 ? "#ffcc00" : "#00ff64", fontWeight: 700 }}>
+                        {walletInfo.balance?.toFixed(4)} SOL
+                        {(walletInfo.balance ?? 0) < 0.2 && " ⚠️ LOW"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", marginTop: "2px" }}>
+                      Rewards: 0.05–0.1 SOL per winner · auto-sent on wallet address detection
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "11px", color: "rgba(255,200,0,0.7)" }}>
+                    ⚠️ {walletInfo.message || "ET_WALLET_PRIVATE_KEY not configured"}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ET Locks */}
+            <div style={styles.panel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <div style={styles.panelTitle}>🔒 ET LOCKS</div>
+                <button onClick={loadEtLocks} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+              </div>
+              <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "8px", lineHeight: "1.6" }}>
+                In-house 69-day timelock. Zero protocol fees. Escrow keypair holds tokens until unlock.
+              </div>
+              {walletInfo?.balance && (
+                <div style={{ fontSize: "10px", color: "rgba(57,255,20,0.6)", marginBottom: "12px", background: "rgba(57,255,20,0.04)", border: "1px solid rgba(57,255,20,0.1)", borderRadius: "3px", padding: "6px 10px" }}>
+                  ET wallet available: <strong>{Number(walletInfo.balance).toLocaleString()} $ET</strong>
+                  <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: "8px", fontSize: "9px" }}>enter this number in the token amount field below</span>
+                </div>
+              )}
+              {etLocks.length > 0 && (
+                <div style={{ marginBottom: "16px" }}>
+                  {etLocks.map((lock: any) => {
+                    const unlockDate = new Date(Number(lock.unlockTimestamp) * 1000);
+                    const isUnlocked = Date.now() / 1000 > Number(lock.unlockTimestamp);
+                    const color = lock.status === "released" ? "rgba(100,100,100,0.5)" : isUnlocked ? "#ffcc00" : "rgba(57,255,20,0.6)";
+                    return (
+                      <div key={lock.id} style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${color}33`, borderRadius: "3px", padding: "8px 10px", marginBottom: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", marginBottom: "4px" }}>
+                          <span style={{ color }}>{lock.status === "released" ? "✅ RELEASED" : isUnlocked ? "⚡ READY TO RELEASE" : "🔒 LOCKED"}</span>
+                          <span style={{ color: "rgba(255,255,255,0.3)" }}>{unlockDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </div>
+                        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginBottom: "2px" }}>Winner: {lock.winner?.slice(0,8)}...</div>
+                        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "2px" }}>{Number(lock.tokenAmount).toLocaleString()} $ET</div>
+                        {lock.escrowWallet && (
+                          <div style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)" }}>
+                            Escrow: <a href={`https://solscan.io/account/${lock.escrowWallet}`} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(100,200,255,0.7)", textDecoration: "none" }}>{lock.escrowWallet?.slice(0,12)}... ↗</a>
+                          </div>
+                        )}
+                        {lock.status === "locked" && isUnlocked && (
+                          <button
+                            onClick={async () => {
+                              setLoading("release_" + lock.id);
+                              const res = await fetch("/api/admin/release-lock", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ lockId: lock.id }) });
+                              const data = await res.json();
+                              if (data.success) { addLog(`✅ Released ${lock.tokenAmount} $ET — ${data.txSig}`, "success"); loadEtLocks(); }
+                              else addLog(`Release failed: ${data.error}`, "error");
+                              setLoading("");
+                            }}
+                            disabled={!!loading}
+                            style={{ marginTop: "6px", ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.1)", borderColor: "rgba(255,200,0,0.3)", color: "#ffcc00" }}
+                          >
+                            {loading === "release_" + lock.id ? "RELEASING..." : "⚡ RELEASE NOW"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                <input
+                  value={lockForm.wallet}
+                  onChange={(e: any) => setLockForm(p => ({ ...p, wallet: e.target.value }))}
+                  placeholder="Solana wallet address"
+                  style={{ ...styles.input, fontSize: "11px", padding: "6px 8px" }}
+                />
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <input
+                    value={lockForm.sol}
+                    onChange={(e: any) => setLockForm(p => ({ ...p, sol: e.target.value }))}
+                    placeholder="SOL amount to swap (e.g. 0.05)"
+                    type="number"
+                    step="0.001"
+                    min="0.001"
+                    max="1"
+                    style={{ ...styles.input, fontSize: "11px", padding: "6px 8px", flex: 1 }}
+                  />
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <input
+                      value={lockForm.tokenAmount}
+                      onChange={(e: any) => setLockForm(p => ({ ...p, tokenAmount: e.target.value }))}
+                      placeholder="Skip swap: paste raw $ET token balance from Solscan (a large integer, NOT the CA)"
+                      style={{ ...styles.input, fontSize: "10px", padding: "4px 8px", flex: 1 }}
+                    />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const { wallet, sol, tokenAmount } = lockForm;
+                      if (!wallet) { addLog("Enter wallet address", "warn"); return; }
+                      const usingTokenAmount = !!tokenAmount.trim();
+                      const amount = parseFloat(sol);
+                      if (!usingTokenAmount && (!sol || isNaN(amount) || amount <= 0)) { addLog("Enter SOL amount or raw token amount", "warn"); return; }
+                      const label = usingTokenAmount ? `lock ${tokenAmount} raw $ET` : `swap ${amount} SOL → $ET and lock`;
+                      if (!confirm(`${label} 69 days for ${wallet.substring(0,8)}...?`)) return;
+                      setLockResult(null);
+                      setLoading("manualLock");
+                      addLog(`${usingTokenAmount ? "Locking" : "Swapping"} ${usingTokenAmount ? tokenAmount + " tokens" : amount + " SOL → $ET"} for 69d...`, "info");
+                      const res = await fetch("/api/admin/lock", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ walletAddress: wallet, solAmount: usingTokenAmount ? 0 : amount, tokenAmount: usingTokenAmount ? String(Math.round(parseFloat(tokenAmount) * 1_000_000)) : undefined }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setLockResult(data);
+                        addLog(`✅ Locked ${usingTokenAmount ? tokenAmount + " tokens" : amount + " SOL swap"} of $ET for 69 days — lockId: ${data.lockId}`, "success");
+                        setLockForm({ wallet: "", sol: "", tokenAmount: "" });
+                      } else {
+                        addLog(`❌ Lock failed: ${data.error}`, "error");
+                      }
+                      setLoading("");
+                    }}
+                    disabled={!!loading}
+                    style={{ ...styles.btnPrimary, padding: "6px 16px", fontSize: "10px" }}
+                  >
+                    {loading === "manualLock" ? "LOCKING..." : "🔒 SWAP & LOCK"}
+                  </button>
+                </div>
+              </div>
+              {lockResult && (
+                <div style={{ marginTop: "10px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "3px", padding: "10px", fontSize: "10px" }}>
+                  <div style={{ color: "#00ff64", fontWeight: 700, marginBottom: "6px" }}>✅ LOCK CREATED</div>
+                  <div style={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>Tokens: {lockResult.tokenAmount}</div>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" as const }}>
+                    <a href={`https://solscan.io/tx/${lockResult.swapTxSig}`} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: "9px", color: "rgba(100,200,255,0.7)", textDecoration: "none", border: "1px solid rgba(100,200,255,0.2)", padding: "2px 8px", borderRadius: "2px" }}>
+                      SWAP TX ↗
+                    </a>
+                    <a href={lockResult.streamLink} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: "9px", color: "rgba(100,200,255,0.7)", textDecoration: "none", border: "1px solid rgba(100,200,255,0.2)", padding: "2px 8px", borderRadius: "2px" }}>
+                      STREAMFLOW ↗
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rewards Queue */}
+            <div style={styles.panel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <div style={styles.panelTitle}>🏆 REWARDS QUEUE</div>
+                <button onClick={loadRewardsQueue} style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px" }}>↻ REFRESH</button>
+              </div>
+
+              {/* Manual add */}
+              <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(0,255,100,0.1)", borderRadius: "4px", padding: "10px", marginBottom: "12px" }}>
+                <div style={{ fontSize: "9px", color: "rgba(0,255,100,0.5)", letterSpacing: "0.1em", marginBottom: "8px" }}>＋ MANUALLY ADD WINNER</div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                  <input id="manualWinner" placeholder="@username" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+                  <input id="manualWallet" placeholder="Solana wallet address" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+                  <input id="manualTask" placeholder="Task context (what did they do?)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+                  <input id="manualTweetUrl" placeholder="Tweet URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+                  <input id="manualSolscan" placeholder="Solscan tx URL (optional)" style={{ ...styles.input, fontSize: "11px", padding: "4px 8px" }} />
+                  <button
+                    onClick={async () => {
+                      const winner = (document.getElementById("manualWinner") as HTMLInputElement)?.value.trim();
+                      const wallet = (document.getElementById("manualWallet") as HTMLInputElement)?.value.trim();
+                      const task = (document.getElementById("manualTask") as HTMLInputElement)?.value.trim();
+                      const tweetUrl = (document.getElementById("manualTweetUrl") as HTMLInputElement)?.value.trim();
+                      if (!winner || !wallet) { addLog("Enter winner and wallet address", "warn"); return; }
+                      const tweetIdMatch = tweetUrl?.match(/status\/(\d+)/);
+                      setRewardsLoading("manualAdd");
+                      const res = await fetch("/api/admin/rewards", {
+                        method: "POST",
+                        headers: { ...authHeaders, "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: "manual", action: "manual_add", winner, walletAddress: wallet, taskContext: task || "manually added", walletTweetId: tweetIdMatch?.[1] || "", solscanUrl: (document.getElementById("manualSolscan") as HTMLInputElement)?.value.trim() || "" }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        addLog(`Added @${winner} to rewards queue`, "success");
+                        ["manualWinner","manualWallet","manualTask","manualTweetUrl","manualSolscan"].forEach(id => {
+                          const el = document.getElementById(id) as HTMLInputElement;
+                          if (el) el.value = "";
+                        });
+                        loadRewardsQueue();
+                      } else { addLog(`Error: ${data.error}`, "error"); }
+                      setRewardsLoading("");
+                    }}
+                    disabled={rewardsLoading === "manualAdd"}
+                    style={{ ...styles.btnSmall, fontSize: "10px", padding: "4px 10px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
+                  >
+                    {rewardsLoading === "manualAdd" ? "..." : "＋ ADD TO QUEUE"}
+                  </button>
+                </div>
+              </div>
+
+              {rewardsQueue.filter((r: any) => r.status === "pending").length === 0 ? (
+                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>no pending rewards</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {rewardsQueue.filter((r: any) => r.status === "pending").map((item: any) => (
+                    <div key={item.id} style={{ background: "rgba(0,255,100,0.04)", border: "1px solid rgba(0,255,100,0.12)", borderRadius: "4px", padding: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                        <span style={{ color: "#00ff64", fontSize: "12px", fontWeight: 700 }}>@{item.winner}</span>
+                        <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px" }}>{new Date(item.submittedAt).toLocaleString()}</span>
+                      </div>
+                      <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>
+                        <span style={{ color: "rgba(255,255,255,0.3)" }}>TASK: </span>{item.taskContext.substring(0, 120)}...
+                      </div>
+                      <div style={{ fontSize: "10px", fontFamily: "monospace", color: "rgba(0,255,100,0.6)", marginBottom: "8px" }}>
+                        {item.walletAddress.slice(0,8)}…{item.walletAddress.slice(-8)}
+                      </div>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                          VIEW TWEET ↗
+                        </a>
+                        <button
+                          onClick={async () => {
+                            setRewardsLoading(item.id + "_reject");
+                            const res = await fetch("/api/admin/rewards", {
+                              method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: item.id, action: "reject" }),
+                            });
+                            if (res.ok) { addLog(`Rejected reward for @${item.winner}`, "warn"); loadRewardsQueue(); }
+                            setRewardsLoading("");
+                          }}
+                          disabled={rewardsLoading === item.id + "_reject"}
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,50,50,0.1)", borderColor: "rgba(255,50,50,0.3)", color: "#ff6666" }}
+                        >
+                          {rewardsLoading === item.id + "_reject" ? "..." : "✕ REJECT"}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setRewardsLoading(item.id + "_confirm");
+                            const res = await fetch("/api/admin/rewards", {
+                              method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: item.id, action: "confirm", conversationId: item.conversationId, winner: item.winner, walletAddress: item.walletAddress, walletTweetId: item.walletTweetId, taskContext: item.taskContext }),
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              addLog(`✅ ${data.solAmount} SOL split: ${data.solAmount/2} SOL sent to @${item.winner}, ${data.solAmount/2} SOL swapped to $ET locked 69d (stream: ${data.streamId || "n/a"})`, "success");
+                              loadRewardsQueue(); loadWalletInfo();
+                            } else {
+                              addLog(`❌ Payment failed: ${data.error}`, "error");
+                            }
+                            setRewardsLoading("");
+                          }}
+                          disabled={rewardsLoading === item.id + "_confirm"}
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.12)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
+                        >
+                          {rewardsLoading === item.id + "_confirm" ? "sending..." : "✓ CONFIRM & PAY"}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Mark @${item.winner} as paid WITHOUT sending SOL? Only use if SOL was already sent manually.`)) return;
+                            setRewardsLoading(item.id + "_markpaid");
+                            const res = await fetch("/api/admin/rewards", {
+                              method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: item.id, action: "mark_paid" }),
+                            });
+                            if ((await res.json()).success) { addLog(`Marked @${item.winner} as paid`, "warn"); loadRewardsQueue(); }
+                            setRewardsLoading("");
+                          }}
+                          disabled={rewardsLoading === item.id + "_markpaid"}
+                          style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.12)", borderColor: "rgba(255,200,0,0.4)", color: "#ffcc00" }}
+                        >
+                          {rewardsLoading === item.id + "_markpaid" ? "..." : "MARK PAID"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Winners — SOL already sent */}
+              {rewardsQueue.filter((r: any) => r.status === "confirmed").length > 0 && (
+                <div style={{ marginTop: "16px", borderTop: "1px solid rgba(0,255,100,0.08)", paddingTop: "12px" }}>
+                  <div style={{ fontSize: "9px", color: "rgba(0,255,100,0.4)", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                    WINNERS — SOL SENT
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
+                    {rewardsQueue.filter((r: any) => r.status === "confirmed").map((item: any) => (
+                      <div key={item.id} style={{ background: "rgba(0,255,100,0.02)", border: "1px solid rgba(0,255,100,0.08)", borderRadius: "4px", padding: "10px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ color: "#00ff64", fontSize: "12px", fontWeight: 700 }}>@{item.winner}</span>
+                          <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>{new Date(item.submittedAt).toLocaleDateString()}</span>
+                        </div>
+                        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
+                          {(item.taskContext || "").substring(0, 100)}
+                        </div>
+                        {(!item.solscanUrl || !item.lockTxUrl) && (
+                          <div style={{ marginBottom: "8px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "3px", padding: "8px" }}>
+                            <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", marginBottom: "6px" }}>TRANSACTION URLS</div>
+                            {!item.solscanUrl && (
+                              <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
+                                <input
+                                  id={`solscan_${item.id}`}
+                                  defaultValue={item.solscanUrl || ""}
+                                  placeholder="SOL payment — Solscan URL"
+                                  style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
+                                />
+                                <button
+                                  onClick={async () => {
+                                    const val = (document.getElementById(`solscan_${item.id}`) as HTMLInputElement)?.value.trim();
+                                    setRewardsLoading(item.id + "_save");
+                                    const res = await fetch("/api/admin/rewards", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, action: "update_item", solscanUrl: val }) });
+                                    const data = await res.json();
+                                    if (data.success) { addLog(`Saved SOL tx for @${item.winner}`, "success"); loadRewardsQueue(); }
+                                    else addLog(`Save failed: ${data.error}`, "error");
+                                    setRewardsLoading("");
+                                  }}
+                                  disabled={rewardsLoading === item.id + "_save"}
+                                  style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.08)", borderColor: "rgba(0,255,100,0.2)", color: "#00ff64" }}
+                                >
+                                  {rewardsLoading === item.id + "_save" ? "..." : "SAVE"}
+                                </button>
+                              </div>
+                            )}
+                            {!item.lockTxUrl && (
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <input
+                                  id={`locktx_${item.id}`}
+                                  defaultValue={item.lockTxUrl || ""}
+                                  placeholder="Lock tx — Solscan URL (from ET Locks panel)"
+                                  style={{ ...styles.input, flex: 1, fontSize: "10px", padding: "3px 8px" }}
+                                />
+                                <button
+                                  onClick={async () => {
+                                    const val = (document.getElementById(`locktx_${item.id}`) as HTMLInputElement)?.value.trim();
+                                    setRewardsLoading(item.id + "_savelock");
+                                    const res = await fetch("/api/admin/rewards", { method: "POST", headers: { ...authHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, action: "update_item", lockTxUrl: val }) });
+                                    const data = await res.json();
+                                    if (data.success) { addLog(`Saved lock tx for @${item.winner}`, "success"); loadRewardsQueue(); }
+                                    else addLog(`Save failed: ${data.error}`, "error");
+                                    setRewardsLoading("");
+                                  }}
+                                  disabled={rewardsLoading === item.id + "_savelock"}
+                                  style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(100,150,255,0.08)", borderColor: "rgba(100,150,255,0.2)", color: "rgba(100,150,255,0.8)" }}
+                                >
+                                  {rewardsLoading === item.id + "_savelock" ? "..." : "SAVE"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
+                          {item.walletTweetId && (
+                            <a href={`https://x.com/${item.winner}/status/${item.walletTweetId}`} target="_blank" rel="noopener noreferrer"
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                              VIEW TWEET
+                            </a>
+                          )}
+                          {item.solscanUrl && (
+                            <a href={item.solscanUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(100,200,255,0.7)", border: "1px solid rgba(100,200,255,0.15)" }}>
+                              SOL TX ↗
+                            </a>
+                          )}
+                          {item.lockTxUrl && (
+                            <a href={item.lockTxUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", textDecoration: "none", color: "rgba(150,180,255,0.7)", border: "1px solid rgba(150,180,255,0.15)" }}>
+                              🔒 LOCK TX ↗
+                            </a>
+                          )}
+                          {!victoryPreview[item.id] ? (
+                            <button
+                              onClick={async () => {
+                                setRewardsLoading(item.id + "_preview");
+                                const res = await fetch("/api/admin/rewards", {
+                                  method: "POST",
+                                  headers: { ...authHeaders, "Content-Type": "application/json" },
+                                  body: JSON.stringify({ id: item.id, action: "victory_tweet_preview", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", lockTxUrl: item.lockTxUrl || "", streamId: item.streamId || "" }),
+                                });
+                                const data = await res.json();
+                                if (data.success) setVictoryPreview((p: Record<string,string>) => ({ ...p, [item.id]: data.preview, [item.id + "_2"]: data.preview2 || "" }));
+                                else addLog(`Preview failed: ${data.error}`, "error");
+                                setRewardsLoading("");
+                              }}
+                              disabled={rewardsLoading === item.id + "_preview"}
+                              style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(255,200,0,0.08)", borderColor: "rgba(255,200,0,0.25)", color: "#ffcc00" }}
+                            >
+                              {rewardsLoading === item.id + "_preview" ? "generating..." : "PREVIEW VICTORY TWEET"}
+                            </button>
+                          ) : (
+                            <div style={{ width: "100%", marginTop: "4px" }}>
+                              <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.75)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
+                                <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.4)", marginBottom: "4px" }}>[1/2]</div>
+                                {victoryPreview[item.id]}
+                              </div>
+                              {victoryPreview[item.id + "_2"] && (
+                                <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,200,0,0.1)", borderRadius: "3px", padding: "8px 10px", fontSize: "11px", color: "rgba(255,255,255,0.55)", lineHeight: "1.5", marginBottom: "4px", whiteSpace: "pre-wrap" }}>
+                                  <div style={{ fontSize: "9px", color: "rgba(255,200,0,0.25)", marginBottom: "4px" }}>[2/2]</div>
+                                  {victoryPreview[item.id + "_2"]}
+                                </div>
+                              )}
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
+                                  style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", color: "rgba(150,150,150,0.7)", borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
+                                >
+                                  ↺ REGENERATE
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    setRewardsLoading(item.id + "_victory");
+                                    const res = await fetch("/api/admin/rewards", {
+                                      method: "POST",
+                                      headers: { ...authHeaders, "Content-Type": "application/json" },
+                                      body: JSON.stringify({ id: item.id, action: "victory_tweet", winner: item.winner, taskContext: item.taskContext, walletTweetId: item.walletTweetId, solscanUrl: item.solscanUrl || "", lockTxUrl: item.lockTxUrl || "", streamId: item.streamId || "" }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      addLog(`Victory tweet posted for @${item.winner}`, "success");
+                                      setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; });
+                                    } else addLog(`Victory tweet failed: ${data.error}`, "error");
+                                    setRewardsLoading("");
+                                  }}
+                                  disabled={rewardsLoading === item.id + "_victory"}
+                                  style={{ ...styles.btnSmall, fontSize: "9px", padding: "3px 8px", background: "rgba(0,255,100,0.12)", borderColor: "rgba(0,255,100,0.3)", color: "#00ff64" }}
+                                >
+                                  {rewardsLoading === item.id + "_victory" ? "posting..." : "✓ POST TWEET"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── SETTINGS TAB ── */}
+        {activeTab === "settings" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "16px" }}>
+
+            {/* Priority Users */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ PRIORITY USERS</div>
+              <div style={{ fontSize: "10px", color: "#4a6a4a", marginBottom: "12px", lineHeight: "1.6" }}>
+                Priority users get 30 interactions/day (vs 10 default). Add users ET should engage with more.
+              </div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <input
+                  type="text"
+                  id="vipInput"
+                  placeholder="@username"
+                  style={{ ...styles.input, flex: 1, textAlign: "left" }}
+                  onKeyDown={(e: any) => { if (e.key === "Enter") document.getElementById("vipAddBtn")?.click(); }}
+                />
+                <button
+                  id="vipAddBtn"
+                  onClick={async () => {
+                    const inp = document.getElementById("vipInput") as HTMLInputElement;
+                    const handle = inp?.value.trim().replace(/^@/, "");
+                    if (!handle) { addLog("Enter a handle first", "warn"); return; }
+                    setLoading("vipAdd");
+                    addLog(`Adding @${handle} to priority list...`, "info");
+                    try {
+                      const res = await fetch("/api/admin/vip", {
+                        method: "POST",
+                        headers: authHeaders,
+                        body: JSON.stringify({ action: "add", username: handle }),
+                      });
+                      const data = await res.json();
+                      if (data.error) addLog(`Error: ${data.error}`, "error");
+                      else {
+                        addLog(`✓ @${handle} added to priority list (30/day limit)`, "success");
+                        inp.value = "";
+                        setVipUsers(data.vipUsers || []);
+                      }
+                    } catch (e) { addLog(`Add failed: ${e}`, "error"); }
+                    setLoading("");
+                  }}
+                  disabled={!!loading}
+                  style={styles.btnPrimary}
+                >
+                  {loading === "vipAdd" ? "..." : "＋ ADD"}
+                </button>
+              </div>
+              {vipUsers.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                  {vipUsers.map((u) => (
+                    <div key={u} style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "8px 12px",
+                      background: "#0a1a0a",
+                      border: "1px solid #1a3a1a",
+                      borderRadius: "2px",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ color: "#ffd700", fontSize: "11px" }}>⭐</span>
+                        <span style={{ color: "#39ff14", fontWeight: 700, fontSize: "12px" }}>@{u}</span>
+                        <span style={{ color: "#3a5a3a", fontSize: "9px" }}>30/day</span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLoading(`vipRm-${u}`);
+                          try {
+                            const res = await fetch("/api/admin/vip", {
+                              method: "POST",
+                              headers: authHeaders,
+                              body: JSON.stringify({ action: "remove", username: u }),
+                            });
+                            const data = await res.json();
+                            if (data.error) addLog(`Error: ${data.error}`, "error");
+                            else {
+                              addLog(`✓ @${u} removed from priority list`, "warn");
+                              setVipUsers(data.vipUsers || []);
+                            }
+                          } catch (e) { addLog(`Remove failed: ${e}`, "error"); }
+                          setLoading("");
+                        }}
+                        disabled={!!loading}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid #5a2a2a",
+                          color: "#ff4444",
+                          padding: "2px 8px",
+                          fontFamily: "monospace",
+                          fontSize: "10px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {loading === `vipRm-${u}` ? "..." : "✕ REMOVE"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: "#3a5a3a", fontSize: "10px", fontStyle: "italic", padding: "8px 0" }}>
+                  No priority users. Default limit is 10 interactions/day per user.
+                </div>
+              )}
+            </div>
+
+            {/* Daily Target Reference */}
+            <div style={styles.panel}>
+              <div style={styles.panelTitle}>◈ DAILY TARGET REFERENCE</div>
+              <div style={styles.targetGrid}>
+                {PILLARS.map((p) => {
+                  const targets: Record<string, string> = {
+                    human_observation: "2–3/day",
+                    research_drop: "1/day",
+                    crypto_community: "1–2/day",
+                    personal_lore: "0–1/day",
+                    existential: "1/day",
+                    disclosure_conspiracy: "1–2/day",
+                  };
+                  return (
+                    <div key={p.id} style={styles.targetCard}>
+                      <span>{p.icon}</span>
+                      <span style={styles.targetName}>{p.name}</span>
+                      <span style={styles.targetCount}>{targets[p.id]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div style={styles.footer}>
@@ -2407,6 +2481,31 @@ const styles: Record<string, any> = {
     boxShadow: `0 0 8px ${color}`,
     display: "inline-block",
   }),
+  tabNav: {
+    display: "flex",
+    gap: "4px",
+    borderBottom: "1px solid rgba(57,255,20,0.12)",
+    paddingBottom: "0",
+  },
+  tabBtn: {
+    padding: "8px 14px",
+    background: "transparent",
+    border: "1px solid transparent",
+    borderBottom: "2px solid transparent",
+    color: "#4a6a4a",
+    fontFamily: "monospace",
+    fontSize: "10px",
+    letterSpacing: "1px",
+    cursor: "pointer",
+    transition: "all 0.15s",
+    marginBottom: "-1px",
+  },
+  tabBtnActive: {
+    color: "#39ff14",
+    borderColor: "rgba(57,255,20,0.15)",
+    borderBottomColor: "#39ff14",
+    background: "rgba(57,255,20,0.05)",
+  },
   grid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
