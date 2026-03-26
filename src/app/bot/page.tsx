@@ -1919,6 +1919,7 @@ export default function BotDashboard() {
                     max="1"
                     style={{ ...styles.input, fontSize: "11px", padding: "6px 8px", flex: 1 }}
                   />
+                  {/* Optional: paste token amount directly to skip the swap step */}
                   <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                     <input
                       value={lockForm.tokenAmount}
@@ -2123,6 +2124,7 @@ export default function BotDashboard() {
                         <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginBottom: "8px" }}>
                           {(item.taskContext || "").substring(0, 100)}
                         </div>
+                        {/* Solscan + Lock TX URLs — hides when both are saved */}
                         {(!item.solscanUrl || !item.lockTxUrl) && (
                           <div style={{ marginBottom: "8px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "3px", padding: "8px" }}>
                             <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", marginBottom: "6px" }}>TRANSACTION URLS</div>
@@ -2228,6 +2230,7 @@ export default function BotDashboard() {
                                   {victoryPreview[item.id + "_2"]}
                                 </div>
                               )}
+
                               <div style={{ display: "flex", gap: "6px" }}>
                                 <button
                                   onClick={() => setVictoryPreview((p: Record<string,string>) => { const n = {...p}; delete n[item.id]; return n; })}
@@ -2473,6 +2476,31 @@ const styles: Record<string, any> = {
     border: "1px solid rgba(57,255,20,0.1)",
   },
   statusItem: { display: "flex", alignItems: "center", gap: "8px", letterSpacing: "2px", fontSize: "11px" },
+  tabNav: {
+    display: "flex",
+    gap: "0px",
+    borderBottom: "1px solid rgba(57,255,20,0.15)",
+  },
+  tabBtn: {
+    flex: 1,
+    padding: "10px 0",
+    background: "transparent",
+    border: "none",
+    borderBottom: "2px solid transparent",
+    color: "#4a6a4a",
+    fontFamily: "monospace",
+    fontSize: "10px",
+    letterSpacing: "2px",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    textShadow: "none",
+  },
+  tabBtnActive: {
+    background: "rgba(57,255,20,0.08)",
+    borderBottom: "2px solid #39ff14",
+    color: "#39ff14",
+    textShadow: "0 0 8px rgba(57,255,20,0.3)",
+  },
   statusDot: (color: string) => ({
     width: "8px",
     height: "8px",
@@ -2481,31 +2509,6 @@ const styles: Record<string, any> = {
     boxShadow: `0 0 8px ${color}`,
     display: "inline-block",
   }),
-  tabNav: {
-    display: "flex",
-    gap: "4px",
-    borderBottom: "1px solid rgba(57,255,20,0.12)",
-    paddingBottom: "0",
-  },
-  tabBtn: {
-    padding: "8px 14px",
-    background: "transparent",
-    border: "1px solid transparent",
-    borderBottom: "2px solid transparent",
-    color: "#4a6a4a",
-    fontFamily: "monospace",
-    fontSize: "10px",
-    letterSpacing: "1px",
-    cursor: "pointer",
-    transition: "all 0.15s",
-    marginBottom: "-1px",
-  },
-  tabBtnActive: {
-    color: "#39ff14",
-    borderColor: "rgba(57,255,20,0.15)",
-    borderBottomColor: "#39ff14",
-    background: "rgba(57,255,20,0.05)",
-  },
   grid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
