@@ -52,6 +52,13 @@ export default function BotDashboard() {
   const [victoryPreview, setVictoryPreview] = useState<Record<string, string>>({});
   const [promptText, setPromptText] = useState("");
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
+
+  // Twitter counts every URL as 23 chars (t.co shortening)
+  const twitterLength = (text: string) => {
+    const noSignals = text.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim();
+    const withShortUrls = noSignals.replace(/https?:\/\/\S+/g, "x".repeat(23));
+    return withShortUrls.length;
+  };
   const [riddleAnswer, setRiddleAnswer] = useState("");
   const [lastPostedImageUrl, setLastPostedImageUrl] = useState("");
   const [riddles, setRiddles] = useState<any[]>([]);
@@ -826,7 +833,7 @@ export default function BotDashboard() {
               </div>
               {promptPreview && (
                 <div style={{ marginTop: "12px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(57,255,20,0.15)", borderRadius: "4px", padding: "12px 14px" }}>
-                  <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {promptPreview.replace("[ATTACH_MEME]","").replace(/\[GENERATE_IMAGE:[^\]]+\]/i,"").trim().length}/280
+                  <div style={{ fontSize: "9px", color: "rgba(57,255,20,0.4)", letterSpacing: "0.1em", marginBottom: "6px" }}>PREVIEW — {twitterLength(promptPreview)}/280
                     {promptPreview.includes("[ATTACH_MEME]") && <span style={{ marginLeft: "8px", color: "rgba(255,200,0,0.7)", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🖼️ MEME</span>}
                     {/\[GENERATE_IMAGE:/i.test(promptPreview) && <span style={{ marginLeft: "8px", color: "rgba(100,200,255,0.8)", background: "rgba(100,200,255,0.08)", border: "1px solid rgba(100,200,255,0.2)", borderRadius: "3px", padding: "1px 7px", fontSize: "9px" }}>🎨 AI IMAGE</span>}
                   </div>

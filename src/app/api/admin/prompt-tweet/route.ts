@@ -47,8 +47,31 @@ export async function POST(req: NextRequest) {
     .replace(/\[GENERATE_IMAGE:[^\]]+\]/i, "")
     .trim();
 
+  // Twitter counts URLs as 23 chars — calculate real length
+  const twitterLen = (t: string) => t.replace(/https?:\/\/\S+/g, "x".repeat(23)).length;
+
+  // Auto-truncate if over 280 Twitter chars
+  if (twitterLen(cleanText) > 280) {
+    // Find the last URL in the text
+    const urlMatch = cleanText.match(/(https?:\/\/\S+)$/);
+    if (urlMatch) {
+      const url = urlMatch[1];
+      const textPart = cleanText.slice(0, cleanText.lastIndexOf(url)).trimEnd();
+      const maxTextLen = 280 - 23 - 2; // 23 for URL, 2 for "\n\n"
+      const truncated = textPart.length > maxTextLen
+        ? textPart.substring(0, maxTextLen).replace(/\s+\S*$/, "").trimEnd() + "..."
+        : textPart;
+      cleanText = truncated + "\n\n" + url;
+    } else {
+      // No URL — just truncate at word boundary
+      const max = 277;
+      cleanText = cleanText.substring(0, max).replace(/\s+\S*$/, "").trimEnd() + "...";
+    }
+    console.log(\`[Prompt ET] Truncated to \${twitterLen(cleanText)} Twitter chars\`);
+  }
+
   if (!post) {
-    let previewSignal = hasMeme ? "\n[ATTACH_MEME]" : hasGeneratedImage ? `\n[GENERATE_IMAGE: ${imagePrompt}]` : "";
+    let previewSignal = hasMeme ? "\n[ATTACH_MEME]" : hasGeneratedImage ? \`\n[GENERATE_IMAGE: \${imagePrompt}]\` : "";
     return NextResponse.json({ success: true, tweet: cleanText + previewSignal });
   }
 
