@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/replies
  *
- * Called by Vercel cron every 3 minutes.
+ * Called by Vercel cron every 5 minutes.
  * ~30% chance to skip each cycle for natural response timing (3-9 min range).
  * 1. Fetches new mentions and replies to them in character.
  * 2. Processes one community target if any are queued (~5% chance per run).

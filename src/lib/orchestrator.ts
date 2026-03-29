@@ -516,6 +516,23 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     };
   }
 
+  // ── ADMIN DOUBLE-COMMENT CHECK ──────────────────────────────────────────
+  // Before doing any work, check if ET (admin or bot) already replied to
+  // the conversation this mention belongs to. Uses KV first (cheap), then
+  // the thread walk catches admin replies not recorded in KV.
+  if (mention.conversationId) {
+    // Check if we already recorded a reply to this conversation
+    const convAlreadyHandled = await hasRepliedToParent(mention.conversationId);
+    if (convAlreadyHandled) {
+      await recordReply(mention.id);
+      return {
+        mentionId: mention.id, mentionText: mention.text, authorUsername,
+        replyText: "", replyId: "", skipped: true,
+        skipReason: "Conversation already handled (admin or bot replied)",
+      };
+    }
+  }
+
   // ── THREAD WALK — build conversation context + detect manual claim ─────────
   let manuallyClaimedThread = false;
   let parentImageUrls: string[] | undefined;
@@ -533,8 +550,13 @@ async function processOneMention(mention: Mention): Promise<ReplyResult> {
     const tweet = await getTweet(currentId);
     if (!tweet) break;
 
+    // ADMIN DOUBLE-COMMENT PROTECTION:
+    // If any tweet in this thread is from the ET account and was NOT posted
+    // by the bot, the admin manually replied — ET should not pile on.
+    // Also skip if admin replied AFTER the mention (would cause double-reply).
     if (tweet.authorId === ownUserId && !(await wasBotPosted(currentId))) {
       manuallyClaimedThread = true;
+      console.log(`[ET Replies] Admin manually replied in thread (tweet ${currentId}) — skipping to avoid double-comment`);
       break;
     }
 

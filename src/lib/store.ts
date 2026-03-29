@@ -355,16 +355,16 @@ export async function shouldSkipAdaptivePoll(): Promise<{ skip: boolean; emptySt
   
   if (streak === 0) {
     skipChance = 0;
-    effectiveInterval = "15m";
+    effectiveInterval = "5m";
   } else if (streak <= 3) {
+    skipChance = 0.3;
+    effectiveInterval = "~7m";
+  } else if (streak <= 8) {
     skipChance = 0.5;
-    effectiveInterval = "~30m";
-  } else if (streak <= 6) {
-    skipChance = 0.75;
-    effectiveInterval = "~60m";
+    effectiveInterval = "~10m";
   } else {
-    skipChance = 0.87;
-    effectiveInterval = "~2h";
+    skipChance = 0.75;
+    effectiveInterval = "~20m";
   }
   
   const skip = Math.random() < skipChance;
@@ -538,8 +538,8 @@ export async function isThreadOnCooldown(conversationId: string): Promise<boolea
 // ============================================================
 
 const USER_INTERACTIONS_KEY = "user_interactions";
-const MAX_INTERACTIONS_PER_USER_PER_DAY = 10; // Default limit
-const VIP_INTERACTIONS_PER_USER_PER_DAY = 30; // VIP users get more
+const MAX_INTERACTIONS_PER_USER_PER_DAY = 5; // Tightened: 5 replies per user per day
+const VIP_INTERACTIONS_PER_USER_PER_DAY = 15; // VIP users get more
 const VIP_USERS_KEY = "et:vip_users";
 
 export async function getVipUsers(): Promise<string[]> {
@@ -605,7 +605,7 @@ export async function hasHitUserLimit(username: string): Promise<boolean> {
 const GLOBAL_LAST_ACTION_KEY = "et:global_last_action";
 const GLOBAL_ACTION_COUNT_KEY = "et:global_action_count";
 // New account launch limits — loosen after 2 weeks if clean
-const GLOBAL_MIN_GAP_MS = 10 * 60 * 1000;  // 10 min between actions
+const GLOBAL_MIN_GAP_MS = 5 * 60 * 1000;  // 5 min between actions
 const GLOBAL_MAX_ACTIONS_PER_DAY = 60;      // Engagement-first: ~6 tweets + ~30 replies + headroom
 
 export async function canAct(): Promise<{ allowed: boolean; reason: string }> {
