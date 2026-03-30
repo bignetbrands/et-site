@@ -207,6 +207,9 @@ export async function executeTweet(
       }
     }
 
+    // Strip [GENERATE_IMAGE: ...] — image-enabled pillars handle generation automatically
+    tweetText = tweetText.replace(/\s*\[GENERATE_IMAGE:[^\]]*\]/gi, "").trim();
+
     const result = await postAndRecord(tweetText, pillar, config.generateImage || useRiddle);
     // Track observation era progression
     if (pillar === "human_observation" && result?.hasImage) {
@@ -1120,8 +1123,14 @@ export async function dryRun(
 
   const tweetText = await generateTweet(pillar, recentTweets, trendingContext, topPerformers, memorySummary, false, selfAwarenessContext);
 
+  // Strip inline image/meme signals — image-enabled pillars handle generation automatically
+  const cleanText = tweetText
+    .replace(/\s*\[GENERATE_IMAGE:[^\]]*\]/gi, "")
+    .replace("[ATTACH_MEME]", "")
+    .trim();
+
   const result: GeneratedTweet & { selfAwareness?: string } = {
-    text: tweetText,
+    text: cleanText,
     pillar,
     selfAwareness: selfAwarenessContext,
   };
@@ -1130,7 +1139,7 @@ export async function dryRun(
   const dryRunConfig = PILLAR_CONFIGS[pillar];
   if (dryRunConfig.generateImage) {
     try {
-      const sceneDescription = await generateImageDescription(tweetText, pillar);
+      const sceneDescription = await generateImageDescription(cleanText, pillar);
       console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
       const imageUrl = await generateImage(sceneDescription, pillar);
       result.imageUrl = imageUrl;
