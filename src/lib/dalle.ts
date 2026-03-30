@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, buildObservationPrompt, OBSERVATION_NEGATIVE_CONSTRAINTS, EXISTENTIAL_IMAGE_PROMPT_PREFIX, GM_IMAGE_PROMPT_PREFIX, GN_IMAGE_PROMPT_PREFIX } from "./prompts";
+import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, buildObservationPrompt, OBSERVATION_NEGATIVE_CONSTRAINTS, EXISTENTIAL_IMAGE_PROMPT_PREFIX, GM_IMAGE_PROMPT_PREFIX, GN_IMAGE_PROMPT_PREFIX, ET_ARCHIVE_IMAGE_PROMPT_PREFIX, buildArchivePrompt } from "./prompts";
 import { ContentPillar } from "@/types";
 import { applyFilmGrain } from "./film-process";
 
@@ -39,12 +39,18 @@ export async function generateImage(
     prefix = GM_IMAGE_PROMPT_PREFIX;
   } else if (pillar === "gn") {
     prefix = GN_IMAGE_PROMPT_PREFIX;
+  } else if (pillar === "et_archive") {
+    prefix = "";
+    styleName = "Baroque Archive Oil Painting";
+    console.log(`[DALL-E] Archive: Baroque oil painting master prompt`);
   } else {
     prefix = LORE_IMAGE_PROMPT_PREFIX;
   }
 
   const fullPrompt = pillar === "human_observation"
     ? buildObservationPrompt(sceneDescription)
+    : pillar === "et_archive"
+    ? buildArchivePrompt(sceneDescription)
     : `${prefix} ${sceneDescription}`;
 
   const finalPrompt = pillar === "human_observation"

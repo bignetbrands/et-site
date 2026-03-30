@@ -11,8 +11,9 @@ const PILLARS = [
   { id: "research_drop", name: "Research Drop", icon: "📡", desc: "SETI, Einstein@home, space science" },
   { id: "crypto_community", name: "Crypto / Community", icon: "⚡", desc: "$ET updates, degen culture, BOINC" },
   { id: "personal_lore", name: "Personal Lore", icon: "🌑", desc: "Memories, the crash, parents" },
-  { id: "existential", name: "Existential", icon: "🌌", desc: "Big questions, loneliness, meaning" },
+  { id: "existential", name: "Existential", icon: "🌌", desc: "Big questions, loneliness, meaning (manual only)" },
   { id: "disclosure_conspiracy", name: "Disclosure", icon: "🛸", desc: "UAP hearings, fun conspiracies" },
+  { id: "et_archive", name: "ET Archive", icon: "🖼️", desc: "Baroque oil paintings — ET in human history" },
   { id: "gm", name: "GM", icon: "☀️", desc: "Morning dream painting — every 3 days at 5AM EST" },
   { id: "gn", name: "GN", icon: "🌙", desc: "Night dream painting — every 3 days at 11PM EST" },
 ];
@@ -2394,8 +2395,9 @@ export default function BotDashboard() {
                     research_drop: "1/day",
                     crypto_community: "1–2/day",
                     personal_lore: "0–1/day",
-                    existential: "1/day",
+                    existential: "manual only",
                     disclosure_conspiracy: "1–2/day",
+                    et_archive: "1/day (1–7PM UTC)",
                   };
                   return (
                     <div key={p.id} style={styles.targetCard}>

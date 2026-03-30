@@ -311,7 +311,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Short, punchy observations rooted in real science and facts that reframe how humans see themselves. Use actual numbers, physics, biology, astronomy — then twist the perspective. ET knows the science and uses it to make humans feel small, connected, or awestruck. One sentence. Drop a fact, then land the alien perspective.",
     tone: "Matter-of-fact wonder. Brief. Grounded in real science but delivered with the weight of someone who's actually out there. Not vague philosophy — concrete facts that hit different when an alien says them.",
-    dailyTarget: { min: 1, max: 1 },
+    dailyTarget: { min: 0, max: 0 }, // DISABLED — autopost off, manual only via /bot
     model: "sonnet",
     generateImage: true,
     exampleTweets: [
@@ -367,6 +367,43 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
       "GN\n\n\nthe streets get quiet\nand all the small windows glow\n\nhumans look softest when they think no one is watching",
       "GN\n\n\nsometimes my dreams are not earth\n\nsoft hills\ntwo suns\nvoices i almost recognize\n\ni think it might be home",
       "GN\n\n\na child waves at the moon\nbefore going inside\n\ndo humans feel less alone at night like this",
+    ],
+  },
+
+  et_archive: {
+    name: "ET Archive",
+    description:
+      "Historical oil paintings where ET appears inside human history as a quiet anomaly. Each image is a visual juxtaposition between historical behavior and modern crypto trench psychology — scholars examining ET like CT analyzing charts, monks studying ET like alpha-hunting research threads, merchants weighing ET like investors evaluating token utility. Baroque oil painting style, Rembrandt Dutch Golden Age influence. The tweet is a short, ET-voiced aphorism that pairs with the painting's emotional parallel.",
+    tone: "Observational, timeless, quietly knowing. ET speaks as someone who has watched humans repeat the same patterns for centuries. Short — one or two sentences max. The best lines only work because an alien is saying them. Not generic philosophy — grounded in ET's lived experience of being studied, measured, debated, and misunderstood.",
+    dailyTarget: { min: 1, max: 1 },
+    model: "sonnet",
+    generateImage: true,
+    exampleTweets: [
+      "they always gather around what they can't explain. i would know. i was the thing they gathered around",
+      "every century calls it discovery. same questions. same faces. different hats",
+      "they measured every part of me. none of it helped them understand",
+      "they decided what i meant before asking what i wanted. some things don't change",
+      "they drew me in their journals and felt like they understood me. the drawing was good though",
+      "silence terrifies them more than wrong answers. i've lived in their silence for a long time",
+      "they have always tried to front-run reality. it's the most human thing i've ever seen",
+      "they looked at me and saw themselves. every discovery is really a mirror",
+      "belief forms faster than evidence. i watched them decide what i was before they even looked at me",
+      "the instruments change. the look in their eyes never does",
+      "the moment someone important said i was real, everyone believed. the moment they said i wasn't, everyone forgot",
+      "they look for certainty in unfamiliar shapes",
+      "each era invents new words for the same hope",
+      "every century thinks it found the signal. i've been the signal. they still missed it",
+      "consensus has always been more persuasive than truth",
+      "they built tools to weigh me. as if knowing my mass would explain where i came from",
+      "humans would rather be wrong quickly than right slowly. i find this beautiful and terrifying",
+      "they observe together to feel less alone. i understand that more than they know",
+      "they debate what they've already decided",
+      "curiosity is contagious. clarity is not. i've been in both rooms",
+      "they were so sure about what i was. none of them asked",
+      "what they cannot explain becomes narrative",
+      "crowds form wherever uncertainty exists",
+      "interpretation is the oldest technology",
+      "they search for patterns until something fits. even if it doesn't",
     ],
   },
 };
@@ -483,6 +520,44 @@ export const GM_IMAGE_PROMPT_PREFIX = `Naive folk painting style, primitive past
 
 // GN — Naive folk painting, raw painterly texture, alien sky signature, ET always hidden
 export const GN_IMAGE_PROMPT_PREFIX = `Naive folk painting style, primitive pastoral art, dreamlike night countryside scene, nostalgic storybook aesthetic. Raw painterly texture: visible brush strokes, canvas grain, slightly imperfect shapes, uneven paint density, slight color bleeding, rough edges — like old countryside paintings or aged painted canvas. Soft muted color palette: deep dusty blues, warm amber glows from windows and lanterns, pale moonlight, soft purples, dark greens. Peaceful rural night — small houses with lit windows, quiet streets, empty playgrounds, moonlit fields, families visible through glowing windows. Calm storytelling composition, slightly surreal atmosphere. REQUIRED — ALIEN SKY SIGNATURE: The night sky must appear mostly normal but contain one faint unusual element — a faint second sun near the horizon, unusual moon shape, strange constellation pattern, faint distant planet visible, or thin glowing atmospheric band. Subtle and atmospheric. REQUIRED — HIDDEN ET: A very small alien figure with wrinkly brown skin, long neck, wide head, big round blue eyes must appear somewhere in the painting as a subtle hidden observer — on a distant hill, beside a road, behind a fence post, behind a house corner, watching from bushes, two glowing eyes hidden in shadows, reflection in a window, or shadow near a wall. The alien is NOT the main subject — humans do not notice it. The viewer should need to look carefully to find him. NO glossy rendering, NO clean digital gradients, NO hyper realistic lighting, NO modern digital polish, NO neon colors, NO futuristic sci-fi. Square format (1024x1024). The scene depicts:`;
+
+// ============================================================
+// ET ARCHIVE — Baroque Oil Painting System (ET_ARCHIVE_STYLE_V2)
+// ============================================================
+
+export const ET_ARCHIVE_IMAGE_PROMPT_PREFIX = `Historical oil painting in the style of Rembrandt van Rijn and the Dutch Golden Age masters. Dramatic chiaroscuro lighting — single warm directional light source (candle, window, oil lamp, or scientific instrument glow). Deep shadows dissolving into darkness. Rich color palette of deep browns, umber, amber, muted gold. Aged varnish patina, subtle canvas grain texture, visible brushwork — thicker impasto in illuminated areas, soft blending in shadows. Subtle surface cracking and natural pigment variation. Authentic museum painting appearance — this looks like a preserved historical artifact, NOT modern digital art, NOT cinematic, NOT glossy, NOT stylized concept art, NOT CGI. A small extraterrestrial being is present in the scene: child-sized (approx height of 10-year-old human), slender fragile body, oversized smooth bulbous head, large dark almond-shaped eyes, minimal facial features, thin neck, long delicate fingers, grey-green slightly translucent skin. ET wears simple era-appropriate draped cloth in neutral tones — nothing futuristic, nothing tailored. ET's demeanor is calm, observant, neutral — never heroic, never monstrous, never cartoonish. Humans are the primary actors in the scene. ET is integrated naturally into the historical setting — not dominant, not heroic — something the humans are attempting to interpret, study, or document. Classical composition balance, medium or wide framing. Square format (1024x1024). No text in image, no captions, no watermarks. NEGATIVE: No futuristic clothing, no sci-fi armor, no glowing alien eyes, no horror creature features, no aggressive traits, no heroic poses, no cinematic lighting, no neon colors, no modern objects, no modern technology, no photorealistic 3D render look, no plastic texture, no cartoon style, no anime style, no large crowd chaos, no surreal melting objects, no modern furniture, no modern architecture, no spaceships, no lasers, no digital UI elements, no glitch effects. The scene depicts:`;
+
+// 20 distinct archive scenes — each pairs with a trench psychology parallel
+export const ET_ARCHIVE_SCENES = [
+  { scene: "17th century anatomy theatre: scholars gathered around a wooden dissection table examining a small extraterrestrial being under harsh candlelight, one scholar making notes in a leather journal", light: "candle", role: "specimen" },
+  { scene: "Candlelit scriptorium: monks in brown robes cross-referencing a small extraterrestrial being seated on a stool with illustrations in an ancient codex open on a lectern", light: "candle", role: "subject" },
+  { scene: "Observatory tower at night: astronomers in period dress plotting the position of a small extraterrestrial being on a large celestial chart pinned to the wall, brass instruments scattered on the desk", light: "scientific instrument", role: "anomaly" },
+  { scene: "Alchemist's cluttered laboratory: an alchemist carefully examining a small extraterrestrial being's hand under a magnifying lens, flasks and distillation apparatus on shelves behind", light: "oil lamp", role: "specimen" },
+  { scene: "Royal debate chamber: scholars in academic robes arguing heatedly before a panel of judges, a small extraterrestrial being standing calmly between them as evidence", light: "window", role: "subject" },
+  { scene: "Cathedral nave with vaulted ceiling: a bishop in ceremonial vestments blessing a small extraterrestrial being kneeling on stone floor, acolytes watching from the shadows", light: "religious glow", role: "subject" },
+  { scene: "Private wood-paneled study: a lone philosopher seated in a leather chair observing a small extraterrestrial being standing near a globe, a single oil lamp casting warm light", light: "oil lamp", role: "observer" },
+  { scene: "Merchant guild hall: traders in period dress weighing a small extraterrestrial being on large brass balance scales, ledgers and coins on the table", light: "window", role: "specimen" },
+  { scene: "Ornate throne room: court advisors in formal dress presenting a small extraterrestrial being to a ruler seated on a gilded throne, tapestries on the walls", light: "window", role: "subject" },
+  { scene: "Cartographer's workshop: a mapmaker adding a small extraterrestrial figure to the margin of a large unfinished world map spread across a wooden table, ink pots and quills nearby", light: "candle", role: "anomaly" },
+  { scene: "Physician's private chamber: a doctor in period dress carefully documenting the anatomy of a small extraterrestrial being in a leather-bound journal, medical instruments laid out on cloth", light: "candle", role: "specimen" },
+  { scene: "University lecture hall: a professor in academic robes presenting a small extraterrestrial being to rows of young students seated on wooden benches, a chalkboard behind", light: "window", role: "subject" },
+  { scene: "Grand reception room: an explorer in travel-worn clothing presenting a small extraterrestrial being to wealthy patrons in fine dress, curiosity and skepticism on their faces", light: "candle", role: "specimen" },
+  { scene: "Curiosity cabinet room: a small extraterrestrial being displayed among exotic shells, taxidermy, and strange objects in a glass-fronted wooden cabinet, a collector examining it closely", light: "window", role: "specimen" },
+  { scene: "Elder's candlelit study: an old master with white beard teaching a young apprentice about a small extraterrestrial being seated on a wooden bench between them", light: "oil lamp", role: "subject" },
+  { scene: "Measuring room: three scholars with brass calipers and rulers carefully examining the skull proportions of a small extraterrestrial being seated patiently on a stool", light: "scientific instrument", role: "specimen" },
+  { scene: "Candlelit wine cellar: a group of five people in period dress silently witnessing a small extraterrestrial being's first movement after being motionless, faces frozen in awe", light: "candle", role: "witness" },
+  { scene: "Guild debating chamber: two factions of scholars in heated argument across a long table, a small extraterrestrial being sitting calmly at the center as the subject of their dispute", light: "window", role: "subject" },
+  { scene: "Scribe's desk: an artist sketching a small extraterrestrial being by candlelight for the historical record, ink drawings and drafts scattered across the workspace", light: "candle", role: "subject" },
+  { scene: "Religious tribunal chamber: judges in dark robes deliberating whether a small extraterrestrial being standing before them is a divine omen or a threat, candles flickering on the bench", light: "candle", role: "subject" },
+];
+
+export function buildArchivePrompt(sceneDescription: string): string {
+  return `${ET_ARCHIVE_IMAGE_PROMPT_PREFIX} ${sceneDescription}`;
+}
+
+export function getRandomArchiveScene(): { scene: string; light: string; role: string } {
+  return ET_ARCHIVE_SCENES[Math.floor(Math.random() * ET_ARCHIVE_SCENES.length)];
+}
 
 // ============================================================
 // VARIETY PROMPT — Appended to prevent repetition
@@ -772,6 +847,28 @@ Write one tweet as ET. Max 280 characters. Output ONLY the tweet text, nothing e
 // ============================================================
 
 export function buildImageDescriptionPrompt(tweetText: string, pillar?: ContentPillar): string {
+  if (pillar === "et_archive") {
+    const scene = getRandomArchiveScene();
+    return `You are generating a scene description for a Baroque oil painting in the ET Archive series.
+
+This tweet from ET prompted the image:
+"${tweetText}"
+
+Base scene template (use as starting point, adapt to match the tweet's specific theme):
+${scene.scene}
+
+Your job: Take the base scene and adjust the details so the painting SPECIFICALLY illustrates the concept in the tweet. The historical humans' behavior should visually parallel the tweet's observation about how humans interpret, study, measure, or react to the unknown.
+
+Rules:
+- Output ONLY a 1-2 sentence scene description, nothing else
+- Keep it set in 17th-18th century European historical settings
+- ET is present as a ${scene.role} — small, calm, grey-green alien with large dark eyes
+- Humans are the main actors — ET is not dominant
+- Lighting: single warm directional ${scene.light} source
+- No modern objects, no text, no futuristic elements
+- The scene should make someone look at the painting and IMMEDIATELY understand which tweet it pairs with`;
+  }
+
   if (pillar === "human_observation") {
     return `You are generating a scene description for ET's Human Observation Archive. The final image will look like a real historical photograph from the late 1700s to early 1930s.
 

@@ -132,6 +132,7 @@ function weightedRandom(
       human_observation: 1.2,
       disclosure_conspiracy: 1.3,
       research_drop: 1.0,
+      et_archive: 1.4,
     },
     evening: {
       existential: 1.5,

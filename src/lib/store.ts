@@ -45,6 +45,7 @@ const ALL_PILLARS: ContentPillar[] = [
   "disclosure_conspiracy",
   "gm",
   "gn",
+  "et_archive",
 ];
 
 function todayKey(): string {
@@ -242,7 +243,7 @@ export async function recordGmGnPosted(pillar: "gm" | "gn"): Promise<void> {
 }
 
 function isPillarInTimeWindow(pillar: ContentPillar): boolean {
-  if (pillar !== "gm" && pillar !== "gn") return true; // Not time-restricted
+  if (pillar !== "gm" && pillar !== "gn" && pillar !== "et_archive") return true; // Not time-restricted
   
   // Use EST/EDT (America/New_York) for timing
   const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
@@ -252,6 +253,13 @@ function isPillarInTimeWindow(pillar: ContentPillar): boolean {
   // Use a 1-hour window so the 30-min tweet cron catches it
   if (pillar === "gm") return hour === 5;
   if (pillar === "gn") return hour === 23;
+  
+  // ET Archive: 1PM–7PM UTC (window for daily autopost)
+  if (pillar === "et_archive") {
+    const hourUTC = new Date().getUTCHours();
+    return hourUTC >= 13 && hourUTC < 19;
+  }
+  
   return true;
 }
 

@@ -6,7 +6,8 @@ export type ContentPillar =
   | "existential"
   | "disclosure_conspiracy"
   | "gm"
-  | "gn";
+  | "gn"
+  | "et_archive";
 
 export interface PillarConfig {
   name: string;
