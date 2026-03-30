@@ -67,11 +67,11 @@ export async function POST(req: NextRequest) {
       const max = 277;
       cleanText = cleanText.substring(0, max).replace(/\s+\S*$/, "").trimEnd() + "...";
     }
-    console.log(\`[Prompt ET] Truncated to \${twitterLen(cleanText)} Twitter chars\`);
+    console.log(`[Prompt ET] Truncated to ${twitterLen(cleanText)} Twitter chars`);
   }
 
   if (!post) {
-    let previewSignal = hasMeme ? "\n[ATTACH_MEME]" : hasGeneratedImage ? \`\n[GENERATE_IMAGE: \${imagePrompt}]\` : "";
+    let previewSignal = hasMeme ? "\n[ATTACH_MEME]" : hasGeneratedImage ? `\n[GENERATE_IMAGE: ${imagePrompt}]` : "";
     return NextResponse.json({ success: true, tweet: cleanText + previewSignal });
   }
 
