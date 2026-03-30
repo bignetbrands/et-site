@@ -542,7 +542,7 @@ export const ET_ARCHIVE_SCENES = [
 ];
 
 export function buildArchivePrompt(sceneDescription: string): string {
-  return `${ET_ARCHIVE_IMAGE_PROMPT_PREFIX} ${sceneDescription}`;
+  return `${ET_ARCHIVE_IMAGE_PROMPT_PREFIX} ${sceneDescription} CRITICAL — THE SMALL GREY-GREEN ALIEN BEING MUST BE CLEARLY VISIBLE IN THE PAINTING. The alien figure (child-sized, oversized bulbous head, large dark almond eyes, grey-green skin) is the central subject being examined/observed by the humans. Do not omit the alien. The alien is physically present in the scene, not implied.`;
 }
 
 export function getRandomArchiveScene(): { scene: string; light: string; role: string } {
@@ -847,16 +847,16 @@ This tweet from ET prompted the image:
 Base scene template (use as starting point, adapt to match the tweet's specific theme):
 ${scene.scene}
 
-Your job: Take the base scene and adjust the details so the painting SPECIFICALLY illustrates the concept in the tweet. The historical humans' behavior should visually parallel the tweet's observation about how humans interpret, study, measure, or react to the unknown.
+Your job: Take the base scene and adjust the details so the painting SPECIFICALLY illustrates the concept in the tweet. The historical humans' behavior should visually parallel the tweet's observation.
 
-Rules:
+CRITICAL RULES:
 - Output ONLY a 1-2 sentence scene description, nothing else
+- THE ALIEN MUST APPEAR IN YOUR SCENE DESCRIPTION. Always explicitly mention "a small grey-green alien" or "the extraterrestrial being" as a physical subject in the scene. The alien is the thing being studied/examined/observed by the humans. Never omit the alien.
 - Keep it set in 17th-18th century European historical settings
-- ET is present as a ${scene.role} — small, calm, grey-green alien with large dark eyes
-- Humans are the main actors — ET is not dominant
+- The alien is present as a ${scene.role} — small, calm, grey-green with large dark almond-shaped eyes, oversized smooth head
+- Humans are the main actors but the alien is clearly visible and physically present
 - Lighting: single warm directional ${scene.light} source
-- No modern objects, no text, no futuristic elements
-- The scene should make someone look at the painting and IMMEDIATELY understand which tweet it pairs with`;
+- No modern objects, no text, no futuristic elements`;
   }
 
   if (pillar === "human_observation") {
