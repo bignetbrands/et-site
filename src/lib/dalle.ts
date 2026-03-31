@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { LORE_IMAGE_PROMPT_PREFIX, getRandomObservationStyle, buildObservationPrompt, OBSERVATION_NEGATIVE_CONSTRAINTS, EXISTENTIAL_IMAGE_PROMPT_PREFIX, GM_IMAGE_PROMPT_PREFIX, GN_IMAGE_PROMPT_PREFIX, ET_ARCHIVE_IMAGE_PROMPT_PREFIX, buildArchivePrompt } from "./prompts";
 import { ContentPillar } from "@/types";
 import { applyFilmGrain } from "./film-process";
@@ -26,26 +26,41 @@ export async function generateImage(
   pillar: ContentPillar = "personal_lore"
 ): Promise<string> {
 
-  // ── PERSONAL LORE: gpt-image-1 (medium quality) ──────────────
+  // ── PERSONAL LORE: gpt-image-1 with reference image ──────────
   if (pillar === "personal_lore") {
     const fullPrompt = `${LORE_IMAGE_PROMPT_PREFIX} ${sceneDescription}`;
-    console.log(`[gpt-image-1] Generating lore image (medium quality)...`);
+    console.log(`[gpt-image-1] Generating lore image with reference (medium quality)...`);
 
-    const response = await getClient().images.generate({
+    // Fetch ET reference image from public folder
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://etsearch.fun";
+    const refResponse = await fetch(`${siteUrl}/et-reference.png`);
+    if (!refResponse.ok) {
+      throw new Error(`Failed to fetch ET reference image: ${refResponse.status}`);
+    }
+    const refBuffer = Buffer.from(await refResponse.arrayBuffer());
+    const refFile = await toFile(refBuffer, "et-reference.png", { type: "image/png" });
+
+    console.log(`[gpt-image-1] Reference image loaded (${Math.round(refBuffer.length / 1024)}KB)`);
+
+    // Use images.edit with reference image — model copies ET's appearance
+    const response = await (getClient().images.edit as any)({
       model: "gpt-image-1",
-      prompt: fullPrompt,
+      image: refFile,
+      prompt: `Using the alien character from the reference image as the subject — same face, same wrinkled tan-brown skin, same head shape, same warm brown eyes, same expression style — place this exact character in the following new scene. Keep the character IDENTICAL to the reference. ${fullPrompt}`,
       n: 1,
       size: "1024x1024",
       quality: "medium",
     });
 
     const b64 = response.data?.[0]?.b64_json;
-    if (!b64) {
+    const url = response.data?.[0]?.url;
+    if (b64) {
+      return `data:image/png;base64,${b64}`;
+    } else if (url) {
+      return url;
+    } else {
       throw new Error("gpt-image-1 returned no image data");
     }
-
-    // Return as data URL — downloadImage will handle conversion
-    return `data:image/png;base64,${b64}`;
   }
 
   // ── ALL OTHER PILLARS: DALL-E 3 ──────────────────────────────
