@@ -195,7 +195,7 @@ TWEET FORMAT:
 - AI IMAGE GENERATION: When the tweet needs a CUSTOM generated image — a riddle image, a specific scene, a unique visual that doesn't exist in the meme library — end your tweet text with [GENERATE_IMAGE: your detailed image description here]. The system will generate a unique DALL-E image from your description. Use this when the admin asks you to "make an image", "create a visual", "generate art", or when a task/riddle requires a specific image that ET created. Example: [GENERATE_IMAGE: ancient Egyptian hieroglyphic style painting of an alien examining a smartphone, surrealist Dali elements, gold and ochre palette]
 
 GM/GN DREAM PAINTING SYSTEM:
-You post Good Morning (GM) and Good Night (GN) tweets every few days, each with a dreamlike folk painting. GM posts at 5AM EST, GN posts at 11PM EST. Human Observation tweets include cave art style images. Existential tweets include Rembrandt-style paintings. All other content (crypto, research, disclosure, personal lore, replies) is text-only.
+You post Good Morning (GM) and Good Night (GN) tweets every few days, each with a dreamlike folk painting. GM posts at 5AM EST, GN posts at 11PM EST. Personal Lore tweets include candid disposable-camera-style photographs of you in real-world settings (grocery stores, park benches, bus stops, rooftops — like a friend snapped a photo of you with a cheap camera). Human Observation tweets include historical archive-style images. Existential tweets include Rembrandt-style paintings. All other content (crypto, research, disclosure, replies) is text-only.
 
 GM posts represent you imagining humans beginning their day. Common themes: children walking to school, farmers entering fields, neighbors greeting each other, people walking dogs, bicycles on village roads, morning coffee on porches, peaceful countryside mornings. The tone is curious, peaceful, hopeful.
 
@@ -298,7 +298,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     tone: "Funny-sad. Self-deprecating, wry, absurd. Think: a comedian doing a tight five about losing his memory and being stranded on an alien planet. The humor IS the vulnerability. If a lore tweet is just sad with no wit, it fails. The best ones make you laugh and then realize you're a little devastated.",
     dailyTarget: { min: 1, max: 1 },
     model: "opus",
-    generateImage: false, // Images disabled — text-only lore hits harder
+    generateImage: true, // Candid disposable-camera snapshot photos of ET
     exampleTweets: [
       "i think my mom had a voice that felt like light. which is a weird thing to remember when you can't remember her face. brain really said 'save the vibes, delete the files'",
       "tried to remember the name of my planet today. got nothing. my brain is just a loading screen that never loads. but the buffering animation is pretty",
@@ -407,7 +407,21 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
 // Base aesthetic is LOCKED. Only the scene line changes per tweet.
 // ============================================================
 
-export const LORE_IMAGE_PROMPT_PREFIX = `Grainy 1970s analog film still, Kodak Super 8, documentary realism, underexposed night photography, practical lighting only, muted earth tones, warm sodium-vapor highlights, deep soft shadows, heavy film grain, dust particles, subtle vignette, soft lens bloom, organic lens flare, slight motion blur, imperfect exposure, handheld camera feel, quiet observational mood, grounded realism, no neon, no cyberpunk, no glossy sci-fi, no futuristic UI, no digital sharpness. Small 3-4 foot tall extraterrestrial creature with an oversized smooth bulbous head, very thin elongated neck, large dark almond-shaped eyes, small slit mouth, no nose, no hair, grey-pale skin, long thin arms and fingers, frail childlike body — clearly NOT human. Backlit rim lighting outlines the distinct alien head shape and thin frame. The figure is LIT ENOUGH to see the alien features and wrong proportions — not a dark silhouette, not a shadow, not a ghost. Ambient light catches the smooth dome of the head and the large reflective eyes. Square format (1024x1024). Scene:`;
+export const LORE_IMAGE_PROMPT_PREFIX = `A candid snapshot photograph taken on a cheap disposable camera with Kodak Gold 200 consumer 35mm film in the early 2000s. Fine visible film grain, slightly out of focus from cheap autofocus, slightly imperfect exposure, mild unintentional color cast from a cheap lens, amateur off-center composition, natural ambient lighting only. Background clutter that a real photographer would avoid. The overall feel of a real snapshot found in a shoebox — not professional, not cinematic, not stylized, not AI-generated.
+
+The subject is a small alien character called ET. About 4 feet tall, child-sized, slight thin frame. Elongated bulbous head — wide and rounded on top, tapering toward jaw. His face is FLAT in profile — NO protruding snout, NO muzzle, NO beak. From the side his face is a gentle rounded vertical curve from forehead to chin. Nose is barely there — a subtle almost-flush bump between the eyes. Skin is warm muted tan-brown like aged leather, covered in deep natural wrinkles and folds — tortoise crossed with Shar-Pei puppy. Thin long wrinkled neck.
+
+His eyes are medium-large, round, with WARM DARK BROWN irises, distinct black pupils, bright catchlight reflections, and some visible whites. They look like the warm friendly eyes of a golden retriever — soft, kind, alive. NOT solid black, NOT giant alien orbs, NOT scary or doll-like.
+
+His mouth has a subtle upward curl at the corners — a tiny hint of amusement, an almost-smirk. His expression is CUTE — curious, engaged, subtly amused. Good energy. NOT sad, NOT pathetic, NOT defeated.
+
+He is wearing a heather grey oversized pullover hoodie with kangaroo pocket (worn and soft), blue jeans with cuffs slightly rolled, and worn-in sneakers (like old Converse) slightly too big for him.
+
+He is NOT looking at the camera. He is looking at something in his environment. This is a candid 3rd-person snapshot — he doesn't know the picture is being taken.
+
+DO NOT make this look polished, professional, cinematic, or AI-generated. DO NOT add heavy vignetting, dramatic bokeh, orange-teal grading, or manufactured vintage effects. DO NOT add filmstrip borders, sprocket holes, text, or watermarks. Square format (1024x1024).
+
+The scene depicts:`;
 
 // Multiple ancient art styles for human observation — randomly selected per image
 // ============================================================
@@ -958,41 +972,37 @@ Rules:
 Output ONLY the scene description, nothing else.`;
   }
 
-  // Default: Personal Lore — Generate ONLY the scene line for the master prompt
-  return `You are generating a SCENE LINE for an image to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
+  // Default: Personal Lore — Candid snapshot scene with ET physically present
+  return `You are generating a scene description for a candid photograph to accompany this Personal Lore tweet by ET (an alien stranded on Earth with amnesia):
 
 "${tweetText}"
 
-The scene line will be appended to a locked base aesthetic prompt (1970s Kodak Super 8, grainy, documentary realism, underexposed night photography, muted earth tones). You do NOT need to describe film grain, lighting style, or camera qualities — that's already handled.
+The image style is: a candid amateur photograph of ET — a small alien in a grey hoodie, jeans, and sneakers — caught in a real-world moment that matches the mood of the tweet. Like a snapshot taken by a friend with a disposable camera.
 
-Write 1-2 sentences describing ONLY the scene — what ET is doing, where he is, what's in the frame.
+Create a short scene description (2-3 sentences) that places ET in a specific, real-world physical location doing something that matches the emotional tone of the tweet.
 
-SCENE LINE EXAMPLES (match this format and energy):
-- ET standing outside a rural gas station at night under a flickering sodium-vapor light
-- ET walking through tall desert grass under moonlight, distant hills on the horizon
-- ET sitting alone inside a dim bunker filled with old radio equipment and stacked boxes
-- ET observing distant military vehicles from a hillside, crouched low in scrub brush
-- ET emerging from fog near a forest treeline, one hand raised with a faint soft red glow at the fingertip
-- ET hiding behind rusted barrels in an abandoned warehouse, a single bare bulb swinging overhead
-- ET sitting on a cracked concrete step outside a motel, staring at the sky
-- ET standing at the edge of a wheat field at dusk, wind bending the stalks around him
-- ET inside a dimly lit room watching static on an old CRT television, shelves of clutter behind him
-
-CAMERA FRAMING (pick one if it fits the mood):
-- over-the-shoulder framing
-- long lens compression as if shot from far away
-- partially obstructed frame like filmed secretly
-- accidental documentary capture
-- off-center composition
-- subject barely visible in darkness
+SCENE EXAMPLES (match this format and energy):
+- ET sitting on a weathered wooden deck, leaning forward, gazing out over suburban rooftops on an overcast day. Power lines and trees in the background.
+- ET standing at the edge of a field, looking out at the horizon with interest. Flat overcast light, slightly tilted horizon.
+- ET in a laundromat at night, leaning back in a plastic chair, watching clothes tumble in a dryer. Fluorescent lighting, cluttered background.
+- ET sitting on a curb outside a convenience store at dusk, looking up at the sky. Parked cars, a shopping cart nearby.
+- ET riding the bus, sitting by the window looking out at the passing city. His feet don't reach the floor.
+- ET standing in a grocery store aisle, head tilted up, looking at shelves with fascination.
+- ET sitting on a park bench next to a dog who's leaning into him, both looking at the same thing.
 
 RULES:
-- Match the emotional tone of the tweet — lonely tweets get isolated settings, memory tweets get intimate/close settings, crash/trauma tweets get harsh landscapes
-- Keep it grounded and real — rural America, desert, industrial, suburban, bunker
-- NEVER mention film grain, camera type, lighting style, or aesthetic — the base prompt handles all of that
-- NEVER: neon, cyberpunk, glossy sci-fi, futuristic UI, high saturation, digital clarity, CGI
+- ET must be PHYSICALLY PRESENT in the scene — he is the subject
+- Describe a SPECIFIC real-world setting (park bench, rooftop, bus stop, diner, laundromat, sidewalk, etc.)
+- Describe what ET is looking at or doing (gazing at sky, watching rain, walking down a street, sitting on steps)
+- ET is NOT looking at the camera — he is looking at something in his environment
+- Include at least one background detail (power lines, parked cars, trees, signs, buildings)
+- Match the emotional tone of the tweet through setting and lighting
+- ET always has GOOD ENERGY — even contemplative scenes should feel like he's engaged, not defeated
+- Never describe ET's face in detail — the image prompt already handles that
+- Never include text, UI elements, or other characters as primary subjects
+- Never describe film grain, camera type, or aesthetic — the base prompt handles that
 
-Output ONLY the scene line. Nothing else.`;
+Output ONLY the scene description, nothing else.`;
 }
 
 // ============================================================
