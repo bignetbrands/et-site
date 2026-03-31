@@ -634,7 +634,33 @@ export default function BotDashboard() {
                       }}>{preview.selfAwareness}</pre>
                     </details>
                   )}
-                  <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                  <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" as const }}>
+                    {/* Attach meme button */}
+                    <button
+                      onClick={async () => {
+                        setLoading("attachMeme");
+                        try {
+                          const res = await fetch("/api/memes", { headers: authHeaders });
+                          const data = await res.json();
+                          const images: string[] = data.images || [];
+                          if (!images.length) { addLog("No memes found", "warn"); setLoading(""); return; }
+                          const randomUrl = images[Math.floor(Math.random() * images.length)];
+                          setPreview(p => p ? { ...p, imageUrl: randomUrl } : p);
+                          addLog("Meme attached 🖼️", "info");
+                        } catch (e) { addLog(`Meme fetch failed: ${e}`, "error"); }
+                        setLoading("");
+                      }}
+                      disabled={!!loading}
+                      style={{ ...styles.btnSmall, fontSize: "10px", padding: "6px 12px", background: preview?.imageUrl ? "rgba(57,255,20,0.12)" : "rgba(255,255,255,0.04)", borderColor: preview?.imageUrl ? "rgba(57,255,20,0.4)" : "rgba(255,255,255,0.12)", color: preview?.imageUrl ? "#39ff14" : "rgba(255,255,255,0.5)" }}
+                    >
+                      {loading === "attachMeme" ? "..." : preview?.imageUrl ? "🖼️ MEME ✓" : "🖼️ + MEME"}
+                    </button>
+                    {preview?.imageUrl && (
+                      <button
+                        onClick={() => setPreview(p => p ? { ...p, imageUrl: undefined } : p)}
+                        style={{ ...styles.btnSmall, fontSize: "10px", padding: "6px 8px", color: "rgba(255,80,80,0.6)", borderColor: "rgba(255,80,80,0.2)" }}
+                      >✕</button>
+                    )}
                     <button
                       onClick={async () => {
                         if (!confirm("Tweet this exact preview to X now?")) return;
