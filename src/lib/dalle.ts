@@ -13,23 +13,45 @@ function getClient(): OpenAI {
 }
 
 /**
- * Generate an image using DALL-E 3 for the given pillar.
- * - personal_lore: 1970s Kodak Super 8 documentary realism — ET silhouetted, muted earth tones, practical lighting
- *   → Post-processed with real film grain, vignette, scan lines, color degradation
- * - human_observation: Randomly selected ancient art style (Saharan, Petroglyph, South American, Lascaux, Aboriginal)
- * - existential: Abstract Picasso/Dalí surrealism with futuristic warp
+ * Generate an image for the given pillar.
+ * - personal_lore: gpt-image-1 (medium) — follows prompts faithfully for candid snapshot style
+ * - human_observation: DALL-E 3 — archival historical photography
+ * - existential: DALL-E 3 — Rembrandt oil painting
+ * - gm/gn: DALL-E 3 — folk art
  * Returns the image URL (temporary — must be downloaded before posting).
+ * For gpt-image-1, returns a data URL (base64).
  */
 export async function generateImage(
   sceneDescription: string,
   pillar: ContentPillar = "personal_lore"
 ): Promise<string> {
+
+  // ── PERSONAL LORE: gpt-image-1 (medium quality) ──────────────
+  if (pillar === "personal_lore") {
+    const fullPrompt = `${LORE_IMAGE_PROMPT_PREFIX} ${sceneDescription}`;
+    console.log(`[gpt-image-1] Generating lore image (medium quality)...`);
+
+    const response = await getClient().images.generate({
+      model: "gpt-image-1",
+      prompt: fullPrompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "medium",
+    });
+
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
+      throw new Error("gpt-image-1 returned no image data");
+    }
+
+    // Return as data URL — downloadImage will handle conversion
+    return `data:image/png;base64,${b64}`;
+  }
+
+  // ── ALL OTHER PILLARS: DALL-E 3 ──────────────────────────────
   let prefix: string;
   let styleName = "";
   if (pillar === "human_observation") {
-    // Human Observation uses the master archival photography prompt
-    // sceneDescription is wrapped with master prompt + checksums in buildObservationPrompt()
-    // We set prefix to empty — the full prompt is built below
     prefix = "";
     styleName = "Archival Historical Photography";
     console.log(`[DALL-E] Observation: Archival Historical Photography master prompt`);
@@ -63,7 +85,7 @@ export async function generateImage(
     n: 1,
     size: "1024x1024",
     quality: "hd",
-    style: "natural", // Organic look for all styles
+    style: "natural",
   });
 
   const imageUrl = response.data?.[0]?.url;
@@ -79,21 +101,32 @@ export const generateLoreImage = generateImage;
 
 /**
  * Download an image from URL and return as Buffer.
- * For personal_lore images, applies film grain post-processing.
- * Needed because DALL-E URLs are temporary and Twitter needs the raw bytes.
+ * Handles both regular URLs (DALL-E 3) and data URLs (gpt-image-1 base64).
+ * Needed because image URLs are temporary and Twitter needs the raw bytes.
  */
 export async function downloadImage(url: string, pillar?: ContentPillar): Promise<Buffer> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download image: ${response.status}`);
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  let buffer: Buffer = Buffer.from(arrayBuffer) as Buffer;
+  let buffer: Buffer;
 
-  // Apply film grain post-processing to personal_lore images
-  if (pillar === "personal_lore") {
+  // Handle base64 data URLs from gpt-image-1
+  if (url.startsWith("data:")) {
+    const base64Data = url.split(",")[1];
+    buffer = Buffer.from(base64Data, "base64");
+    console.log(`[Image] Decoded base64 image (${Math.round(buffer.length / 1024)}KB)`);
+  } else {
+    // Regular URL download (DALL-E 3)
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    buffer = Buffer.from(arrayBuffer) as Buffer;
+  }
+
+  // Apply film grain post-processing ONLY to non-lore pillars that need it
+  // Personal lore now uses gpt-image-1 with built-in snapshot aesthetic — no post-processing needed
+  if (pillar && pillar !== "personal_lore" && pillar !== "human_observation" && pillar !== "existential" && pillar !== "gm" && pillar !== "gn" && pillar !== "et_archive") {
     try {
-      console.log(`[Film Process] Applying analog artifacts to lore image (${Math.round(buffer.length / 1024)}KB input)`);
+      console.log(`[Film Process] Applying analog artifacts (${Math.round(buffer.length / 1024)}KB input)`);
       buffer = await applyFilmGrain(buffer);
       console.log(`[Film Process] Done (${Math.round(buffer.length / 1024)}KB output)`);
     } catch (err) {
