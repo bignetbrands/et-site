@@ -46,10 +46,10 @@ export async function generateImage(
     const response = await (getClient().images.edit as any)({
       model: "gpt-image-1",
       image: refFile,
-      prompt: `Using the alien character from the reference image as the subject — same face, same wrinkled tan-brown skin, same head shape, same warm brown eyes, same expression style — place this exact character in the following new scene. Keep the character IDENTICAL to the reference. ${fullPrompt}`,
+      prompt: `Reproduce the EXACT alien character from the reference image. Critical: copy the skin precisely — photorealistic wrinkled tan-brown leather-like texture, visible skin folds at neck and face, warm brownish undertones, NOT smooth plastic, NOT clay, NOT CGI. Same bulbous elongated head, same warm dark brown eyes with visible catchlights, same thin wrinkled neck, same small frame. Place this identical character in the following new scene. The character must look like a photo of a real creature, not an illustration or 3D render. ${fullPrompt}`,
       n: 1,
       size: "1024x1024",
-      quality: "medium",
+      quality: "high",
     });
 
     const b64 = response.data?.[0]?.b64_json;
