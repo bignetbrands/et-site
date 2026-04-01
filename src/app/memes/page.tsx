@@ -208,7 +208,7 @@ export default function MemesPage() {
 
             {/* Tweet options */}
             <div style={{ marginBottom: 12, textAlign: "left" }}>
-              <div style={{ fontSize: 10, color: "rgba(0,255,100,0.5)", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Pick a tweet:</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><div style={{ fontSize: 10, color: "rgba(0,255,100,0.5)", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700 }}>Pick a tweet:</div><button onClick={async () => { if (!shareUrl) return; setTweetLoading(true); setTweetOptions([]); await fetch(`/api/meme-tweets?imageUrl=${encodeURIComponent(shareUrl)}`, { method: "DELETE" }).catch(() => {}); openSharePopup(shareUrl); }} style={{ fontSize: 9, color: "rgba(0,255,100,0.4)", background: "none", border: "1px solid rgba(0,255,100,0.15)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontFamily: "monospace" }}>↺ NEW</button></div>
               {tweetLoading ? (
                 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>🛸 ET is writing tweets...</div>
               ) : (

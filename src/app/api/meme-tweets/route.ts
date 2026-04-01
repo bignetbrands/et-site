@@ -63,6 +63,16 @@ export async function GET(request: Request) {
   }
 }
 
+// DELETE — clear cached tweets for an image (forces regeneration)
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const imageUrl = searchParams.get("imageUrl");
+  if (!imageUrl) return NextResponse.json({ error: "imageUrl required" }, { status: 400 });
+  const id = imageKey(imageUrl);
+  await kv.del(`${KV_PREFIX}${id}`);
+  return NextResponse.json({ success: true, cleared: id });
+}
+
 // POST — generate tweets for an image (or return saved ones)
 export async function POST(request: Request) {
   try {
