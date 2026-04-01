@@ -1143,9 +1143,15 @@ export async function dryRun(
       console.log(`[ET Dry Run] Scene (${pillar}): ${sceneDescription}`);
       const imageUrl = await generateImage(sceneDescription, pillar);
       result.imageUrl = imageUrl;
+      // If imageUrl is a data URL (base64 from gpt-image-1), store it
+      if (imageUrl && imageUrl.startsWith("data:")) {
+        result.rawImageUrl = imageUrl;
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`[ET Dry Run] Image preview failed (${pillar}): ${errMsg}`);
+      // Non-fatal — return text-only preview, don't throw
+      result.imageUrl = undefined;
     }
   }
 

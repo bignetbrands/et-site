@@ -31,13 +31,20 @@ export async function generateImage(
     const fullPrompt = `${LORE_IMAGE_PROMPT_PREFIX} ${sceneDescription}`;
     console.log(`[gpt-image-1] Generating lore image with reference (medium quality)...`);
 
-    // Fetch ET reference image from public folder
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://etsearch.fun";
-    const refResponse = await fetch(`${siteUrl}/et-reference.png`);
-    if (!refResponse.ok) {
-      throw new Error(`Failed to fetch ET reference image: ${refResponse.status}`);
+    // Fetch ET reference image — try local file first, then remote
+    let refBuffer: Buffer;
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const localPath = path.join(process.cwd(), "public", "et-reference.png");
+      refBuffer = fs.readFileSync(localPath);
+      console.log(`[gpt-image-1] Reference image loaded from disk (${Math.round(refBuffer.length / 1024)}KB)`);
+    } catch {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://etsearch.fun";
+      const refResponse = await fetch(`${siteUrl}/et-reference.png`, { signal: AbortSignal.timeout(8000) });
+      if (!refResponse.ok) throw new Error(`Failed to fetch ET reference image: ${refResponse.status}`);
+      refBuffer = Buffer.from(await refResponse.arrayBuffer());
     }
-    const refBuffer = Buffer.from(await refResponse.arrayBuffer());
     const refFile = await toFile(refBuffer, "et-reference.png", { type: "image/png" });
 
     console.log(`[gpt-image-1] Reference image loaded (${Math.round(refBuffer.length / 1024)}KB)`);
