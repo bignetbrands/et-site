@@ -146,11 +146,11 @@ export async function POST(request: Request) {
       rawTweets = rawTweets.slice(0, 5).map((t: string) => String(t).trim());
     } catch {
       rawTweets = [
-        "$ET 👽 we out here",
-        "ngl this goes hard. $ET",
-        "the search continues. $ET",
-        "ET sees you 👽",
-        "phone home or die trying. $ET",
+        "bro this is so him 😭 $ET",
+        "ngl this is the most relatable alien on the timeline $ET",
+        "i hold $ET and i have no regrets 👽",
+        "the community is different fr $ET",
+        "phone home era $ET",
       ];
     }
 
@@ -164,11 +164,11 @@ export async function POST(request: Request) {
     console.error("[/api/meme-tweets] Error:", error);
 
     const fallback = [
-      "$ET 👽 we out here",
-      "ngl this goes hard. $ET",
-      "the search continues. $ET",
-      "ET sees you 👽",
-      "phone home or die trying. $ET",
+      "bro this is so him 😭 $ET",
+      "ngl this is the most relatable alien on the timeline $ET",
+      "i hold $ET and i have no regrets 👽",
+      "the community is different fr $ET",
+      "phone home era $ET",
     ].map(t => ({ text: t, usedCount: 0 }));
 
     return NextResponse.json({ tweets: fallback, error: true });
