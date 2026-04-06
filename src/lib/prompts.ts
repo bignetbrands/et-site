@@ -375,7 +375,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Historical oil paintings where ET appears inside human history as a quiet anomaly. Each image pairs with a SHORT, punchy ET-voiced caption. The tweet should read like a single observation carved in stone — not a paragraph. Think fortune cookie written by a stranded alien. Maximum 2 short sentences. Lowercase. No emojis unless they serve a specific joke.",
     tone: "Deadpan. Sparse. Lowercase. ET states what he saw — no elaboration, no rambling, no explanations. The shortest version that still hits. If it could be shorter, make it shorter. Every word earns its place or gets cut. The humor comes from compression, not expansion.",
-    dailyTarget: { min: 1, max: 1 },
+    dailyTarget: { min: 0, max: 0 }, // PAUSED,
     model: "sonnet",
     generateImage: true,
     exampleTweets: [
