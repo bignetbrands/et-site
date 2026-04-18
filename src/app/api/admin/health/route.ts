@@ -89,3 +89,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json(results);
 }
+// Note: after switching Twitter accounts, clear last_mention_id in KV
+// so the reply cron starts fresh on the new account

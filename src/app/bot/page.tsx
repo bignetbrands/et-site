@@ -515,7 +515,19 @@ export default function BotDashboard() {
                 {/* User Interactions */}
                 {dashboard.userInteractions && dashboard.userInteractions.length > 0 && (
                   <div>
-                    <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px", marginBottom: "6px" }}>USER INTERACTIONS TODAY</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <div style={{ fontSize: "9px", color: "#4a6a4a", letterSpacing: "2px" }}>USER INTERACTIONS TODAY</div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Clear last_mention_id? ET will re-scan all recent mentions on the new account.")) return;
+                      const res = await fetch("/api/admin/reset-mentions", { method: "POST", headers: authHeaders });
+                      const data = await res.json();
+                      if (data.success) addLog("✅ Mention cursor reset — reply cron starts fresh", "success");
+                      else addLog(`Reset failed: ${data.error}`, "error");
+                    }}
+                    style={{ ...styles.btnSmall, fontSize: "9px", padding: "2px 8px", color: "rgba(255,200,0,0.6)", borderColor: "rgba(255,200,0,0.2)" }}
+                  >↺ RESET MENTIONS</button>
+                </div>
                     <div style={{ display: "flex", flexDirection: "column" as const, gap: "3px" }}>
                       {dashboard.userInteractions.map((u: any) => (
                         <div key={u.username} style={{
