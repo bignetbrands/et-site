@@ -965,11 +965,15 @@ export async function replyToSpecificTweet(
   console.log(`[ET Reply] ${dryRun ? "DRY RUN — " : ""}Replying to specific tweet ${tweetId}...`);
 
   try {
-    const tweet = await getTweetWithMedia(tweetId);
-    if (!tweet) return { success: false, error: `Could not fetch tweet ${tweetId}` };
+    let tweet = await getTweetWithMedia(tweetId);
+    // If fetch fails (permissions, deleted, etc.) create a minimal stub so reply still works
+    if (!tweet) {
+      console.warn(`[ET Reply] Could not fetch tweet ${tweetId} — replying without context`);
+      tweet = { text: "", authorUsername: "someone", authorId: "", imageUrls: [], inReplyToId: undefined };
+    }
 
     const author = tweet.authorUsername || "someone";
-    console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."`);
+    if (tweet.text) console.log(`[ET Reply] Tweet by @${author}: "${tweet.text.substring(0, 80)}..."`);
 
     // ── WALK PARENT CHAIN for context (same logic as normal reply flow) ──────
     let conversationContext: string | undefined;
