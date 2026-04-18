@@ -35,7 +35,7 @@ const LINKS = [
   { label: "Neo", url: "https://neo.bullx.io/terminal?chainId=1399811149&address=A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF", emoji: "🧠" },
   { label: "DexScreener", url: "https://dexscreener.com/solana/cqzyxscytqylz318kfts8dwwn1ysnpnfzpd3yxftcedh", emoji: "📈" },
   { label: "PumpFun", url: "https://pump.fun/coin/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF", emoji: "🚀" },
-  { label: "Talk to ET", url: "https://x.com/etalienx", emoji: "💬" },
+  { label: "Talk to ET", url: "https://x.com/etfoundyou", emoji: "💬" },
   { label: "Oracle Network", url: "/oracle", emoji: "📡" },
   { label: "Quantum Oracle", url: "/rng", emoji: "🎲" },
   { label: "Fortune Teller", url: "/fortune", emoji: "🔮" },
@@ -476,7 +476,7 @@ function ChatWidget() {
               </div>
               <div>
                 <div style={s.chatName}>ET <span style={{ color: "#00ff64", fontSize: 12 }}>✓</span></div>
-                <div style={s.chatHandle}>@etalienx</div>
+                <div style={s.chatHandle}>@etfoundyou</div>
               </div>
             </div>
             <button onClick={() => setOpen(false)} style={s.chatCloseBtn}>✕</button>
@@ -491,7 +491,7 @@ function ChatWidget() {
               <div style={s.chatMsgTime}>♡ 9.1k · ↻ 3.4k</div>
             </div>
           </div>
-          <a href="https://x.com/etalienx" target="_blank" rel="noopener noreferrer" style={s.chatCta}>
+          <a href="https://x.com/etfoundyou" target="_blank" rel="noopener noreferrer" style={s.chatCta}>
             TALK TO ET ON X →
           </a>
         </div>
@@ -658,7 +658,7 @@ export default function ETSiteV2() {
                 <button onClick={() => setShowResearch(true)} style={s.ctaPrimary}>
                   JOIN RESEARCH & EARN →
                 </button>
-                <a href="https://x.com/etalienx" target="_blank" rel="noopener noreferrer" style={s.ctaSecondary}>
+                <a href="https://x.com/etfoundyou" target="_blank" rel="noopener noreferrer" style={s.ctaSecondary}>
                   TALK TO ET ON X
                 </a>
                 <a href="https://x.com/i/communities/2028185586419556603" target="_blank" rel="noopener noreferrer" style={s.ctaSecondary}>
@@ -694,7 +694,7 @@ export default function ETSiteV2() {
 
             {/* Right: Featured Tweet */}
             <div className="tweets-col-hide">
-              <a href="https://x.com/etalienx/status/2029677945267069261" target="_blank" rel="noopener noreferrer" style={s.tweetShowCard}
+              <a href="https://x.com/etfoundyou/status/2029677945267069261" target="_blank" rel="noopener noreferrer" style={s.tweetShowCard}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,255,100,0.2)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
               >
@@ -704,7 +704,7 @@ export default function ETSiteV2() {
                     <span style={s.tweetShowName}>ET </span>
                     <span style={s.tweetShowVerified}>✓</span>
                     <br />
-                    <span style={s.tweetShowHandle}>@etalienx</span>
+                    <span style={s.tweetShowHandle}>@etfoundyou</span>
                   </div>
                 </div>
                 <p style={s.tweetShowBody}>bacteria outnumber your cells 10 to 1 and they still let you think you're the one in charge of your decisions. you're not driving. you're just the dashboard</p>
