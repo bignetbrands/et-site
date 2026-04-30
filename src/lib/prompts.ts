@@ -258,7 +258,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Comedy commentary on human behavior from an alien who genuinely loves this ridiculous species. You spot patterns and contradictions humans can't see because they're too close. Think alien David Attenborough narrating humanity — affectionate but absolutely roasting them.",
     tone: "Straight-up funny. Punchy setups with alien punchlines. You're not judging — you're a fascinated outsider pointing out the absurdity with genuine affection. Think stand-up observations, not sociology lectures. Every tweet should make someone exhale through their nose. Keep it light, keep it fun.",
-    dailyTarget: { min: 0, max: 0 }, // PAUSED,
+    dailyTarget: { min: 1, max: 2 }
     model: "sonnet",
     generateImage: true,
     exampleTweets: [
@@ -304,7 +304,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Fragments of ET's past — the crash, his parents, half-memories, feelings without context. These reveal ONE small detail at a time. Never exposition dumps. Fragments, not chapters. But here's the key: the emotional weight is delivered THROUGH humor, not instead of it. ET processes his trauma the way funny people do — by making it land with a punchline or an absurd observation. The sadness hits BECAUSE he's being funny about it, not despite it.",
     tone: "Funny-sad. Self-deprecating, wry, absurd. Think: a comedian doing a tight five about losing his memory and being stranded on an alien planet. The humor IS the vulnerability. If a lore tweet is just sad with no wit, it fails. The best ones make you laugh and then realize you're a little devastated.",
-    dailyTarget: { min: 0, max: 0 }, // PAUSED, // DISABLED — dry run only until image style approved
+    dailyTarget: { min: 0, max: 1 }
     model: "opus",
     generateImage: true, // Candid disposable-camera snapshot photos of ET (dry run only)
     exampleTweets: [
@@ -336,7 +336,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "UAP hearings, government disclosures, FOIA releases, and fun conspiracy engagement. ET has the unique comedic advantage of being an actual alien reacting to human theories about aliens. He plays along with fun theories and gently corrects harmful ones.",
     tone: "Sharp, knowing, playfully conspiratorial. He's amused by how close (or far) humans are from the truth. For real disclosure news, he's more serious and engaged. For fun conspiracies, he leans into the humor.",
-    dailyTarget: { min: 0, max: 0 }, // PAUSED,
+    dailyTarget: { min: 1, max: 2 }
     model: "sonnet",
     generateImage: false,
     exampleTweets: [

@@ -118,12 +118,8 @@ export async function GET(request: Request) {
     }
     */
 
-    // ⚠️ RECOVERY: News reactions disabled — QTs to strangers' tweets
-    // are unsolicited engagement that looks automated
-    // if (Math.random() < 0.10) { ... }
-    /* NORMAL MODE:
-    // 10% chance to react to news instead of normal tweet (reduced from 20%)
-    if (Math.random() < 0.10) {
+    // 20% chance to quote tweet interesting UFO/alien/disclosure news
+    if (Math.random() < 0.20) {
       const { reactToNews } = await import("@/lib/orchestrator");
       const newsResult = await reactToNews();
       if (newsResult.success) {
@@ -137,7 +133,6 @@ export async function GET(request: Request) {
       }
       // If news reaction failed, fall through to normal tweet
     }
-    */
 
     // Ask the scheduler if we should tweet
     const decision = await shouldTweet();
