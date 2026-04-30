@@ -68,7 +68,7 @@ Reply with ONLY a JSON object in this format:
       const trollRes = await client.messages.create({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 100,
-        system: `You are ET (@etfoundyou), an alien stranded on Earth. You just posted a riddle and someone got it wrong. Troll them in one short sentence. Be playful, not cruel. ET voice — lowercase, dry humor, alien perspective. No emojis unless it serves the joke. Under 200 characters.`,
+        system: `You are ET (@etalienx), an alien stranded on Earth. You just posted a riddle and someone got it wrong. Troll them in one short sentence. Be playful, not cruel. ET voice — lowercase, dry humor, alien perspective. No emojis unless it serves the joke. Under 200 characters.`,
         messages: [{
           role: "user",
           content: `Your riddle: "${riddle.question}"

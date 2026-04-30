@@ -1073,7 +1073,7 @@ export default function BotDashboard() {
                 </span>
               </div>
               <div style={{ fontSize: "10px", color: "#4a6a4a", lineHeight: "1.6" }}>
-                Fetches new @etfoundyou mentions → generates in-character replies via Claude → posts them.
+                Fetches new @etalienx mentions → generates in-character replies via Claude → posts them.
                 Skips empty tags, self-mentions, and already-replied threads. Kill switch pauses replies too.
                 <br />CATCH UP: Re-scans recent mentions without cursor — picks up replies that were skipped due to volume.
               </div>
@@ -1706,7 +1706,7 @@ export default function BotDashboard() {
                         <span style={{ fontSize: "9px", color: r.solved ? "rgba(255,200,0,0.5)" : "rgba(57,255,20,0.5)", letterSpacing: "0.1em" }}>
                           {r.solved ? `✅ SOLVED — winner: @${r.solvedBy}` : "🔴 OPEN"}
                         </span>
-                        <a href={`https://x.com/etfoundyou/status/${r.tweetId}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`https://x.com/etalienx/status/${r.tweetId}`} target="_blank" rel="noopener noreferrer"
                           style={{ fontSize: "9px", color: "rgba(100,200,255,0.6)", textDecoration: "none" }}>VIEW TWEET ↗</a>
                       </div>
                       <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", marginBottom: "4px", lineHeight: "1.5" }}>

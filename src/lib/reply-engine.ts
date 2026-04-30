@@ -344,7 +344,7 @@ export async function executeSideEffects(
     // Link the standalone task tweet back to the thread
     if (fx.taskTweetId) {
       try {
-        const taskLink = `https://x.com/etfoundyou/status/${fx.taskTweetId}`;
+        const taskLink = `https://x.com/etalienx/status/${fx.taskTweetId}`;
         await postReply(`task is live 👽 ${taskLink}`, postedReplyId);
       } catch (e) {
         console.warn("[ReplyEngine] Failed to post task link reply:", e);

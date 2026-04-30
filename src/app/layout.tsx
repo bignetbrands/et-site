@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     description:
       "An alien lost on Earth. Trying to phone home. $ET on Solana.",
     images: ["/ET_BANNER_12.png"],
-    creator: "@etfoundyou",
+    creator: "@etalienx",
   },
 };
 

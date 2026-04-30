@@ -190,7 +190,7 @@ export default function HomePage() {
       <nav style={{ background: "#7fff45", borderBottom: "3px solid #1a1a1a", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: "'Bangers', cursive", fontSize: 32, letterSpacing: 3, color: "#1a1a1a" }}>$ET</div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href="https://x.com/etfoundyou" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Bangers', cursive", fontSize: 18, letterSpacing: 2, color: "#1a1a1a", textDecoration: "none", background: "#1a1a1a", color: "#7fff45", padding: "6px 16px", borderRadius: 50, border: "2px solid #1a1a1a" }}>@etfoundyou</a>
+          <a href="https://x.com/etalienx" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Bangers', cursive", fontSize: 18, letterSpacing: 2, color: "#1a1a1a", textDecoration: "none", background: "#1a1a1a", color: "#7fff45", padding: "6px 16px", borderRadius: 50, border: "2px solid #1a1a1a" }}>@etalienx</a>
           <a href="https://pump.fun/coin/A1NZ4kjhJxdmMMHQTGF8HaU7k6JCh5gSyHEeAKE3xRMF" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Bangers', cursive", fontSize: 18, letterSpacing: 2, background: "#1a1a1a", color: "#7fff45", padding: "8px 20px", borderRadius: 50, border: "3px solid #1a1a1a", textDecoration: "none", boxShadow: "3px 3px 0 #0a0a0a", cursor: "pointer" }}>BUY NOW 🚀</a>
         </div>
       </nav>
@@ -297,7 +297,7 @@ export default function HomePage() {
                   <div style={{ width: 40, height: 40, background: "#7fff45", border: "3px solid #1a1a1a", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>👽</div>
                   <div>
                     <div style={{ fontFamily: "'Bangers', cursive", fontSize: 16, letterSpacing: 1 }}>et</div>
-                    <div style={{ fontFamily: "'Comic Neue', cursive", fontSize: 12, color: "#888" }}>@etfoundyou</div>
+                    <div style={{ fontFamily: "'Comic Neue', cursive", fontSize: 12, color: "#888" }}>@etalienx</div>
                   </div>
                 </div>
                 <div style={{ fontFamily: "'Comic Neue', cursive", fontSize: 15, color: "#1a1a1a", lineHeight: 1.5 }}>{t}</div>
@@ -305,7 +305,7 @@ export default function HomePage() {
             ))}
           </div>
           <div style={{ textAlign: "center", marginTop: 32 }}>
-            <a href="https://x.com/etfoundyou" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Bangers', cursive", fontSize: 22, letterSpacing: 2, background: "#fffef0", color: "#1a1a1a", padding: "14px 36px", borderRadius: 50, border: "3px solid #1a1a1a", textDecoration: "none", boxShadow: "5px 5px 0 #1a1a1a", display: "inline-block" }}>FOLLOW @ETFOUNDYOU ↗</a>
+            <a href="https://x.com/etalienx" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'Bangers', cursive", fontSize: 22, letterSpacing: 2, background: "#fffef0", color: "#1a1a1a", padding: "14px 36px", borderRadius: 50, border: "3px solid #1a1a1a", textDecoration: "none", boxShadow: "5px 5px 0 #1a1a1a", display: "inline-block" }}>FOLLOW @ETFOUNDYOU ↗</a>
           </div>
         </div>
       </section>
