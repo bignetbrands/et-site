@@ -304,7 +304,7 @@ export const PILLAR_CONFIGS: Record<ContentPillar, PillarConfig> = {
     description:
       "Fragments of ET's past — the crash, his parents, half-memories, feelings without context. These reveal ONE small detail at a time. Never exposition dumps. Fragments, not chapters. But here's the key: the emotional weight is delivered THROUGH humor, not instead of it. ET processes his trauma the way funny people do — by making it land with a punchline or an absurd observation. The sadness hits BECAUSE he's being funny about it, not despite it.",
     tone: "Funny-sad. Self-deprecating, wry, absurd. Think: a comedian doing a tight five about losing his memory and being stranded on an alien planet. The humor IS the vulnerability. If a lore tweet is just sad with no wit, it fails. The best ones make you laugh and then realize you're a little devastated.",
-    dailyTarget: { min: 0, max: 1 }
+    dailyTarget: { min: 0, max: 1 },
     model: "opus",
     generateImage: true, // Candid disposable-camera snapshot photos of ET (dry run only)
     exampleTweets: [
